@@ -26,6 +26,7 @@
             <option value="deepseek">DeepSeek</option>
             <option value="openai">OpenAI</option>
             <option value="claude">Anthropic Claude</option>
+            <option value="zai">z.ai</option>
           </select>
         </div>
         <div id="ollama-settings" class="provider-settings">
@@ -106,11 +107,57 @@
           </div>
         </div>
 
+        <!-- z.ai Settings -->
+        <div id="zai-settings" class="provider-settings" style="display: none;">
+          <div class="form-group">
+            <label for="zai-api-key">z.ai API Key:</label>
+            <input type="password" id="zai-api-key" name="zai-api-key">
+          </div>
+          <div class="form-group">
+            <label for="zai-model">Model:</label>
+            <select id="zai-model" name="zai-model">
+              <!-- Wird dynamisch befüllt -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="zai-variant">Variant:</label>
+            <select id="zai-variant" name="zai-variant">
+              <option value="paas">PaaS (Pay-per-use)</option>
+              <option value="coding">Coding Plan (Subscription)</option>
+            </select>
+          </div>
+          <div class="help-section">
+            <p><b>Privacy Notice:</b> By using z.ai, the content of your emails will be sent to and processed by a third-party service (<a href="https://z.ai/" target="_blank">z.ai</a>). This includes potentially sensitive data.</p>
+          </div>
+        </div>
+
         <div class="form-group">
           <button type="submit">Save General Settings</button>
           <span id="general-status-message"></span>
         </div>
       </form>
+
+      <hr>
+
+      <div class="batch-analysis-container">
+        <h2>Batch Email Analysis</h2>
+        <div class="form-group">
+          <button type="button" id="analyze-all-btn" aria-label="Analyze all emails">
+            Analysiere alle E-Mails
+          </button>
+          <button type="button" id="cancel-analysis-btn" style="display: none;" aria-label="Cancel analysis">
+            Abbrechen
+          </button>
+        </div>
+        <div class="form-group">
+          <label for="analyze-progress">Fortschritt:</label>
+          <progress id="analyze-progress" value="0" max="100" style="display: none;"></progress>
+          <span id="analyze-progress-text"></span>
+        </div>
+        <div class="form-group">
+          <span id="analyze-status-message" class="help-text" aria-live="polite"></span>
+        </div>
+      </div>
     </div>
 
     <!-- Custom Tags Tab -->

@@ -1,5 +1,6 @@
 import { DEFAULTS } from './core/config.js';
 import {ensureTagsExist} from "./core/tags";
+import { logger } from './providers/utils.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   // --- General Settings Elements ---
@@ -100,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         permissionGranted = await messenger.permissions.request({ origins: [permissionOrigin] });
       } catch (e) {
-        console.error("Error requesting permission:", e);
+        logger.error("Error requesting permission", { error: e.message });
         statusMessage.textContent = 'Error with permission request.';
         permissionGranted = false;
       }
@@ -112,7 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusMessage.textContent = 'Settings saved!';
         setTimeout(() => { statusMessage.textContent = ''; }, 3000);
       } catch (e) {
-        console.error("Error saving settings:", e);
+        logger.error("Error saving settings", { error: e.message });
         statusMessage.textContent = 'Error saving settings.';
       }
     } else {

@@ -4,12 +4,23 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "type-check": "tsc --noEmit",
+    "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
+    "clean": "node scripts/clean.js",
+    "package": "node scripts/package.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/html-to-text": "^9.0.4",
+    "@types/node": "^20.19.27",
+    "@types/webextension-polyfill": "^0.10.7",
+    "archiver": "^7.0.1",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
     "web-ext": "^8.8.0",
     "webpack": "^5.99.9",
     "webpack-cli": "^6.0.1"
