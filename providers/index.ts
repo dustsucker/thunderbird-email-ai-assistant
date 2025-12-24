@@ -13,7 +13,7 @@ export type { TagResponse };
 import { analyzeWithOllama } from './ollama';
 import { analyzeWithOpenAI } from './openai';
 import { analyzeWithGemini } from './gemini';
-import { analyzeWithClaude } from './claude';
+import { analyzeWithClaude } from './ClaudeProvider';
 import { analyzeWithMistral } from './mistral';
 import { analyzeWithDeepseek } from './deepseek';
 import { analyzeWithZai, ZaiSettings } from './zai';
@@ -134,27 +134,13 @@ export function getDeepseekSettings(config: ProviderConfig): GetProviderSettings
  * This map ensures type-safe provider lookup and selection
  */
 export const PROVIDER_REGISTRY: ProviderRegistry = {
-  [Provider.OLLAMA]: ((settings: unknown, structuredData: StructuredEmailData, customTags: CustomTags) => 
-    analyzeWithOllama(settings as GetProviderSettings<Provider.OLLAMA>, structuredData, customTags)
-  ) as ProviderFunction,
-  [Provider.OPENAI]: ((settings: unknown, structuredData: StructuredEmailData, customTags: CustomTags) => 
-    analyzeWithOpenAI(settings as GetProviderSettings<Provider.OPENAI>, structuredData, customTags)
-  ) as ProviderFunction,
-  [Provider.GEMINI]: ((settings: unknown, structuredData: StructuredEmailData, customTags: CustomTags) => 
-    analyzeWithGemini(settings as GetProviderSettings<Provider.GEMINI>, structuredData, customTags)
-  ) as ProviderFunction,
-  [Provider.CLAUDE]: ((settings: unknown, structuredData: StructuredEmailData, customTags: CustomTags) => 
-    analyzeWithClaude(settings as ProviderConfig, structuredData, customTags)
-  ) as ProviderFunction,
-  [Provider.MISTRAL]: ((settings: unknown, structuredData: StructuredEmailData, customTags: CustomTags) => 
-    analyzeWithMistral(settings as GetProviderSettings<Provider.MISTRAL>, structuredData, customTags)
-  ) as ProviderFunction,
-  [Provider.DEEPSEEK]: ((settings: unknown, structuredData: StructuredEmailData, customTags: CustomTags) => 
-    analyzeWithDeepseek(settings as GetProviderSettings<Provider.DEEPSEEK>, structuredData, customTags)
-  ) as ProviderFunction,
-  [Provider.ZAI]: ((settings: unknown, structuredData: StructuredEmailData, customTags: CustomTags) => 
-    analyzeWithZai(settings as GetProviderSettings<Provider.ZAI>, structuredData, customTags)
-  ) as ProviderFunction,
+  [Provider.OLLAMA]: analyzeWithOllama as ProviderFunction,
+  [Provider.OPENAI]: analyzeWithOpenAI as ProviderFunction,
+  [Provider.GEMINI]: analyzeWithGemini as ProviderFunction,
+  [Provider.CLAUDE]: analyzeWithClaude as ProviderFunction,
+  [Provider.MISTRAL]: analyzeWithMistral as ProviderFunction,
+  [Provider.DEEPSEEK]: analyzeWithDeepseek as ProviderFunction,
+  [Provider.ZAI]: analyzeWithZai as ProviderFunction,
 } as const;
 
 /**

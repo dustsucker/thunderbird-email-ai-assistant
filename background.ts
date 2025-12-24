@@ -16,13 +16,16 @@ import {
 } from './core/tags';
 import {
   PROVIDER_ENGINES,
-  ProviderFunction
+  ProviderFunction,
+  isValidProvider as isProviderValid,
+  AVAILABLE_PROVIDERS
 } from './providers/index';
 import {
   logger,
   logAndDisplayError,
   ErrorType,
-  ShowErrorRuntimeMessage
+  ShowErrorRuntimeMessage,
+  ErrorSeverity
 } from './providers/utils';
 
 // ============================================================================
@@ -45,6 +48,9 @@ interface Messenger {
       create(key: string, tag: string, color: string): Promise<void>;
       list(): Promise<any[]>;
     };
+  };
+  messageDisplay: {
+    getDisplayedMessage(tabId?: number): Promise<{ id: number } | null>;
   };
   folders: {
     query(query: any): Promise<MailFolder[]>;
@@ -80,6 +86,9 @@ interface Messenger {
 interface BrowserAction {
   setBadgeText(options: { text: string }): Promise<void>;
   setBadgeBackgroundColor(options: { color: string }): Promise<void>;
+  onClicked?: {
+    addListener(callback: (tab: any) => void): void;
+  };
 }
 
 // ============================================================================
@@ -141,6 +150,7 @@ interface Folder {
 
 interface MailFolder {
   accountId: string;
+  id: string;
   path: string;
   name: string;
   type: string;
@@ -470,6 +480,19 @@ declare const browser: any;
 logger.info("Spam-Filter Extension: Background script loaded.");
 
 // ============================================================================
+// PROVIDER VALIDATION HELPER
+// ============================================================================
+
+/**
+ * Validates if a provider string is a valid provider name
+ * @param provider - Provider name to validate
+ * @returns True if provider is valid, false otherwise
+ */
+function isValidProvider(provider: string): boolean {
+  return isProviderValid(provider);
+}
+
+// ============================================================================
 // RATE LIMITER CLASS
 // ============================================================================
 
@@ -579,6 +602,11 @@ class RateLimiter {
    * @returns Promise resolving to function result
    */
   async execute<T>(provider: string, requestFn: () => Promise<T>, priority: Priority = 1): Promise<T> {
+    // Defensive Check: Provider muss in der Konfiguration existieren
+    if (!(provider in this.queues)) {
+      throw new Error(`Provider '${provider}' not configured in RateLimiter. Valid providers: ${Object.keys(this.queues).join(', ')}`);
+    }
+
     return new Promise<T>((resolve, reject) => {
       this.queues[provider].push({ fn: requestFn, resolve, reject, priority });
       this.queues[provider].sort((a, b) => b.priority - a.priority);
@@ -597,7 +625,12 @@ const rateLimiter = new RateLimiter({
   ollama: { limit: 1000, window: 60000 },
   mistral: { limit: 50, window: 60000 },
   deepseek: { limit: 50, window: 60000 },
-  gemini: { limit: 50, window: 60000 }
+  gemini: { limit: 50, window: 60000 },
+  zai: { limit: 50, window: 60000 }
+});
+
+logger.info('Rate limiter configured', {
+  providers: Object.keys(rateLimiter.buckets).join(', ')
 });
 
 // ============================================================================
@@ -696,35 +729,52 @@ async function analyzeEmail(
     attachmentCount: structuredData.attachments.length,
   });
 
-  if (engine) {
-    logger.info(`Using provider: ${settings.provider}`);
-    try {
-      await updateBadge('processing');
-      logger.info('API call started', { provider: settings.provider, priority });
-      const result = await rateLimiter.execute(
-        settings.provider!,
-        () => engine(settings, providerData, settings.customTags || DEFAULTS.customTags),
-        priority
-      ) as ExtendedAnalysisResult;
-      logger.info('API call completed successfully', {
-        provider: settings.provider,
-        tagsFound: result.tags?.length || 0,
-        confidence: result.confidence,
-      });
-      await updateBadge('success');
-      return result;
-    } catch (error) {
-      logAndDisplayError(error, ErrorType.PROVIDER, {
-        provider: settings.provider,
-        priority,
-        action: 'email_analysis',
-      });
-      await updateBadge('error');
-      throw error;
-    }
-  } else {
-    const error = `No analysis engine found for provider: ${settings.provider}`;
-    logAndDisplayError(error, ErrorType.SYSTEM, { provider: settings.provider });
+  // Provider-Validierung
+  if (!settings.provider || !isValidProvider(settings.provider)) {
+    const error = `Invalid or missing provider configured: ${settings.provider || 'undefined'}. Please check your settings.`;
+    await logAndDisplayError(
+      error,
+      ErrorType.PROVIDER,
+      { provider: settings.provider },
+      ErrorSeverity.WARNING
+    );
+    return null;
+  }
+
+  if (!engine) {
+    const error = `Provider function not found for: ${settings.provider}`;
+    await logAndDisplayError(
+      error,
+      ErrorType.PROVIDER,
+      { provider: settings.provider },
+      ErrorSeverity.WARNING
+    );
+    return null;
+  }
+
+  // Provider und Engine sind validiert - führe Analysis aus
+  logger.info(`Using provider: ${settings.provider}`);
+  try {
+    await updateBadge('processing');
+    logger.info('API call started', { provider: settings.provider, priority });
+    const result = await rateLimiter.execute(
+      settings.provider!,
+      () => engine(settings, providerData, settings.customTags || DEFAULTS.customTags),
+      priority
+    ) as ExtendedAnalysisResult;
+    logger.info('API call completed successfully', {
+      provider: settings.provider,
+      tagsFound: result.tags?.length || 0,
+      confidence: result.confidence,
+    });
+    await updateBadge('success');
+    return result;
+  } catch (error) {
+    logAndDisplayError(error, ErrorType.PROVIDER, {
+      provider: settings.provider,
+      priority,
+      action: 'email_analysis',
+    }, `AI provider error: ${error instanceof Error ? error.message : String(error)}`);
     await updateBadge('error');
     return null;
   }
@@ -761,6 +811,95 @@ function calculatePriority(headers: EmailHeaders): Priority {
   }
 
   return priority;
+}
+
+// ============================================================================
+// SINGLE MESSAGE ANALYSIS
+// ============================================================================
+
+/**
+ * Analyzes a single message and applies tags
+ * @param messageId - The ID of the message to analyze
+ * @returns Promise resolving to success status and message
+ */
+async function analyzeSingleMessage(messageId: number): Promise<{ success: boolean; message: string }> {
+  logger.info('Single message analysis started', { messageId });
+
+  try {
+    const fullMessage = await messenger.messages.getFull(messageId);
+    const { body, attachments } = findEmailParts(fullMessage.parts);
+
+    const structuredData: AnalysisData = {
+      headers: fullMessage.headers,
+      body: body,
+      attachments: attachments
+    };
+
+    const priority = calculatePriority(fullMessage.headers);
+    const analysis = await analyzeEmail(structuredData, priority);
+
+    if (!analysis) {
+      logger.warn('Analysis returned null', { messageId });
+      return {
+        success: false,
+        message: 'Analysis failed: No result returned from AI provider'
+      };
+    }
+
+    if (!isExtendedAnalysisResult(analysis)) {
+      throw new Error('Analysis result has unexpected structure');
+    }
+
+    const storageResult = await messenger.storage.local.get({ customTags: DEFAULTS.customTags }) as { customTags: CustomTags };
+    const customTags = storageResult.customTags ?? DEFAULTS.customTags;
+    const messageDetails: MessageDetails = await messenger.messages.get(messageId);
+    const tagSet: Set<string> = new Set(messageDetails.tags ?? []);
+
+    if (analysis.is_scam === true || analysis.spf_pass === false || analysis.dkim_pass === false) {
+      tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.is_scam.key);
+    }
+    if (analysis.spf_pass === false) {
+      tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.spf_fail.key);
+    }
+    if (analysis.dkim_pass === false) {
+      tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.dkim_fail.key);
+    }
+
+    for (const tag of customTags) {
+      const tagValue = analysis[tag.key];
+      if (isBoolean(tagValue) && tagValue === true) {
+        tagSet.add(TAG_KEY_PREFIX + tag.key);
+      }
+    }
+
+    tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.tagged.key);
+
+    await messenger.messages.update(messageId, { tags: Array.from(tagSet) });
+    logger.info('Single message tagged successfully', {
+      messageId,
+      tagSet: Array.from(tagSet)
+    });
+
+    await showNotification(
+      'AI-Analyse abgeschlossen',
+      'E-Mail erfolgreich analysiert und getaggt',
+      'info'
+    );
+
+    return {
+      success: true,
+      message: 'Message analyzed and tagged successfully'
+    };
+  } catch (error) {
+    logAndDisplayError(error, ErrorType.PROVIDER, {
+      messageId,
+      action: 'single_message_analysis',
+    }, 'Single message analysis failed');
+    return {
+      success: false,
+      message: `Analysis failed: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
 }
 
 // ============================================================================
@@ -947,7 +1086,6 @@ function registerFolderContextMenu(): void {
     contexts: ['folder_pane'],
     visible: true
   }, () => {
-    // Note: browser.runtime.lastError is valid for WebExtensions API
     if (browser.runtime && browser.runtime.lastError) {
       logAndDisplayError(
         browser.runtime.lastError,
@@ -960,13 +1098,51 @@ function registerFolderContextMenu(): void {
     }
   });
 
+  messenger.menus.create({
+    id: 'analyze-single-message-list',
+    title: 'AI-Analyse',
+    contexts: ['message_list'],
+    visible: true
+  }, () => {
+    if (browser.runtime && browser.runtime.lastError) {
+      logAndDisplayError(
+        browser.runtime.lastError,
+        ErrorType.SYSTEM,
+        { action: 'create_context_menu' },
+        'Failed to create message list context menu'
+      );
+    } else {
+      logger.info('Message list context menu registered successfully');
+    }
+  });
+
+  messenger.menus.create({
+    id: 'analyze-single-message-display',
+    title: 'AI-Analyse',
+    contexts: ['message_display_action_menu'],
+    visible: true
+  }, () => {
+    if (browser.runtime && browser.runtime.lastError) {
+      logAndDisplayError(
+        browser.runtime.lastError,
+        ErrorType.SYSTEM,
+        { action: 'create_context_menu' },
+        'Failed to create message display context menu'
+      );
+    } else {
+      logger.info('Message display context menu registered successfully');
+    }
+  });
+
   messenger.menus.onClicked.addListener(async (info: any, tab: any) => {
+    const menuItemId = info.menuItemId as string;
     const folderInfo = info as FolderMenuOnClickData;
-    if (folderInfo.menuItemId === 'batch-analyze-folder' && folderInfo.selectedFolders) {
+
+    if (menuItemId === 'batch-analyze-folder' && folderInfo.selectedFolders) {
       const folders = folderInfo.selectedFolders;
       if (folders.length > 0) {
         const folder = folders[0];
-        const folderId = folder.accountId;
+        const folderId = folder.id;
         logger.info('Context menu: Starting batch analysis for folder', {
           folderId,
           folderName: folder.name,
@@ -987,6 +1163,24 @@ function registerFolderContextMenu(): void {
             folderName: folder.name,
             folderId,
           }, `Batch-Analysis fehlgeschlagen: ${result.error || 'Unbekannter Fehler'}`);
+        }
+      }
+    }
+
+    if ((menuItemId === 'analyze-single-message-list' || menuItemId === 'analyze-single-message-display') && info.selectedMessages) {
+      const messages = info.selectedMessages;
+      if (messages && messages.length > 0) {
+        const messageId = messages[0].id;
+        logger.info('Context menu: Starting single message analysis', { messageId });
+
+        const result = await analyzeSingleMessage(messageId);
+
+        if (result.success) {
+          logger.info('Context menu: Single message analysis completed', { messageId });
+        } else {
+          logAndDisplayError(result.message, ErrorType.USER, {
+            messageId,
+          }, `Einzelne Nachricht Analyse fehlgeschlagen: ${result.message}`);
         }
       }
     }
@@ -1182,13 +1376,20 @@ async function collectAllMessages(): Promise<Array<{ id: number }>> {
     
     for (const folder of folders) {
       try {
-        const result = await messenger.messages.list(folder.accountId);
+        logger.info('Collecting messages from folder', {
+          accountId: folder.accountId,
+          folderId: folder.id,
+          folderName: folder.name,
+          folderPath: folder.path
+        });
+        const result = await messenger.messages.list(folder.id);
         if (result.messages && result.messages.length > 0) {
           allMessages.push(...result.messages);
         }
       } catch (error) {
         logger.warn('Failed to list messages for folder', {
-          folderId: folder.accountId,
+          accountId: folder.accountId,
+          folderId: folder.id,
           folderName: folder.name,
           error: error instanceof Error ? error.message : String(error)
         });
@@ -1630,3 +1831,41 @@ logger.info('Spam-Filter Extension: Batch analysis API registered');
 ensureTagsExist();
 
 registerFolderContextMenu();
+
+const browserAction = messenger.browserAction || messenger.action;
+if (browserAction && browserAction.onClicked) {
+  browserAction.onClicked.addListener(async (tab: any) => {
+    try {
+      logger.info('Toolbar button clicked', { tabId: tab.id, tabType: tab.type });
+
+      const displayedMessage = await messenger.messageDisplay.getDisplayedMessage(tab.id);
+
+      if (!displayedMessage) {
+        await showNotification('Keine Nachricht', 'Keine Nachricht in diesem Tab angezeigt', 'error');
+        logger.info('No message displayed in tab');
+        return;
+      }
+
+      const messageId = displayedMessage.id;
+      logger.info('Toolbar button: Starting single message analysis', { messageId });
+
+      const result = await analyzeSingleMessage(messageId);
+
+      if (result.success) {
+        logger.info('Toolbar button: Single message analysis completed', { messageId });
+      } else {
+        logAndDisplayError(result.message, ErrorType.USER, {
+          messageId,
+        }, `Einzelne Nachricht Analyse fehlgeschlagen: ${result.message}`);
+      }
+    } catch (error) {
+      logAndDisplayError(error, ErrorType.SYSTEM, {
+        action: 'toolbar_button_click',
+      }, 'Fehler beim Klicken auf den Toolbar-Button');
+    }
+  });
+
+  logger.info('Toolbar button registered successfully');
+} else {
+  logger.warn('Browser action API not available for toolbar button');
+}
