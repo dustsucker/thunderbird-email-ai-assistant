@@ -4,7 +4,7 @@ import { retryWithBackoff, validateLLMResponse, logger, maskApiKey } from './uti
 
 const ZAI_PAAS_API_URL = 'https://api.z.ai/api/paas/v4/chat/completions';
 const ZAI_CODING_API_URL = 'https://api.z.ai/api/coding/paas/v4/chat/completions';
-const DEFAULT_TIMEOUT = 30000;
+const DEFAULT_TIMEOUT = 300000;
 const DEFAULT_MODEL = 'glm-4.5';
 const DEFAULT_VARIANT: 'paas' | 'coding' = 'paas';
 
@@ -213,13 +213,13 @@ export async function analyzeWithZai(
   settings: ZaiSettings,
   structuredData: StructuredEmailData,
   customTags: CustomTags
-): Promise<AnalyzeWithZaiOutput | null> {
+): Promise<AnalyzeWithZaiOutput> {
   const prompt = buildPrompt(structuredData, customTags);
   const { zaiApiKey, zaiBaseUrl, zaiModel = DEFAULT_MODEL, zaiVariant = DEFAULT_VARIANT } = settings;
 
   if (!isNonEmptyString(zaiApiKey)) {
     logger.error("Z.ai Error: API key is not set.");
-    return null;
+    throw new Error('Z.ai Error: API key is not set');
   }
 
   const apiUrl = getZaiApiUrl(zaiVariant, zaiBaseUrl);
@@ -238,7 +238,7 @@ export async function analyzeWithZai(
         messages: [
           {
             role: 'system',
-            content: 'You are an email analysis assistant that tags emails based on their content. Your task is to analyze the provided email data and respond only with a single, clean JSON object that strictly follows the requested schema. Do not include any conversational text, markdown formatting, or explanations in your response.'
+            content: 'You are an email analysis assistant. Your ONLY task is to analyze the provided email data and respond with a single, valid JSON object. Return NOTHING except the JSON object - no conversational text, no markdown formatting (no ```json``` blocks), no explanations, no greetings, no "Here is the analysis" text. The response MUST start directly with { and end with }. Ensure all required fields are present with correct data types.'
           },
           {
             role: 'user',
@@ -315,6 +315,10 @@ export async function analyzeWithZai(
       model: zaiModel,
       variant: zaiVariant,
     });
-    return null;
+    // Re-throw the error with context
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(errorMessage);
   }
 }

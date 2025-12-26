@@ -25,12 +25,13 @@ import { analyzeWithZai, ZaiSettings } from './zai';
 /**
  * Unified provider function signature for all AI providers
  * All providers must conform to this interface
+ * Note: Provider functions now throw errors instead of returning null
  */
 export type ProviderFunction = (
   settings: unknown,
   structuredData: StructuredEmailData,
   customTags: CustomTags
-) => Promise<TagResponse | null>;
+) => Promise<TagResponse>;
 
 /**
  * Provider settings type mapping
@@ -236,7 +237,8 @@ export function getProviderSettings<T extends Provider>(
  * @param config - Full provider configuration
  * @param structuredData - Email data including headers, body, and attachments
  * @param customTags - Array of custom tag configurations for analysis
- * @returns Promise resolving to validated LLM response, or null on error
+ * @returns Promise resolving to validated LLM response
+ * @throws {Error} If provider settings are invalid, API request fails, or response parsing fails
  *
  * @example
  * const result = await analyzeEmail(
@@ -251,7 +253,7 @@ export async function analyzeEmail(
   config: ProviderConfig,
   structuredData: StructuredEmailData,
   customTags: CustomTags
-): Promise<TagResponse | null> {
+): Promise<TagResponse> {
   const providerFn = getProvider(provider);
   const settings = getProviderSettings(provider, config);
 

@@ -402,6 +402,7 @@ type RuntimeMessage =
   | StartBatchAnalysisMessage
   | GetBatchProgressMessage
   | CancelBatchAnalysisMessage
+  | ClearQueueMessage
   | ShowErrorRuntimeMessage;
 
 /**
@@ -427,11 +428,38 @@ interface CancelBatchAnalysisMessage {
 }
 
 /**
+ * Clear queue message
+ */
+interface ClearQueueMessage {
+  action: 'clearQueue';
+  cancelRunning?: boolean;
+}
+
+/**
+ * Clear queue result
+ */
+interface ClearQueueResult {
+  success: boolean;
+  clearedTasks: number;
+  cancelledProviders: string[];
+  providers: Record<string, { queueLength: number; isProcessing: boolean }>;
+}
+
+/**
+ * Clear queue message
+ */
+interface ClearQueueMessage {
+  action: 'clearQueue';
+  cancelRunning?: boolean;
+}
+
+/**
  * Discriminated union for runtime message responses
  */
 type RuntimeMessageResponse =
   | BatchAnalysisStartResult
   | BatchAnalysisProgress
+  | ClearQueueResult
   | { success: boolean; message: string };
 
 /**
@@ -467,6 +495,18 @@ function isCancelBatchAnalysisMessage(message: unknown): message is CancelBatchA
     message !== null &&
     'action' in message &&
     (message as Record<string, unknown>).action === 'cancelBatchAnalysis'
+  );
+}
+
+/**
+ * Type guard for ClearQueueMessage
+ */
+function isClearQueueMessage(message: unknown): message is ClearQueueMessage {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'action' in message &&
+    (message as Record<string, unknown>).action === 'clearQueue'
   );
 }
 
@@ -612,6 +652,63 @@ class RateLimiter {
       this.queues[provider].sort((a, b) => b.priority - a.priority);
       this.processQueue(provider);
     });
+  }
+
+  /**
+   * Clears all queues and optionally cancels running processes
+   * @param cancelRunning - Whether to reject pending tasks and clear processing promises
+   * @returns Statistics about cleared queues
+   */
+  clearQueue(cancelRunning: boolean = false): {
+    clearedTasks: number;
+    cancelledProviders: string[];
+    providers: Record<string, { queueLength: number; isProcessing: boolean }>;
+  } {
+    let clearedTasks = 0;
+    const cancelledProviders: string[] = [];
+    const providers: Record<string, { queueLength: number; isProcessing: boolean }> = {};
+
+    for (const provider in this.queues) {
+      const queueLength = this.queues[provider].length;
+      const isProcessing = this.processing[provider] !== null;
+
+      clearedTasks += queueLength;
+
+      // Reject all pending tasks in the queue
+      if (cancelRunning && queueLength > 0) {
+        for (const task of this.queues[provider]) {
+          task.reject(new Error('Queue cleared'));
+        }
+      }
+
+      // Clear the queue
+      this.queues[provider] = [];
+
+      // Cancel running processes if requested
+      if (cancelRunning && isProcessing) {
+        // We can't actually cancel the running promise, but we clear the processing flag
+        // This will prevent new tasks from being processed after current one completes
+        this.processing[provider] = null;
+        cancelledProviders.push(provider);
+      }
+
+      providers[provider] = {
+        queueLength: queueLength,
+        isProcessing: isProcessing
+      };
+    }
+
+    logger.info('Rate limiter queues cleared', {
+      clearedTasks,
+      cancelledProviders,
+      providers
+    });
+
+    return {
+      clearedTasks,
+      cancelledProviders,
+      providers
+    };
   }
 }
 
@@ -909,7 +1006,7 @@ async function analyzeSingleMessage(messageId: number): Promise<{ success: boole
 /**
  * Constant for maximum batch size
  */
-const MAX_BATCH_SIZE = 10;
+const MAX_BATCH_SIZE = 1; // Zum Testen: 1 E-Mail gleichzeitig verarbeiten
 
 /**
  * Analyzes multiple messages in batches with parallel processing
@@ -1746,6 +1843,33 @@ async function cancelBatchAnalysis(): Promise<{ success: boolean; message: strin
   }
 }
 
+/**
+ * Clears all queues in the rate limiter
+ * @param cancelRunning - Whether to cancel running processes
+ * @returns Promise resolving to clear queue result
+ */
+async function clearQueue(cancelRunning: boolean = false): Promise<ClearQueueResult> {
+  try {
+    const result = rateLimiter.clearQueue(cancelRunning);
+
+    return {
+      success: true,
+      ...result
+    };
+  } catch (error) {
+    logger.error('Failed to clear queues', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+
+    return {
+      success: false,
+      clearedTasks: 0,
+      cancelledProviders: [],
+      providers: {}
+    };
+  }
+}
+
 // ============================================================================
 // RUNTIME MESSAGE HANDLERS
 // ============================================================================
@@ -1777,6 +1901,12 @@ async function handleRuntimeMessage(
 
     if (isCancelBatchAnalysisMessage(message)) {
       const result = await cancelBatchAnalysis();
+      sendResponse(result);
+      return false;
+    }
+
+    if (isClearQueueMessage(message)) {
+      const result = await clearQueue(message.cancelRunning ?? false);
       sendResponse(result);
       return false;
     }

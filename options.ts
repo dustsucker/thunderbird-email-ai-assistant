@@ -96,6 +96,7 @@ interface TabElements {
 interface BatchAnalysisElements {
   analyzeAllBtn: HTMLButtonElement;
   cancelAnalysisBtn: HTMLButtonElement;
+  killQueueBtn: HTMLButtonElement;
   analyzeProgress: HTMLProgressElement;
   analyzeProgressText: HTMLSpanElement;
   analyzeStatusMessage: HTMLSpanElement;
@@ -284,6 +285,7 @@ type BatchRuntimeMessage =
   | { action: 'startBatchAnalysis'; folderId?: string }
   | { action: 'getBatchProgress' }
   | { action: 'cancelBatchAnalysis' }
+  | { action: 'clearQueue'; cancelRunning?: boolean }
   | ShowErrorRuntimeMessage;
 
 /**
@@ -467,11 +469,12 @@ function getAllDOMElements(): DOMElements {
 
   const analyzeAllBtn = getElementById<HTMLButtonElement>('analyze-all-btn');
   const cancelAnalysisBtn = getElementById<HTMLButtonElement>('cancel-analysis-btn');
+  const killQueueBtn = getElementById<HTMLButtonElement>('kill-queue-btn');
   const analyzeProgress = getElementById<HTMLProgressElement>('analyze-progress');
   const analyzeProgressText = getElementById<HTMLSpanElement>('analyze-progress-text');
   const analyzeStatusMessage = getElementById<HTMLSpanElement>('analyze-status-message');
 
-  if (!analyzeAllBtn || !cancelAnalysisBtn || !analyzeProgress || !analyzeProgressText || !analyzeStatusMessage) {
+  if (!analyzeAllBtn || !cancelAnalysisBtn || !killQueueBtn || !analyzeProgress || !analyzeProgressText || !analyzeStatusMessage) {
     throw new Error('Required batch analysis elements not found');
   }
 
@@ -480,6 +483,7 @@ function getAllDOMElements(): DOMElements {
     ...tag,
     analyzeAllBtn,
     cancelAnalysisBtn,
+    killQueueBtn,
     analyzeProgress,
     analyzeProgressText,
     analyzeStatusMessage,
@@ -968,12 +972,23 @@ function ensureErrorDisplay(): HTMLDivElement {
       <div class="error-display-header">
         <span class="error-display-icon"></span>
         <h3 id="error-display-title"></h3>
-        <button class="error-display-close" onclick="this.closest('.error-display-overlay').remove()">&times;</button>
+        <button class="error-display-close">&times;</button>
       </div>
       <p id="error-display-message"></p>
       <div id="error-display-details" style="margin-top: 10px; font-size: 12px; color: #666;"></div>
     </div>
   `;
+
+  const closeButton = errorOverlay.querySelector('.error-display-close') as HTMLButtonElement;
+  if (closeButton) {
+    closeButton.addEventListener('click', () => {
+      if (errorDisplayElement) {
+        errorDisplayElement.remove();
+        errorDisplayElement = null;
+      }
+    });
+  }
+
   document.body.appendChild(errorOverlay);
   errorDisplayElement = errorOverlay;
   return errorOverlay;
@@ -1155,6 +1170,28 @@ async function handleCancelAnalysisClick(elements: BatchAnalysisElements): Promi
 }
 
 /**
+ * Handles kill queue button click
+ */
+async function handleKillQueueClick(elements: BatchAnalysisElements): Promise<void> {
+  try {
+    const response = await sendMessage<{ success: boolean; message: string }>({
+      action: 'clearQueue',
+      cancelRunning: true
+    });
+
+    if (response.success) {
+      elements.analyzeStatusMessage.textContent = response.message;
+    } else {
+      elements.analyzeStatusMessage.textContent = response.message;
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to clear queue', { error: errorMessage });
+    elements.analyzeStatusMessage.textContent = `Fehler beim Leeren der Queue: ${errorMessage}`;
+  }
+}
+
+/**
  * Checks if provider is configured
  */
 async function checkProviderConfigured(): Promise<boolean> {
@@ -1228,6 +1265,10 @@ async function initializeBatchAnalysis(elements: BatchAnalysisElements): Promise
 
   elements.cancelAnalysisBtn.addEventListener('click', () => {
     handleCancelAnalysisClick(elements);
+  });
+
+  elements.killQueueBtn.addEventListener('click', () => {
+    handleKillQueueClick(elements);
   });
 }
 

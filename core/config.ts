@@ -62,7 +62,7 @@ export interface ProviderConfig {
   mistralApiKey: string;
   deepseekApiKey: string;
   zaiApiKey: string;
-  zaiBaseUrl: string;
+  zaiBaseUrl?: string;
   zaiModel: string;
   zaiVariant: 'paas' | 'coding';
 }
@@ -195,7 +195,7 @@ export const DEFAULTS: Readonly<DefaultConfig> = {
   mistralApiKey: '',
   deepseekApiKey: '',
   zaiApiKey: '',
-  zaiBaseUrl: 'https://api.z.ai/api/paas/v4/chat/completions',
+  zaiBaseUrl: undefined,
   zaiModel: 'glm-4.5',
   zaiVariant: 'paas' as const,
   customTags: DEFAULT_CUSTOM_TAGS,

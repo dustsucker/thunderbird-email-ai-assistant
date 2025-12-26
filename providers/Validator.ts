@@ -261,15 +261,37 @@ export function isDeepseekResponse(data: unknown): data is DeepseekResponse {
 }
 
 export function isZaiResponse(data: unknown): data is ZaiResponse {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'choices' in data &&
-    Array.isArray((data as ZaiResponse).choices) &&
-    (data as ZaiResponse).choices.length > 0 &&
-    'message' in (data as ZaiResponse).choices[0] &&
-    'usage' in data
-  );
+  if (typeof data !== 'object' || data === null) {
+    return false;
+  }
+  
+  const obj = data as Record<string, unknown>;
+  
+  // Prüfe choices Array
+  if (!('choices' in obj) || !Array.isArray(obj.choices) || obj.choices.length === 0) {
+    return false;
+  }
+  
+  const firstChoice = obj.choices[0] as Record<string, unknown>;
+  
+  // Prüfe message Object
+  if (!('message' in firstChoice) || typeof firstChoice.message !== 'object' || firstChoice.message === null) {
+    return false;
+  }
+  
+  const message = firstChoice.message as Record<string, unknown>;
+  
+  // Prüfe content STRING!
+  if (!('content' in message) || typeof message.content !== 'string') {
+    return false;
+  }
+  
+  // Prüfe usage
+  if (!('usage' in obj) || typeof obj.usage !== 'object') {
+    return false;
+  }
+  
+  return true;
 }
 
 export type ApiResponse = OpenAIResponse | GeminiResponse | ClaudeResponse | MistralResponse | OllamaResponse | DeepseekResponse | ZaiResponse;

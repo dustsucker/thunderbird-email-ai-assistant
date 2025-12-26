@@ -41,8 +41,9 @@ export interface AnalyzeInput {
 
 /**
  * Output type for analyze method
+ * Note: analyze() now throws errors instead of returning null
  */
-export type AnalyzeOutput = TagResponse | null;
+export type AnalyzeOutput = TagResponse;
 
 /**
  * HTTP headers for API requests
@@ -60,7 +61,7 @@ export interface FetchOptions extends Omit<RequestInit, 'headers'> {
 // DEFAULT CONFIGURATION
 // ============================================================================
 
-const DEFAULT_TIMEOUT = 30000 as const;
+const DEFAULT_TIMEOUT = 300000 as const;
 const DEFAULT_RETRY_CONFIG = {
   maxRetries: 3,
   baseDelay: 1000,
@@ -336,7 +337,7 @@ export abstract class BaseProvider {
 
       if (!this.validateSettings(settings)) {
         this.logError('Invalid provider settings', { settings });
-        return null;
+        throw new Error('Invalid provider settings: Missing required API key or model');
       }
 
       const prompt = this.buildPrompt(structuredData, customTags);
@@ -369,7 +370,11 @@ export abstract class BaseProvider {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined
       });
-      return null;
+      // Re-throw the error with context
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(String(error));
     }
   }
 }

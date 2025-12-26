@@ -7,10 +7,11 @@ import { Validator, isZaiResponse, ZaiResponse } from './Validator';
 
 const ZAI_PAAS_API_URL = 'https://api.z.ai/api/paas/v4/chat/completions' as const;
 const ZAI_CODING_API_URL = 'https://api.z.ai/api/coding/paas/v4/chat/completions' as const;
-const ZAI_MODELS_API_URL = 'https://api.z.ai/api/coding/paas/v4/models' as const;
+const ZAI_PAAS_MODELS_API_URL = 'https://api.z.ai/api/paas/v4/models' as const;
+const ZAI_CODING_MODELS_API_URL = 'https://api.z.ai/api/coding/paas/v4/models' as const;
 const DEFAULT_MODEL = 'glm-4.5' as const;
-const DEFAULT_VARIANT = 'coding' as const;
-const DEFAULT_TIMEOUT = 30000;
+const DEFAULT_VARIANT = 'paas' as const;
+const DEFAULT_TIMEOUT = 300000; // 5 Minuten für sehr grosse Modelle
 
 export type ZaiVariant = 'paas' | 'coding';
 
@@ -38,6 +39,7 @@ interface ZaiChatCompletionRequest extends Record<string, unknown> {
   thinking?: ZaiThinking;
   temperature?: number;
   max_tokens?: number;
+  response_format?: { type: 'json_object' | 'text' };
 }
 
 interface ZaiErrorResponse {
@@ -74,10 +76,13 @@ export class ZaiProvider extends BaseProvider {
 
   protected getApiUrl(): string {
     if (this.settings.zaiBaseUrl && Validator.validateApiUrl(this.settings.zaiBaseUrl)) {
+      this.logger.debug('Using custom zaiBaseUrl', { url: this.settings.zaiBaseUrl });
       return this.settings.zaiBaseUrl;
     }
     const variant = this.settings.zaiVariant || DEFAULT_VARIANT;
-    return variant === 'coding' ? ZAI_CODING_API_URL : ZAI_PAAS_API_URL;
+    const apiUrl = variant === 'coding' ? ZAI_CODING_API_URL : ZAI_PAAS_API_URL;
+    this.logger.debug('Using variant-based endpoint', { variant, apiUrl });
+    return apiUrl;
   }
 
   protected getHeaders(settings: BaseProviderSettings): Record<string, string> {
@@ -123,7 +128,7 @@ export class ZaiProvider extends BaseProvider {
       messages: [
         {
           role: 'system',
-          content: 'You are an email analysis assistant that tags emails based on their content. Your task is to analyze the provided email data and respond only with a single, clean JSON object that strictly follows the requested schema. Do not include any conversational text, markdown formatting, or explanations in your response.'
+          content: 'You are an email analysis assistant. Your ONLY task is to analyze the provided email data and respond with a single, valid JSON object. Return NOTHING except the JSON object - no conversational text, no markdown formatting (no ```json``` blocks), no explanations, no greetings, no "Here is the analysis" text. The response MUST start directly with { and end with }. Ensure all required fields are present with correct data types.'
         },
         {
           role: 'user',
@@ -131,7 +136,8 @@ export class ZaiProvider extends BaseProvider {
         }
       ],
       temperature: 0.3,
-      max_tokens: 4000
+      max_tokens: 4000,
+      response_format: { type: 'json_object' }
     };
 
     if (variant === 'coding') {
@@ -159,7 +165,17 @@ export class ZaiProvider extends BaseProvider {
 
     const content = response.choices[0]?.message?.content;
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
-      this.logger.error('Invalid response format: missing content');
+      this.logger.error('Invalid response format: missing content', {
+        fullResponse: JSON.stringify(response, null, 2),
+        responseType: typeof response,
+        hasChoices: 'choices' in response,
+        choicesLength: (response as any).choices?.length,
+        firstChoice: (response as any).choices?.[0],
+        hasMessage: 'message' in (response as any).choices?.[0],
+        message: (response as any).choices?.[0]?.message,
+        messageContent: (response as any).choices?.[0]?.message?.content,
+        hasUsage: 'usage' in response
+      });
       throw new Error('Invalid response format: missing content');
     }
 
@@ -167,6 +183,12 @@ export class ZaiProvider extends BaseProvider {
       const parsedResponse = JSON.parse(content);
       return this.validateResponse(parsedResponse);
     } catch (error) {
+      // Handle abort/timeout errors specifically
+      if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+        this.logger.error('Z.ai API request timeout', { error: error.message });
+        throw new Error('Z.ai API Anfrage wurde abgebrochen (Timeout nach 5 Minuten)...');
+      }
+
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to parse JSON response', { error: errorMessage });
       throw new Error('Failed to parse JSON response');
@@ -189,7 +211,10 @@ export class ZaiProvider extends BaseProvider {
         return this.getFallbackModels();
       }
 
-      const response = await fetch(ZAI_MODELS_API_URL, {
+      const variant = this.settings.zaiVariant || DEFAULT_VARIANT;
+      const modelsApiUrl = variant === 'coding' ? ZAI_CODING_MODELS_API_URL : ZAI_PAAS_MODELS_API_URL;
+
+      const response = await fetch(modelsApiUrl, {
         headers: {
           'Authorization': `Bearer ${apiKey}`
         }
@@ -250,9 +275,9 @@ export async function analyzeWithZai(
   });
 }
 
-export async function fetchZaiModels(apiKey: string, baseUrl?: string): Promise<string[]> {
+export async function fetchZaiModels(apiKey: string, baseUrl?: string, variant?: ZaiVariant): Promise<string[]> {
   try {
-    const url = baseUrl || ZAI_MODELS_API_URL;
+    const url = baseUrl || (variant === 'coding' ? ZAI_CODING_MODELS_API_URL : ZAI_PAAS_MODELS_API_URL);
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${apiKey}`
