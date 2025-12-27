@@ -260,7 +260,21 @@ export class ZaiProvider extends BaseProvider {
   }
 
   private getFallbackModels(): string[] {
-    return ['glm-4.5', 'glm-4.5-air', 'glm-4.5-x', 'glm-4.5-airx', 'glm-4.5-flash'];
+    return [
+      'glm-4.6',
+      'glm-4.6v-flashx',
+      'glm-4.7',
+      'glm-4.5',
+      'glm-4.6v',
+      'glm-4-plus',
+      'glm-4.5v',
+      'glm-4.6v-flash',
+      'autoglm-phone-multilingual',
+      'glm-4.5-air',
+      'glm-4.5-airx',
+      'glm-4.5-flash',
+      'glm-4-32b-0414-128k'
+    ];
   }
 }
 
@@ -313,7 +327,7 @@ export async function fetchZaiModels(
     );
   } catch (error) {
     console.warn('Failed to fetch z.ai models, using fallback:', error);
-    return ['glm-4.5', 'glm-4.5-air', 'glm-4.5-x', 'glm-4.5-airx', 'glm-4.5-flash'];
+    return ['glm-4.5', 'glm-4.5-air', 'glm-4-plus', 'glm-4.5-airx', 'glm-4.5-flash'];
   }
 }
 

@@ -5,6 +5,7 @@ import {
   CustomTags,
   AppConfig,
   Tag,
+  getConcurrencyLimit,
 } from './core/config';
 import { findEmailParts, Attachment, StructuredEmailData } from './core/analysis';
 import { ensureTagsExist } from './core/tags';
@@ -241,6 +242,20 @@ interface RateLimiterQueues {
  */
 interface RateLimiterProcessing {
   [provider: string]: Promise<void> | null;
+}
+
+/**
+ * Model concurrency configuration
+ */
+type ModelConcurrencyConfig = Record<string, number>;
+
+/**
+ * Semaphore state for a model
+ */
+interface ModelSemaphore {
+  active: number;
+  limit: number;
+  waiting: Array<{ resolve: () => void; reject: (reason: unknown) => void }>;
 }
 
 // ============================================================================
@@ -609,20 +624,29 @@ function isValidProvider(provider: string): boolean {
 /**
  * Rate limiter class to manage API request rates per provider
  * Uses token bucket algorithm with priority queue
+ * Extended with per-model concurrency limiting using semaphores
  */
-class RateLimiter {
+export class RateLimiter {
   public readonly buckets: RateLimiterBuckets;
   private readonly queues: RateLimiterQueues;
   private readonly processing: RateLimiterProcessing;
+  private readonly appConfig: AppConfig;
+  private readonly modelSemaphores: Record<string, ModelSemaphore>;
 
   /**
    * Creates a new RateLimiter instance
    * @param config - Rate limiter configuration for each provider
+   * @param appConfig - Application configuration containing model concurrency limits
    */
-  constructor(config: RateLimiterConfigMap) {
+  constructor(
+    config: RateLimiterConfigMap,
+    appConfig: AppConfig
+  ) {
     this.buckets = {};
     this.queues = {};
     this.processing = {};
+    this.appConfig = appConfig;
+    this.modelSemaphores = {};
 
     for (const provider in config) {
       this.buckets[provider] = {
@@ -633,6 +657,64 @@ class RateLimiter {
       };
       this.queues[provider] = [];
       this.processing[provider] = null;
+    }
+  }
+
+  /**
+   * Gets or creates a semaphore for a model
+   * @param provider - Provider name
+   * @param model - Model name
+   * @returns Semaphore for the model
+   */
+  private getSemaphore(provider: string, model: string): ModelSemaphore {
+    const semaphoreKey = `${provider}:${model}`;
+
+    if (!this.modelSemaphores[semaphoreKey]) {
+      const limit = getConcurrencyLimit(this.appConfig, provider, model);
+      this.modelSemaphores[semaphoreKey] = {
+        active: 0,
+        limit,
+        waiting: [],
+      };
+    }
+    return this.modelSemaphores[semaphoreKey];
+  }
+
+  /**
+   * Acquires a semaphore slot for a model
+   * Waits if all slots are occupied
+   * @param provider - Provider name
+   * @param model - Model name
+   * @returns Promise that resolves when a slot is acquired
+   */
+  private async acquireSemaphore(provider: string, model: string): Promise<void> {
+    const semaphore = this.getSemaphore(provider, model);
+
+    if (semaphore.active < semaphore.limit) {
+      semaphore.active++;
+      return;
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      semaphore.waiting.push({ resolve, reject });
+    });
+  }
+
+  /**
+   * Releases a semaphore slot for a model
+   * @param provider - Provider name
+   * @param model - Model name
+   */
+  private releaseSemaphore(provider: string, model: string): void {
+    const semaphore = this.getSemaphore(provider, model);
+    semaphore.active--;
+
+    if (semaphore.waiting.length > 0) {
+      const next = semaphore.waiting.shift();
+      if (next) {
+        semaphore.active++;
+        next.resolve();
+      }
     }
   }
 
@@ -709,12 +791,14 @@ class RateLimiter {
    * @param provider - Provider to execute function for
    * @param requestFn - Async function to execute
    * @param priority - Priority level (higher = more important)
+   * @param model - Optional model name for concurrency limiting
    * @returns Promise resolving to function result
    */
   async execute<T>(
     provider: string,
     requestFn: () => Promise<T>,
-    priority: Priority = 1
+    priority: Priority = 1,
+    model?: string
   ): Promise<T> {
     // Defensive Check: Provider muss in der Konfiguration existieren
     if (!(provider in this.queues)) {
@@ -723,9 +807,23 @@ class RateLimiter {
       );
     }
 
+    // Wrap the request function with semaphore logic if model is specified
+    const wrappedFn = async (): Promise<T> => {
+      if (!model) {
+        return await requestFn();
+      }
+
+      await this.acquireSemaphore(provider, model);
+      try {
+        return await requestFn();
+      } finally {
+        this.releaseSemaphore(provider, model);
+      }
+    };
+
     return new Promise<T>((resolve, reject) => {
       this.queues[provider].push({
-        fn: requestFn,
+        fn: wrappedFn,
         resolve: resolve as (value: unknown) => void,
         reject,
         priority,
@@ -799,19 +897,43 @@ class RateLimiter {
 // RATE LIMITER INSTANCE
 // ============================================================================
 
-const rateLimiter = new RateLimiter({
-  openai: { limit: 500, window: 60000 },
-  claude: { limit: 50, window: 60000 },
-  ollama: { limit: 1000, window: 60000 },
-  mistral: { limit: 50, window: 60000 },
-  deepseek: { limit: 50, window: 60000 },
-  gemini: { limit: 50, window: 60000 },
-  zai: { limit: 50, window: 60000 },
-});
+let rateLimiterInstance: RateLimiter | null = null;
+let rateLimiterInitialized = false;
 
-logger.info('Rate limiter configured', {
-  providers: Object.keys(rateLimiter.buckets).join(', '),
-});
+async function getRateLimiter(): Promise<RateLimiter> {
+  if (rateLimiterInstance && rateLimiterInitialized) {
+    return rateLimiterInstance;
+  }
+
+  const storage = await messenger.storage.local.get(DEFAULTS);
+  const appConfig = storage as unknown as AppConfig;
+
+  rateLimiterInstance = new RateLimiter(
+    {
+      openai: { limit: 500, window: 60000 },
+      claude: { limit: 50, window: 60000 },
+      ollama: { limit: 1000, window: 60000 },
+      mistral: { limit: 50, window: 60000 },
+      deepseek: { limit: 50, window: 60000 },
+      gemini: { limit: 50, window: 60000 },
+      zai: { limit: 50, window: 60000 },
+    },
+    appConfig
+  );
+
+  rateLimiterInitialized = true;
+
+  logger.info('Rate limiter initialized', {
+    providers: Object.keys(rateLimiterInstance.buckets).join(', '),
+  });
+
+  return rateLimiterInstance;
+}
+
+function resetRateLimiter(): void {
+  rateLimiterInstance = null;
+  rateLimiterInitialized = false;
+}
 
 // ============================================================================
 // BADGE MANAGEMENT
@@ -948,10 +1070,12 @@ async function analyzeEmail(
   try {
     await updateBadge('processing');
     logger.info('API call started', { provider: settings.provider, priority });
-    const result = (await rateLimiter.execute(
+    const limiter = await getRateLimiter();
+    const result = (await limiter.execute(
       settings.provider!,
       () => engine(settings, providerData, settings.customTags || DEFAULTS.customTags),
-      priority
+      priority,
+      settings.model
     )) as ExtendedAnalysisResult;
 
     // Store result in cache after successful analysis
@@ -1918,7 +2042,8 @@ async function cancelBatchAnalysis(): Promise<{ success: boolean; message: strin
  */
 async function clearQueue(cancelRunning: boolean = false): Promise<ClearQueueResult> {
   try {
-    const result = rateLimiter.clearQueue(cancelRunning);
+    const limiter = await getRateLimiter();
+    const result = limiter.clearQueue(cancelRunning);
 
     return {
       success: true,

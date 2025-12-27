@@ -109,7 +109,7 @@ export async function fetchZaiModels(apiKey: string, baseUrl?: string): Promise<
     const FALLBACK_MODELS = [
       'glm-4.5',
       'glm-4.5-air',
-      'glm-4.5-x',
+      'glm-4-plus',
       'glm-4.5-airx',
       'glm-4.5-flash',
     ];

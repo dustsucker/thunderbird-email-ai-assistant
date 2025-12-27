@@ -65,6 +65,7 @@ export interface ProviderConfig {
   zaiBaseUrl?: string;
   zaiModel: string;
   zaiVariant: 'paas' | 'coding';
+  model?: string;
 }
 
 // ============================================================================
@@ -99,8 +100,15 @@ export interface AnalysisFeatures {
 /**
  * Complete application configuration
  */
+export interface ModelConcurrencyConfig {
+  provider: string;
+  model?: string;
+  concurrency: number;
+}
+
 export interface AppConfig extends ProviderConfig, AnalysisFeatures {
   customTags: CustomTags;
+  modelConcurrencyLimits?: ModelConcurrencyConfig[];
 }
 
 /**
@@ -208,6 +216,8 @@ export const DEFAULTS: Readonly<DefaultConfig> = {
   customTags: DEFAULT_CUSTOM_TAGS,
   enableNotifications: true,
   enableLogging: true,
+  model: undefined,
+  modelConcurrencyLimits: undefined,
 } as const;
 
 // ============================================================================
@@ -272,4 +282,62 @@ export function isHardcodedTag(tag: Tag): tag is Tag & { key: HardcodedTagKey } 
  */
 export function isValidColor(color: string): boolean {
   return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
+}
+
+const PROVIDER_DEFAULT_CONCURRENCY: Record<Provider, number> = {
+  [Provider.OLLAMA]: 5,
+  [Provider.OPENAI]: 10,
+  [Provider.GEMINI]: 5,
+  [Provider.CLAUDE]: 5,
+  [Provider.MISTRAL]: 10,
+  [Provider.DEEPSEEK]: 10,
+  [Provider.ZAI]: 5,
+} as const;
+
+export function getConcurrencyLimit(
+  config: AppConfig,
+  provider: string,
+  model: string,
+): number {
+  if (!config.modelConcurrencyLimits) {
+    return PROVIDER_DEFAULT_CONCURRENCY[provider as Provider] ?? 5;
+  }
+
+  const modelConfig = config.modelConcurrencyLimits.find(
+    (c) => c.provider === provider && c.model === model,
+  );
+
+  if (modelConfig && modelConfig.concurrency > 0) {
+    return modelConfig.concurrency;
+  }
+
+  const providerConfig = config.modelConcurrencyLimits.find((c) => c.provider === provider && !c.model);
+
+  if (providerConfig && providerConfig.concurrency > 0) {
+    return providerConfig.concurrency;
+  }
+
+  return PROVIDER_DEFAULT_CONCURRENCY[provider as Provider] ?? 5;
+}
+
+export function validateConcurrencyConfig(config: ModelConcurrencyConfig[]): string[] {
+  const errors: string[] = [];
+
+  for (const entry of config) {
+    if (!isValidProvider(entry.provider)) {
+      errors.push(`Invalid provider: ${entry.provider}`);
+    }
+
+    if (!entry.model && !entry.provider) {
+      errors.push('Either provider or model must be specified');
+    }
+
+    if (entry.concurrency !== undefined && (entry.concurrency < 1 || !Number.isInteger(entry.concurrency))) {
+      errors.push(
+        `Invalid concurrency value for ${entry.provider}/${entry.model}: ${entry.concurrency}. Must be a positive integer.`,
+      );
+    }
+  }
+
+  return errors;
 }
