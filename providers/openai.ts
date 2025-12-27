@@ -1,6 +1,7 @@
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
 import { ProviderConfig, CustomTags } from '../core/config';
 import { retryWithBackoff, validateLLMResponse, logger, maskApiKey } from './utils';
+import { ANALYSIS_SYSTEM_PROMPT } from './constants';
 
 // ============================================================================
 // OPENAI API TYPES
@@ -170,8 +171,8 @@ function isErrorWithMessage(error: unknown): error is { message: string } {
 // CONSTANTS
 // ============================================================================
 
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions" as const;
-const OPENAI_MODEL = "gpt-4o" as const;
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions' as const;
+const OPENAI_MODEL = 'gpt-4o' as const;
 const DEFAULT_TIMEOUT = 30000 as const;
 
 // ============================================================================
@@ -197,7 +198,7 @@ async function fetchWithTimeout(
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response;
@@ -253,7 +254,7 @@ export async function analyzeWithOpenAI(
   const { openaiApiKey } = settings;
 
   if (!isNonEmptyString(openaiApiKey)) {
-    logger.error("OpenAI Error: API key is not set.");
+    logger.error('OpenAI Error: API key is not set.');
     return null;
   }
 
@@ -264,14 +265,14 @@ export async function analyzeWithOpenAI(
         messages: [
           {
             role: 'system',
-            content: 'You are an email analysis expert. Your task is to analyze the provided email data and respond only with a single, clean JSON object that strictly follows the requested schema. Do not include any conversational text, markdown formatting, or explanations in your response.'
+            content: ANALYSIS_SYSTEM_PROMPT,
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
-        response_format: { type: 'json_object' }
+        response_format: { type: 'json_object' },
       };
 
       const res = await fetchWithTimeout(
@@ -280,9 +281,9 @@ export async function analyzeWithOpenAI(
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openaiApiKey}`
+            Authorization: `Bearer ${openaiApiKey}`,
           },
-          body: JSON.stringify(requestPayload)
+          body: JSON.stringify(requestPayload),
         },
         DEFAULT_TIMEOUT
       );
@@ -300,7 +301,7 @@ export async function analyzeWithOpenAI(
       if (isOpenAIErrorResponse(result)) {
         logger.error('OpenAI API returned an error response', {
           error: result.error.message,
-          type: result.error.type
+          type: result.error.type,
         });
       }
       throw new Error('Invalid response format from OpenAI API');
@@ -322,7 +323,7 @@ export async function analyzeWithOpenAI(
     const errorMessage = isErrorWithMessage(error) ? error.message : String(error);
     logger.error('OpenAI Error', {
       error: errorMessage,
-      apiKey: maskApiKey(openaiApiKey)
+      apiKey: maskApiKey(openaiApiKey),
     });
     return null;
   }

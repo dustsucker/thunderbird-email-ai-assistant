@@ -165,7 +165,10 @@ export class Validator {
     return false;
   }
 
-  static validateRequiredFields(fields: Record<string, unknown>, required: string[]): ValidationResult {
+  static validateRequiredFields(
+    fields: Record<string, unknown>,
+    required: string[]
+  ): ValidationResult {
     const errors: string[] = [];
 
     for (const field of required) {
@@ -176,7 +179,7 @@ export class Validator {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 }
@@ -194,11 +197,7 @@ export function isOpenAIResponse(data: unknown): data is OpenAIResponse {
 }
 
 export function isGeminiResponse(data: unknown): data is GeminiResponse {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'candidates' in data
-  );
+  return typeof data === 'object' && data !== null && 'candidates' in data;
 }
 
 export function isClaudeResponse(data: unknown): data is ClaudeResponse {
@@ -264,34 +263,45 @@ export function isZaiResponse(data: unknown): data is ZaiResponse {
   if (typeof data !== 'object' || data === null) {
     return false;
   }
-  
+
   const obj = data as Record<string, unknown>;
-  
+
   // Prüfe choices Array
   if (!('choices' in obj) || !Array.isArray(obj.choices) || obj.choices.length === 0) {
     return false;
   }
-  
+
   const firstChoice = obj.choices[0] as Record<string, unknown>;
-  
+
   // Prüfe message Object
-  if (!('message' in firstChoice) || typeof firstChoice.message !== 'object' || firstChoice.message === null) {
+  if (
+    !('message' in firstChoice) ||
+    typeof firstChoice.message !== 'object' ||
+    firstChoice.message === null
+  ) {
     return false;
   }
-  
+
   const message = firstChoice.message as Record<string, unknown>;
-  
+
   // Prüfe content STRING!
   if (!('content' in message) || typeof message.content !== 'string') {
     return false;
   }
-  
+
   // Prüfe usage
   if (!('usage' in obj) || typeof obj.usage !== 'object') {
     return false;
   }
-  
+
   return true;
 }
 
-export type ApiResponse = OpenAIResponse | GeminiResponse | ClaudeResponse | MistralResponse | OllamaResponse | DeepseekResponse | ZaiResponse;
+export type ApiResponse =
+  | OpenAIResponse
+  | GeminiResponse
+  | ClaudeResponse
+  | MistralResponse
+  | OllamaResponse
+  | DeepseekResponse
+  | ZaiResponse;

@@ -4,6 +4,7 @@ import { CustomTags } from '../core/config';
 import { Logger } from './Logger';
 import { Validator, OllamaResponse } from './Validator';
 import { validateLLMResponse, TagResponse } from './utils';
+import { ANALYSIS_SYSTEM_PROMPT_DETAILED } from './constants';
 
 export interface OllamaGenerateRequest {
   model: string;
@@ -56,7 +57,10 @@ export class OllamaProvider extends BaseProvider {
   protected validateSettings(settings: BaseProviderSettings): boolean {
     const ollamaSettings = settings as { ollamaApiUrl?: string; ollamaModel?: string };
 
-    const result = Validator.validateRequiredFields(ollamaSettings, ['ollamaApiUrl', 'ollamaModel']);
+    const result = Validator.validateRequiredFields(ollamaSettings, [
+      'ollamaApiUrl',
+      'ollamaModel',
+    ]);
     if (!result.isValid) {
       this.logger.error('Invalid Ollama settings', { errors: result.errors });
       return false;
@@ -86,7 +90,7 @@ export class OllamaProvider extends BaseProvider {
 
     const requestBody: OllamaGenerateRequest & Record<string, unknown> = {
       model: this.model,
-      prompt,
+      prompt: ANALYSIS_SYSTEM_PROMPT_DETAILED + '\n\n' + prompt,
       format: 'json',
       stream: false,
       options: {
@@ -110,17 +114,13 @@ export class OllamaProvider extends BaseProvider {
     const ollamaResponse = response as OllamaResponse;
 
     if (!ollamaResponse.response || typeof ollamaResponse.response !== 'string') {
-      throw new Error('Invalid response structure from Ollama API: missing or invalid response field');
+      throw new Error(
+        'Invalid response structure from Ollama API: missing or invalid response field'
+      );
     }
 
     const rawText = ollamaResponse.response;
     return validateLLMResponse(rawText);
-  }
-
-  protected getHeaders(settings: BaseProviderSettings): Record<string, string> {
-    return {
-      'Content-Type': 'application/json',
-    };
   }
 }
 
@@ -152,7 +152,9 @@ export function isValidOllamaUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url);
     return (
-      (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1' || parsedUrl.hostname === '::1') &&
+      (parsedUrl.hostname === 'localhost' ||
+        parsedUrl.hostname === '127.0.0.1' ||
+        parsedUrl.hostname === '::1') &&
       parsedUrl.pathname.endsWith('/api/generate')
     );
   } catch {

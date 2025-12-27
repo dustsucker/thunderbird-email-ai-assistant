@@ -4,33 +4,42 @@ import {
   TAG_KEY_PREFIX,
   CustomTags,
   AppConfig,
-  Tag
+  Tag,
 } from './core/config';
-import {
-  findEmailParts,
-  Attachment,
-  StructuredEmailData
-} from './core/analysis';
-import {
-  ensureTagsExist
-} from './core/tags';
+import { findEmailParts, Attachment, StructuredEmailData } from './core/analysis';
+import { ensureTagsExist } from './core/tags';
 import {
   PROVIDER_ENGINES,
   ProviderFunction,
   isValidProvider as isProviderValid,
-  AVAILABLE_PROVIDERS
+  AVAILABLE_PROVIDERS,
 } from './providers/index';
 import {
   logger,
   logAndDisplayError,
   ErrorType,
   ShowErrorRuntimeMessage,
-  ErrorSeverity
+  ErrorSeverity,
+  validateAppConfig,
+  validateCustomTagsResult,
+  isBatchAnalysisProgress,
 } from './providers/utils';
+import { analysisCache, createCacheKey, normalizeHeaders } from './core/cache';
 
 // ============================================================================
 // BROWSER WEBEXTENSION API TYPES
 // ============================================================================
+
+/**
+ * Tab interface for browser tabs
+ */
+interface Tab {
+  id: number;
+  type: string;
+  index?: number;
+  windowId?: number;
+  selected?: boolean;
+}
 
 /**
  * Thunderbird/WebExtension global messenger object
@@ -38,7 +47,7 @@ import {
 interface Messenger {
   messages: {
     onNewMailReceived: {
-      addListener(callback: (folder: any, messages: NewMailMessages) => void): void;
+      addListener(callback: (folder: Folder, messages: NewMailMessages) => void): void;
     };
     getFull(messageId: number): Promise<FullMessage>;
     get(messageId: number): Promise<MessageDetails>;
@@ -46,14 +55,14 @@ interface Messenger {
     list(folderId?: string): Promise<MessageListResult>;
     tags: {
       create(key: string, tag: string, color: string): Promise<void>;
-      list(): Promise<any[]>;
+      list(): Promise<unknown[]>;
     };
   };
   messageDisplay: {
     getDisplayedMessage(tabId?: number): Promise<{ id: number } | null>;
   };
   folders: {
-    query(query: any): Promise<MailFolder[]>;
+    query(query: Record<string, unknown>): Promise<MailFolder[]>;
   };
   storage: {
     local: {
@@ -64,16 +73,22 @@ interface Messenger {
   };
   runtime: {
     onMessage: {
-      addListener(callback: (message: unknown, sender: unknown, sendResponse: (response?: unknown) => void) => void): void;
+      addListener(
+        callback: (
+          message: unknown,
+          sender: unknown,
+          sendResponse: (response?: unknown) => void
+        ) => void
+      ): void;
     };
   };
   notifications: {
     create(options: NotificationOptions): Promise<string>;
   };
   menus: {
-    create(createProperties: any, callback?: () => void): void;
+    create(createProperties: Record<string, unknown>, callback?: () => void): void;
     onClicked: {
-      addListener(callback: (info: any, tab: any) => void): void;
+      addListener(callback: (info: FolderMenuOnClickData, tab: Tab) => void): void;
     };
   };
   browserAction?: BrowserAction;
@@ -87,7 +102,7 @@ interface BrowserAction {
   setBadgeText(options: { text: string }): Promise<void>;
   setBadgeBackgroundColor(options: { color: string }): Promise<void>;
   onClicked?: {
-    addListener(callback: (tab: any) => void): void;
+    addListener(callback: (tab: Tab) => void): void;
   };
 }
 
@@ -202,7 +217,7 @@ interface RateLimiterConfigMap {
  */
 interface QueuedTask<T = unknown> {
   fn: () => Promise<T>;
-  resolve: (value: any) => void;
+  resolve: (value: unknown) => void;
   reject: (reason: unknown) => void;
   priority: number;
 }
@@ -218,7 +233,7 @@ interface RateLimiterBuckets {
  * Rate limiter queues map
  */
 interface RateLimiterQueues {
-  [provider: string]: QueuedTask[];
+  [provider: string]: QueuedTask<unknown>[];
 }
 
 /**
@@ -403,6 +418,8 @@ type RuntimeMessage =
   | GetBatchProgressMessage
   | CancelBatchAnalysisMessage
   | ClearQueueMessage
+  | ClearCacheMessage
+  | GetCacheStatsMessage
   | ShowErrorRuntimeMessage;
 
 /**
@@ -454,12 +471,37 @@ interface ClearQueueMessage {
 }
 
 /**
+ * Clear cache message
+ */
+interface ClearCacheMessage {
+  action: 'clearCache';
+}
+
+/**
+ * Get cache stats message
+ */
+interface GetCacheStatsMessage {
+  action: 'getCacheStats';
+}
+
+/**
+ * Get cache stats response
+ */
+interface GetCacheStatsResponse {
+  success: boolean;
+  message?: string;
+  totalEntries?: number;
+  hitRate?: number;
+}
+
+/**
  * Discriminated union for runtime message responses
  */
 type RuntimeMessageResponse =
   | BatchAnalysisStartResult
   | BatchAnalysisProgress
   | ClearQueueResult
+  | GetCacheStatsResponse
   | { success: boolean; message: string };
 
 /**
@@ -510,14 +552,42 @@ function isClearQueueMessage(message: unknown): message is ClearQueueMessage {
   );
 }
 
+/**
+ * Type guard for ClearCacheMessage
+ */
+function isClearCacheMessage(message: unknown): message is ClearCacheMessage {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'action' in message &&
+    (message as Record<string, unknown>).action === 'clearCache'
+  );
+}
+
+/**
+ * Type guard for GetCacheStatsMessage
+ */
+function isGetCacheStatsMessage(message: unknown): message is GetCacheStatsMessage {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'action' in message &&
+    (message as Record<string, unknown>).action === 'getCacheStats'
+  );
+}
+
 // ============================================================================
 // GLOBAL DECLARATIONS
 // ============================================================================
 
 declare const messenger: Messenger;
-declare const browser: any;
+declare const browser: {
+  runtime?: {
+    lastError?: { message: string };
+  };
+};
 
-logger.info("Spam-Filter Extension: Background script loaded.");
+logger.info('Spam-Filter Extension: Background script loaded.');
 
 // ============================================================================
 // PROVIDER VALIDATION HELPER
@@ -559,7 +629,7 @@ class RateLimiter {
         tokens: config[provider].limit,
         lastRefill: Date.now(),
         limit: config[provider].limit,
-        window: config[provider].window
+        window: config[provider].window,
       };
       this.queues[provider] = [];
       this.processing[provider] = null;
@@ -621,7 +691,7 @@ class RateLimiter {
 
           try {
             const result = await fn();
-            (resolve as (value: unknown) => void)(result);
+            resolve(result);
           } catch (error) {
             reject(error);
           }
@@ -641,14 +711,25 @@ class RateLimiter {
    * @param priority - Priority level (higher = more important)
    * @returns Promise resolving to function result
    */
-  async execute<T>(provider: string, requestFn: () => Promise<T>, priority: Priority = 1): Promise<T> {
+  async execute<T>(
+    provider: string,
+    requestFn: () => Promise<T>,
+    priority: Priority = 1
+  ): Promise<T> {
     // Defensive Check: Provider muss in der Konfiguration existieren
     if (!(provider in this.queues)) {
-      throw new Error(`Provider '${provider}' not configured in RateLimiter. Valid providers: ${Object.keys(this.queues).join(', ')}`);
+      throw new Error(
+        `Provider '${provider}' not configured in RateLimiter. Valid providers: ${Object.keys(this.queues).join(', ')}`
+      );
     }
 
     return new Promise<T>((resolve, reject) => {
-      this.queues[provider].push({ fn: requestFn, resolve, reject, priority });
+      this.queues[provider].push({
+        fn: requestFn,
+        resolve: resolve as (value: unknown) => void,
+        reject,
+        priority,
+      });
       this.queues[provider].sort((a, b) => b.priority - a.priority);
       this.processQueue(provider);
     });
@@ -670,44 +751,46 @@ class RateLimiter {
 
     for (const provider in this.queues) {
       const queueLength = this.queues[provider].length;
-      const isProcessing = this.processing[provider] !== null;
+      const isCurrentlyExecuting = this.processing[provider] !== null;
 
       clearedTasks += queueLength;
 
-      // Reject all pending tasks in the queue
+      // Reject all pending tasks in the queue (only if not currently executing)
       if (cancelRunning && queueLength > 0) {
-        for (const task of this.queues[provider]) {
-          task.reject(new Error('Queue cleared'));
+        if (!isCurrentlyExecuting) {
+          for (const task of this.queues[provider]) {
+            task.reject(new Error('Queue cleared'));
+          }
         }
       }
 
-      // Clear the queue
-      this.queues[provider] = [];
+      // Clear the queue (only if not currently executing)
+      if (!isCurrentlyExecuting) {
+        this.queues[provider] = [];
+      }
 
-      // Cancel running processes if requested
-      if (cancelRunning && isProcessing) {
-        // We can't actually cancel the running promise, but we clear the processing flag
-        // This will prevent new tasks from being processed after current one completes
+      // Clear processing flag if requested and provider is processing
+      if (cancelRunning && isCurrentlyExecuting) {
         this.processing[provider] = null;
         cancelledProviders.push(provider);
       }
 
       providers[provider] = {
         queueLength: queueLength,
-        isProcessing: isProcessing
+        isProcessing: isCurrentlyExecuting,
       };
     }
 
     logger.info('Rate limiter queues cleared', {
       clearedTasks,
       cancelledProviders,
-      providers
+      providers,
     });
 
     return {
       clearedTasks,
       cancelledProviders,
-      providers
+      providers,
     };
   }
 }
@@ -723,11 +806,11 @@ const rateLimiter = new RateLimiter({
   mistral: { limit: 50, window: 60000 },
   deepseek: { limit: 50, window: 60000 },
   gemini: { limit: 50, window: 60000 },
-  zai: { limit: 50, window: 60000 }
+  zai: { limit: 50, window: 60000 },
 });
 
 logger.info('Rate limiter configured', {
-  providers: Object.keys(rateLimiter.buckets).join(', ')
+  providers: Object.keys(rateLimiter.buckets).join(', '),
 });
 
 // ============================================================================
@@ -740,7 +823,7 @@ logger.info('Rate limiter configured', {
 const badgeConfig = {
   processing: { text: '⏳', color: '#2196F3' },
   success: { text: '', color: '' },
-  error: { text: '⚠', color: '#F44336' }
+  error: { text: '⚠', color: '#F44336' },
 } as const;
 
 /**
@@ -784,7 +867,7 @@ async function showNotification(
       type: 'basic',
       iconUrl: 'icon.png',
       title: title,
-      message: message
+      message: message,
     });
   }
 }
@@ -814,9 +897,20 @@ async function analyzeEmail(
   const providerData: StructuredEmailData = {
     headers,
     body: structuredData.body,
-    attachments: structuredData.attachments
+    attachments: structuredData.attachments,
   };
-  const settings = await messenger.storage.local.get(DEFAULTS) as Partial<AppConfig>;
+
+  // Check cache before API call
+  const cacheKey = await createCacheKey(structuredData.body, headers);
+  const cachedResult = await analysisCache.get(cacheKey);
+
+  if (cachedResult) {
+    logger.info('Using cached analysis result', { cacheKey });
+    return cachedResult as ExtendedAnalysisResult;
+  }
+
+  const result = await messenger.storage.local.get(DEFAULTS);
+  const settings = validateAppConfig(result);
   const engine: ProviderFunction | undefined = PROVIDER_ENGINES[settings.provider!];
 
   logger.info('Starting email analysis', {
@@ -854,11 +948,15 @@ async function analyzeEmail(
   try {
     await updateBadge('processing');
     logger.info('API call started', { provider: settings.provider, priority });
-    const result = await rateLimiter.execute(
+    const result = (await rateLimiter.execute(
       settings.provider!,
       () => engine(settings, providerData, settings.customTags || DEFAULTS.customTags),
       priority
-    ) as ExtendedAnalysisResult;
+    )) as ExtendedAnalysisResult;
+
+    // Store result in cache after successful analysis
+    await analysisCache.set(cacheKey, result);
+
     logger.info('API call completed successfully', {
       provider: settings.provider,
       tagsFound: result.tags?.length || 0,
@@ -867,11 +965,16 @@ async function analyzeEmail(
     await updateBadge('success');
     return result;
   } catch (error) {
-    logAndDisplayError(error, ErrorType.PROVIDER, {
-      provider: settings.provider,
-      priority,
-      action: 'email_analysis',
-    }, `AI provider error: ${error instanceof Error ? error.message : String(error)}`);
+    logAndDisplayError(
+      error,
+      ErrorType.PROVIDER,
+      {
+        provider: settings.provider,
+        priority,
+        action: 'email_analysis',
+      },
+      `AI provider error: ${error instanceof Error ? error.message : String(error)}`
+    );
     await updateBadge('error');
     return null;
   }
@@ -919,7 +1022,9 @@ function calculatePriority(headers: EmailHeaders): Priority {
  * @param messageId - The ID of the message to analyze
  * @returns Promise resolving to success status and message
  */
-async function analyzeSingleMessage(messageId: number): Promise<{ success: boolean; message: string }> {
+async function analyzeSingleMessage(
+  messageId: number
+): Promise<{ success: boolean; message: string }> {
   logger.info('Single message analysis started', { messageId });
 
   try {
@@ -929,7 +1034,7 @@ async function analyzeSingleMessage(messageId: number): Promise<{ success: boole
     const structuredData: AnalysisData = {
       headers: fullMessage.headers,
       body: body,
-      attachments: attachments
+      attachments: attachments,
     };
 
     const priority = calculatePriority(fullMessage.headers);
@@ -939,7 +1044,7 @@ async function analyzeSingleMessage(messageId: number): Promise<{ success: boole
       logger.warn('Analysis returned null', { messageId });
       return {
         success: false,
-        message: 'Analysis failed: No result returned from AI provider'
+        message: 'Analysis failed: No result returned from AI provider',
       };
     }
 
@@ -947,8 +1052,9 @@ async function analyzeSingleMessage(messageId: number): Promise<{ success: boole
       throw new Error('Analysis result has unexpected structure');
     }
 
-    const storageResult = await messenger.storage.local.get({ customTags: DEFAULTS.customTags }) as { customTags: CustomTags };
-    const customTags = storageResult.customTags ?? DEFAULTS.customTags;
+    const storageResultRaw = await messenger.storage.local.get({ customTags: DEFAULTS.customTags });
+    const storageResult = validateCustomTagsResult(storageResultRaw);
+    const customTags = storageResult.customTags;
     const messageDetails: MessageDetails = await messenger.messages.get(messageId);
     const tagSet: Set<string> = new Set(messageDetails.tags ?? []);
 
@@ -974,7 +1080,7 @@ async function analyzeSingleMessage(messageId: number): Promise<{ success: boole
     await messenger.messages.update(messageId, { tags: Array.from(tagSet) });
     logger.info('Single message tagged successfully', {
       messageId,
-      tagSet: Array.from(tagSet)
+      tagSet: Array.from(tagSet),
     });
 
     await showNotification(
@@ -985,16 +1091,21 @@ async function analyzeSingleMessage(messageId: number): Promise<{ success: boole
 
     return {
       success: true,
-      message: 'Message analyzed and tagged successfully'
+      message: 'Message analyzed and tagged successfully',
     };
   } catch (error) {
-    logAndDisplayError(error, ErrorType.PROVIDER, {
-      messageId,
-      action: 'single_message_analysis',
-    }, 'Single message analysis failed');
+    logAndDisplayError(
+      error,
+      ErrorType.PROVIDER,
+      {
+        messageId,
+        action: 'single_message_analysis',
+      },
+      'Single message analysis failed'
+    );
     return {
       success: false,
-      message: `Analysis failed: ${error instanceof Error ? error.message : String(error)}`
+      message: `Analysis failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
@@ -1009,11 +1120,15 @@ async function analyzeSingleMessage(messageId: number): Promise<{ success: boole
 const MAX_BATCH_SIZE = 1; // Zum Testen: 1 E-Mail gleichzeitig verarbeiten
 
 /**
- * Analyzes multiple messages in batches with parallel processing
- * @param messages - Array of message metadata objects
+ * Processes a batch of email messages with loading, analysis, and tagging
+ * @param messages - Array of message metadata objects to process
+ * @param signal - Optional AbortSignal for cancellation support
  * @returns Promise resolving to batch processing statistics
  */
-async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<BatchStatistics> {
+async function processEmailBatch(
+  messages: Array<{ id: number }>,
+  signal?: AbortSignal
+): Promise<BatchStatistics> {
   const totalMessages = messages.length;
   let processedCount = 0;
   let successfulCount = 0;
@@ -1024,8 +1139,13 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
     timestamp: new Date().toISOString(),
   });
 
-  // Process messages in batches of MAX_BATCH_SIZE
+  // Process messages in batches
   for (let i = 0; i < messages.length; i += MAX_BATCH_SIZE) {
+    // Check for cancellation before each batch (if signal provided)
+    if (signal?.aborted) {
+      throw new DOMException('Batch analysis cancelled', 'AbortError');
+    }
+
     const batchMessages = messages.slice(i, i + MAX_BATCH_SIZE);
     const batchStart = i + 1;
     const batchEnd = Math.min(i + MAX_BATCH_SIZE, messages.length);
@@ -1037,7 +1157,7 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
       batchMessages.map(async (message) => {
         return {
           messageId: message.id,
-          fullMessage: await messenger.messages.getFull(message.id)
+          fullMessage: await messenger.messages.getFull(message.id),
         };
       })
     );
@@ -1049,15 +1169,16 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
         successfullyLoaded.push(result.value);
       } else {
         failedCount++;
-        logAndDisplayError(
-          result.reason,
-          ErrorType.SYSTEM,
-          { batch: `${batchStart}-${batchEnd}`, action: 'load_message' }
-        );
+        logAndDisplayError(result.reason, ErrorType.SYSTEM, {
+          batch: `${batchStart}-${batchEnd}`,
+          action: 'load_message',
+        });
       }
     }
 
-    logger.info(`Batch ${batchStart}-${batchEnd}: Loaded ${successfullyLoaded.length}/${batchMessages.length} messages`);
+    logger.info(
+      `Batch ${batchStart}-${batchEnd}: Loaded ${successfullyLoaded.length}/${batchMessages.length} messages`
+    );
 
     // Step 2: Analyze messages in parallel with error isolation
     const analysisResults = await Promise.allSettled(
@@ -1067,7 +1188,7 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
         const structuredData: AnalysisData = {
           headers: fullMessage.headers,
           body: body,
-          attachments: attachments
+          attachments: attachments,
         };
 
         const priority = calculatePriority(fullMessage.headers);
@@ -1076,7 +1197,7 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
         return {
           messageId,
           fullMessage,
-          analysisResult: analysis
+          analysisResult: analysis,
         } as ProcessedMessage;
       })
     );
@@ -1096,7 +1217,7 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
         failedCount++;
         logger.error('Analysis failed', {
           messageId: 'unknown',
-          error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
         });
       }
     }
@@ -1110,13 +1231,20 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
           throw new Error('Analysis result has unexpected structure');
         }
 
-        const storageResult = await messenger.storage.local.get({ customTags: DEFAULTS.customTags }) as { customTags: CustomTags };
+        const storageResultRaw = await messenger.storage.local.get({
+          customTags: DEFAULTS.customTags,
+        });
+        const storageResult = validateCustomTagsResult(storageResultRaw);
         const customTags = storageResult.customTags ?? DEFAULTS.customTags;
         const messageDetails: MessageDetails = await messenger.messages.get(processed.messageId);
         const tagSet: Set<string> = new Set(messageDetails.tags ?? []);
 
         // Handle hardcoded tags
-        if (analysis.is_scam === true || analysis.spf_pass === false || analysis.dkim_pass === false) {
+        if (
+          analysis.is_scam === true ||
+          analysis.spf_pass === false ||
+          analysis.dkim_pass === false
+        ) {
           tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.is_scam.key);
         }
         if (analysis.spf_pass === false) {
@@ -1139,7 +1267,7 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
         await messenger.messages.update(processed.messageId, { tags: Array.from(tagSet) });
         logger.info('Message tagged successfully', {
           messageId: processed.messageId,
-          tagSet: Array.from(tagSet)
+          tagSet: Array.from(tagSet),
         });
 
         return processed.messageId;
@@ -1152,7 +1280,7 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
         failedCount++;
         successfulCount--; // Revert successful count for tagging failures
         logger.error('Failed to apply tags', {
-          error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
         });
       }
     }
@@ -1161,14 +1289,14 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
     processedCount += batchMessages.length;
     logger.info(`Batch progress: ${processedCount}/${totalMessages} messages processed`, {
       successful: successfulCount,
-      failed: failedCount
+      failed: failedCount,
     });
   }
 
   const statistics: BatchStatistics = {
     total: totalMessages,
     successful: successfulCount,
-    failed: failedCount
+    failed: failedCount,
   };
 
   logger.info('Batch processing completed', { ...statistics });
@@ -1176,74 +1304,100 @@ async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<Ba
   return statistics;
 }
 
+/**
+ * Analyzes multiple messages in batches with parallel processing
+ * @param messages - Array of message metadata objects
+ * @returns Promise resolving to batch processing statistics
+ */
+async function analyzeMessagesBatch(messages: Array<{ id: number }>): Promise<BatchStatistics> {
+  return processEmailBatch(messages);
+}
+
 function registerFolderContextMenu(): void {
-  messenger.menus.create({
-    id: 'batch-analyze-folder',
-    title: 'Analysiere diesen Ordner',
-    contexts: ['folder_pane'],
-    visible: true
-  }, () => {
-    if (browser.runtime && browser.runtime.lastError) {
-      logAndDisplayError(
-        browser.runtime.lastError,
-        ErrorType.SYSTEM,
-        { action: 'create_context_menu' },
-        'Failed to create folder context menu'
-      );
-    } else {
-      logger.info('Folder context menu registered successfully');
+  messenger.menus.create(
+    {
+      id: 'batch-analyze-folder',
+      title: 'Analysiere diesen Ordner',
+      contexts: ['folder_pane'],
+      visible: true,
+    },
+    () => {
+      if (browser.runtime && browser.runtime.lastError) {
+        logAndDisplayError(
+          browser.runtime.lastError,
+          ErrorType.SYSTEM,
+          { action: 'create_context_menu' },
+          'Failed to create folder context menu'
+        );
+      } else {
+        logger.info('Folder context menu registered successfully');
+      }
     }
-  });
+  );
 
-  messenger.menus.create({
-    id: 'analyze-single-message-list',
-    title: 'AI-Analyse',
-    contexts: ['message_list'],
-    visible: true
-  }, () => {
-    if (browser.runtime && browser.runtime.lastError) {
-      logAndDisplayError(
-        browser.runtime.lastError,
-        ErrorType.SYSTEM,
-        { action: 'create_context_menu' },
-        'Failed to create message list context menu'
-      );
-    } else {
-      logger.info('Message list context menu registered successfully');
+  messenger.menus.create(
+    {
+      id: 'analyze-single-message-list',
+      title: 'AI-Analyse',
+      contexts: ['message_list'],
+      visible: true,
+    },
+    () => {
+      if (browser.runtime && browser.runtime.lastError) {
+        logAndDisplayError(
+          browser.runtime.lastError,
+          ErrorType.SYSTEM,
+          { action: 'create_context_menu' },
+          'Failed to create message list context menu'
+        );
+      } else {
+        logger.info('Message list context menu registered successfully');
+      }
     }
-  });
+  );
 
-  messenger.menus.create({
-    id: 'analyze-single-message-display',
-    title: 'AI-Analyse',
-    contexts: ['message_display_action_menu'],
-    visible: true
-  }, () => {
-    if (browser.runtime && browser.runtime.lastError) {
-      logAndDisplayError(
-        browser.runtime.lastError,
-        ErrorType.SYSTEM,
-        { action: 'create_context_menu' },
-        'Failed to create message display context menu'
-      );
-    } else {
-      logger.info('Message display context menu registered successfully');
+  messenger.menus.create(
+    {
+      id: 'analyze-single-message-display',
+      title: 'AI-Analyse',
+      contexts: ['message_display_action_menu'],
+      visible: true,
+    },
+    () => {
+      if (browser.runtime && browser.runtime.lastError) {
+        logAndDisplayError(
+          browser.runtime.lastError,
+          ErrorType.SYSTEM,
+          { action: 'create_context_menu' },
+          'Failed to create message display context menu'
+        );
+      } else {
+        logger.info('Message display context menu registered successfully');
+      }
     }
-  });
+  );
 
-  messenger.menus.onClicked.addListener(async (info: any, tab: any) => {
-    const menuItemId = info.menuItemId as string;
-    const folderInfo = info as FolderMenuOnClickData;
+  messenger.menus.onClicked.addListener(async (info: FolderMenuOnClickData, tab: Tab) => {
+    // Validate menuItemId is string
+    if (typeof info.menuItemId !== 'string') {
+      logger.warn('Invalid menuItemId type', {
+        menuItemId: info.menuItemId,
+        type: typeof info.menuItemId,
+      });
+      return;
+    }
 
-    if (menuItemId === 'batch-analyze-folder' && folderInfo.selectedFolders) {
-      const folders = folderInfo.selectedFolders;
+    const menuItemId = info.menuItemId;
+
+    if (menuItemId === 'batch-analyze-folder' && info.selectedFolders) {
+      const folders = info.selectedFolders;
       if (folders.length > 0) {
         const folder = folders[0];
         const folderId = folder.id;
         logger.info('Context menu: Starting batch analysis for folder', {
           folderId,
           folderName: folder.name,
-          folderPath: folder.path
+          folderPath: folder.path,
         });
 
         const result = await startBatchAnalysis(folderId);
@@ -1254,18 +1408,30 @@ function registerFolderContextMenu(): void {
             `Analysiere ${result.messageCount} E-Mails in Ordner "${folder.name}"`,
             'info'
           );
-          logger.info('Context menu: Batch analysis started', { messageCount: result.messageCount });
+          logger.info('Context menu: Batch analysis started', {
+            messageCount: result.messageCount,
+          });
         } else {
-          logAndDisplayError(result.error || 'Unknown error', ErrorType.USER, {
-            folderName: folder.name,
-            folderId,
-          }, `Batch-Analysis fehlgeschlagen: ${result.error || 'Unbekannter Fehler'}`);
+          logAndDisplayError(
+            result.error || 'Unknown error',
+            ErrorType.USER,
+            {
+              folderName: folder.name,
+              folderId,
+            },
+            `Batch-Analysis fehlgeschlagen: ${result.error || 'Unbekannter Fehler'}`
+          );
         }
       }
     }
 
-    if ((menuItemId === 'analyze-single-message-list' || menuItemId === 'analyze-single-message-display') && info.selectedMessages) {
-      const messages = info.selectedMessages;
+    if (
+      (menuItemId === 'analyze-single-message-list' ||
+        menuItemId === 'analyze-single-message-display') &&
+      'selectedMessages' in info &&
+      info.selectedMessages
+    ) {
+      const messages = info.selectedMessages as Array<{ id: number }>;
       if (messages && messages.length > 0) {
         const messageId = messages[0].id;
         logger.info('Context menu: Starting single message analysis', { messageId });
@@ -1275,9 +1441,14 @@ function registerFolderContextMenu(): void {
         if (result.success) {
           logger.info('Context menu: Single message analysis completed', { messageId });
         } else {
-          logAndDisplayError(result.message, ErrorType.USER, {
-            messageId,
-          }, `Einzelne Nachricht Analyse fehlgeschlagen: ${result.message}`);
+          logAndDisplayError(
+            result.message,
+            ErrorType.USER,
+            {
+              messageId,
+            },
+            `Einzelne Nachricht Analyse fehlgeschlagen: ${result.message}`
+          );
         }
       }
     }
@@ -1304,52 +1475,56 @@ function isExtendedAnalysisResult(result: unknown): result is ExtendedAnalysisRe
 /**
  * Type guard to check if a value is boolean
  * @param value - Value to check
- * @returns True if value is strictly true or false
+ * @returns True if value is a boolean primitive type
  */
 function isBoolean(value: unknown): value is boolean {
-  return value === true || value === false;
+  return typeof value === 'boolean';
 }
 
-logger.info("Spam-Filter Extension: Setting up onNewMailReceived handler");
+logger.info('Spam-Filter Extension: Setting up onNewMailReceived handler');
 
 /**
  * Handler for new mail received events
  * Processes messages through batch analysis and applies tags
  */
-messenger.messages.onNewMailReceived.addListener(async (
-  folder: Folder,
-  messages: NewMailMessages
-): Promise<void> => {
-  logger.info('New mail event received', {
-    messageCount: messages.messages.length,
-    folderName: folder.name,
-    folderPath: folder.path,
-    folderType: folder.type,
-  });
-
-  try {
-    const statistics = await analyzeMessagesBatch(messages.messages);
-
-    logger.info('New mail processing completed', {
-      total: statistics.total,
-      successful: statistics.successful,
-      failed: statistics.failed,
+messenger.messages.onNewMailReceived.addListener(
+  async (folder: Folder, messages: NewMailMessages): Promise<void> => {
+    logger.info('New mail event received', {
+      messageCount: messages.messages.length,
+      folderName: folder.name,
+      folderPath: folder.path,
+      folderType: folder.type,
     });
 
-    if (statistics.failed > 0) {
-      await showNotification(
-        'Batch Processing Complete',
-        `Processed: ${statistics.successful}/${statistics.total}\nFailed: ${statistics.failed}`,
-        'info'
+    try {
+      const statistics = await analyzeMessagesBatch(messages.messages);
+
+      logger.info('New mail processing completed', {
+        total: statistics.total,
+        successful: statistics.successful,
+        failed: statistics.failed,
+      });
+
+      if (statistics.failed > 0) {
+        await showNotification(
+          'Batch Processing Complete',
+          `Processed: ${statistics.successful}/${statistics.total}\nFailed: ${statistics.failed}`,
+          'info'
+        );
+      }
+    } catch (error) {
+      logAndDisplayError(
+        error,
+        ErrorType.SYSTEM,
+        {
+          folderName: folder.name,
+          messageCount: messages.messages.length,
+        },
+        'Batch processing failed for new mail'
       );
     }
-  } catch (error) {
-    logAndDisplayError(error, ErrorType.SYSTEM, {
-      folderName: folder.name,
-      messageCount: messages.messages.length,
-    }, 'Batch processing failed for new mail');
   }
-});
+);
 
 // ============================================================================
 // BATCH ANALYSIS API
@@ -1373,39 +1548,56 @@ let currentAbortController: AbortController | null = null;
 function isMessageAnalyzed(messageTags: string[] = []): boolean {
   // Message is considered analyzed if it has the 'tagged' tag
   const taggedTag = TAG_KEY_PREFIX + HARDCODED_TAGS.tagged.key;
-  return messageTags.some(tag => tag === taggedTag || tag.startsWith(TAG_KEY_PREFIX));
+  return messageTags.some((tag) => tag === taggedTag || tag.startsWith(TAG_KEY_PREFIX));
 }
 
 /**
  * Filters messages that have not been analyzed yet
+ * Uses parallel queries for O(1) performance instead of sequential O(n)
  * @param messages - Array of message metadata objects
  * @returns Promise resolving to array of unanalyzed messages
  */
-async function filterUnanalyzedMessages(messages: Array<{ id: number }>): Promise<Array<{ id: number }>> {
-  const unanalyzed: Array<{ id: number }> = [];
+async function filterUnanalyzedMessages(
+  messages: Array<{ id: number }>
+): Promise<Array<{ id: number }>> {
   const analyzedCount: number = messages.length;
 
-  for (const message of messages) {
-    try {
-      const details: MessageDetails = await messenger.messages.get(message.id);
+  // Parallel query all message details at once
+  const allDetailsResults = await Promise.allSettled(
+    messages.map(
+      (message): Promise<{ id: number; details: MessageDetails }> =>
+        messenger.messages.get(message.id).then((details) => ({ id: message.id, details }))
+    )
+  );
+
+  // Filter successfully retrieved and unanalyzed messages
+  const unanalyzed: Array<{ id: number }> = [];
+  let errorCount = 0;
+
+  for (const result of allDetailsResults) {
+    if (result.status === 'fulfilled') {
+      const { id, details } = result.value;
       if (!isMessageAnalyzed(details.tags)) {
-        unanalyzed.push(message);
+        unanalyzed.push({ id });
       }
-    } catch (error) {
+    } else {
+      errorCount++;
       logger.error('Failed to check message tags', {
-        messageId: message.id,
-        error: error instanceof Error ? error.message : String(error)
+        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
       });
-      // Skip messages we can't check
     }
   }
 
-  const filteredOut = analyzedCount - unanalyzed.length;
-  logger.info(`Filtered messages: ${filteredOut} already analyzed, ${unanalyzed.length} to process`, {
-    total: analyzedCount,
-    filteredOut,
-    remaining: unanalyzed.length,
-  });
+  const filteredOut = analyzedCount - unanalyzed.length - errorCount;
+  logger.info(
+    `Filtered messages: ${filteredOut} already analyzed, ${unanalyzed.length} to process, ${errorCount} errors`,
+    {
+      total: analyzedCount,
+      filteredOut,
+      remaining: unanalyzed.length,
+      errors: errorCount,
+    }
+  );
 
   return unanalyzed;
 }
@@ -1419,7 +1611,7 @@ async function updateBatchProgress(progress: BatchAnalysisProgress): Promise<voi
     await messenger.storage.local.set({ [BATCH_PROGRESS_KEY]: progress });
   } catch (error) {
     logger.error('Failed to update batch progress in storage', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -1433,8 +1625,8 @@ async function getBatchProgress(): Promise<BatchAnalysisProgress> {
     const result = await messenger.storage.local.get({ [BATCH_PROGRESS_KEY]: null });
     const stored = result[BATCH_PROGRESS_KEY];
 
-    if (stored && typeof stored === 'object' && 'status' in stored) {
-      return stored as BatchAnalysisProgress;
+    if (isBatchAnalysisProgress(stored)) {
+      return stored;
     }
 
     // Return default idle state if no progress stored
@@ -1444,11 +1636,11 @@ async function getBatchProgress(): Promise<BatchAnalysisProgress> {
       processed: 0,
       successful: 0,
       failed: 0,
-      startTime: Date.now()
+      startTime: Date.now(),
     };
   } catch (error) {
     logger.error('Failed to retrieve batch progress from storage', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     return {
       status: 'idle',
@@ -1456,7 +1648,7 @@ async function getBatchProgress(): Promise<BatchAnalysisProgress> {
       processed: 0,
       successful: 0,
       failed: 0,
-      startTime: Date.now()
+      startTime: Date.now(),
     };
   }
 }
@@ -1467,17 +1659,17 @@ async function getBatchProgress(): Promise<BatchAnalysisProgress> {
  */
 async function collectAllMessages(): Promise<Array<{ id: number }>> {
   const allMessages: Array<{ id: number }> = [];
-  
+
   try {
     const folders = await messenger.folders.query({});
-    
+
     for (const folder of folders) {
       try {
         logger.info('Collecting messages from folder', {
           accountId: folder.accountId,
           folderId: folder.id,
           folderName: folder.name,
-          folderPath: folder.path
+          folderPath: folder.path,
         });
         const result = await messenger.messages.list(folder.id);
         if (result.messages && result.messages.length > 0) {
@@ -1488,18 +1680,18 @@ async function collectAllMessages(): Promise<Array<{ id: number }>> {
           accountId: folder.accountId,
           folderId: folder.id,
           folderName: folder.name,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
       }
     }
-    
+
     logger.info(`Collected ${allMessages.length} messages from ${folders.length} folders`);
   } catch (error) {
     logger.error('Failed to query folders', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
   }
-  
+
   return allMessages;
 }
 
@@ -1516,7 +1708,7 @@ async function startBatchAnalysis(folderId?: string): Promise<BatchAnalysisStart
       logger.warn('Batch analysis already running');
       return {
         success: false,
-        error: 'Batch analysis is already running. Cancel the current batch first.'
+        error: 'Batch analysis is already running. Cancel the current batch first.',
       };
     }
 
@@ -1528,28 +1720,36 @@ async function startBatchAnalysis(folderId?: string): Promise<BatchAnalysisStart
     let messages: Array<{ id: number }>;
     try {
       logger.info('Collecting messages', { folderId });
-      messages = folderId !== undefined
-        ? (await messenger.messages.list(folderId)).messages
-        : await collectAllMessages();
-      logger.info(`Collected ${messages.length} messages from ${folderId ? 'folder' : 'all folders'}`);
+      messages =
+        folderId !== undefined
+          ? (await messenger.messages.list(folderId)).messages
+          : await collectAllMessages();
+      logger.info(
+        `Collected ${messages.length} messages from ${folderId ? 'folder' : 'all folders'}`
+      );
     } catch (error) {
-      logAndDisplayError(error, ErrorType.SYSTEM, {
-        folderId,
-        action: 'collect_messages',
-      }, 'Failed to retrieve messages. Please check folder permissions.');
+      logAndDisplayError(
+        error,
+        ErrorType.SYSTEM,
+        {
+          folderId,
+          action: 'collect_messages',
+        },
+        'Failed to retrieve messages. Please check folder permissions.'
+      );
       return {
         success: false,
-        error: 'Failed to retrieve messages. Please check folder permissions.'
+        error: 'Failed to retrieve messages. Please check folder permissions.',
       };
     }
 
-  if (messages.length === 0) {
-    logger.info('No messages found to analyze');
-    return {
-      success: false,
-      error: 'No messages found to analyze.'
-    };
-  }
+    if (messages.length === 0) {
+      logger.info('No messages found to analyze');
+      return {
+        success: false,
+        error: 'No messages found to analyze.',
+      };
+    }
 
     // Filter out already analyzed messages
     const unanalyzedMessages = await filterUnanalyzedMessages(messages);
@@ -1558,7 +1758,7 @@ async function startBatchAnalysis(folderId?: string): Promise<BatchAnalysisStart
       logger.info('No unanalyzed messages found - all messages already processed');
       return {
         success: false,
-        error: 'No unanalyzed messages found. All messages have already been processed.'
+        error: 'No unanalyzed messages found. All messages have already been processed.',
       };
     }
 
@@ -1569,176 +1769,19 @@ async function startBatchAnalysis(folderId?: string): Promise<BatchAnalysisStart
       processed: 0,
       successful: 0,
       failed: 0,
-      startTime: Date.now()
+      startTime: Date.now(),
     };
     await updateBatchProgress(progress);
 
     logger.info(`Starting batch analysis: ${unanalyzedMessages.length} messages to process`);
 
-    // Run analysis in background without waiting
+    // Run analysis in background with progress updates
     const analysisTask = (async (): Promise<BatchStatistics> => {
-      let processedCount = 0;
-      let successfulCount = 0;
-      let failedCount = 0;
+      // Process with cancellation support and progress tracking
+      const statistics = await processEmailBatch(unanalyzedMessages, signal);
 
-      // Process messages in batches
-      for (let i = 0; i < unanalyzedMessages.length; i += MAX_BATCH_SIZE) {
-        // Check for cancellation before each batch
-        if (signal.aborted) {
-          throw new DOMException('Batch analysis cancelled', 'AbortError');
-        }
-
-        const batchMessages = unanalyzedMessages.slice(i, i + MAX_BATCH_SIZE);
-        const batchStart = i + 1;
-        const batchEnd = Math.min(i + MAX_BATCH_SIZE, unanalyzedMessages.length);
-
-        logger.info(`Processing batch ${batchStart}-${batchEnd} of ${unanalyzedMessages.length}`);
-
-        // Load full messages in parallel
-        const fullMessagesResults = await Promise.allSettled(
-          batchMessages.map(async (message) => {
-            return {
-              messageId: message.id,
-              fullMessage: await messenger.messages.getFull(message.id)
-            };
-          })
-        );
-
-        // Separate successful loads from failures
-        const successfullyLoaded: Array<{ messageId: number; fullMessage: FullMessage }> = [];
-        for (const result of fullMessagesResults) {
-          if (result.status === 'fulfilled') {
-            successfullyLoaded.push(result.value);
-          } else {
-            failedCount++;
-            logger.error('Failed to load message', {
-              error: result.reason instanceof Error ? result.reason.message : String(result.reason)
-            });
-          }
-        }
-
-        // Analyze messages in parallel
-        logger.info(`Starting analysis for ${successfullyLoaded.length} messages`);
-        const analysisResults = await Promise.allSettled(
-          successfullyLoaded.map(async ({ messageId, fullMessage }) => {
-            const { body, attachments } = findEmailParts(fullMessage.parts);
-
-            const structuredData: AnalysisData = {
-              headers: fullMessage.headers,
-              body: body,
-              attachments: attachments
-            };
-
-            const priority = calculatePriority(fullMessage.headers);
-            const analysis = await analyzeEmail(structuredData, priority);
-
-            return {
-              messageId,
-              fullMessage,
-              analysisResult: analysis
-            } as ProcessedMessage;
-          })
-        );
-
-        // Separate successful analyses
-        const successfullyAnalyzed: ProcessedMessage[] = [];
-        for (const result of analysisResults) {
-          if (result.status === 'fulfilled') {
-            if (result.value.analysisResult !== null) {
-              successfullyAnalyzed.push(result.value);
-              successfulCount++;
-            } else {
-              failedCount++;
-              logger.warn('Analysis returned null', { messageId: result.value.messageId });
-            }
-          } else {
-            failedCount++;
-            logger.error('Analysis failed', {
-              messageId: 'unknown',
-              error: result.reason instanceof Error ? result.reason.message : String(result.reason)
-            });
-          }
-        }
-
-        // Apply tags in parallel
-        const taggingResults = await Promise.allSettled(
-          successfullyAnalyzed.map(async (processed: ProcessedMessage) => {
-            const analysis = processed.analysisResult;
-
-            if (!isExtendedAnalysisResult(analysis)) {
-              throw new Error('Analysis result has unexpected structure');
-            }
-
-            const storageResult = await messenger.storage.local.get({ customTags: DEFAULTS.customTags }) as { customTags: CustomTags };
-            const customTags = storageResult.customTags ?? DEFAULTS.customTags;
-            const messageDetails: MessageDetails = await messenger.messages.get(processed.messageId);
-            const tagSet: Set<string> = new Set(messageDetails.tags ?? []);
-
-            // Handle hardcoded tags
-            if (analysis.is_scam === true || analysis.spf_pass === false || analysis.dkim_pass === false) {
-              tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.is_scam.key);
-            }
-            if (analysis.spf_pass === false) {
-              tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.spf_fail.key);
-            }
-            if (analysis.dkim_pass === false) {
-              tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.dkim_fail.key);
-            }
-
-            // Handle dynamic custom tags
-            for (const tag of customTags) {
-              const tagValue = analysis[tag.key];
-              if (isBoolean(tagValue) && tagValue === true) {
-                tagSet.add(TAG_KEY_PREFIX + tag.key);
-              }
-            }
-
-            tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.tagged.key);
-
-            await messenger.messages.update(processed.messageId, { tags: Array.from(tagSet) });
-            logger.info('Message tagged successfully', {
-              messageId: processed.messageId,
-              tagSet: Array.from(tagSet)
-            });
-
-            return processed.messageId;
-          })
-        );
-
-        // Track tagging failures
-        for (const result of taggingResults) {
-          if (result.status === 'rejected') {
-            failedCount++;
-            successfulCount--;
-            logger.error('Failed to apply tags', {
-              error: result.reason instanceof Error ? result.reason.message : String(result.reason)
-            });
-          }
-        }
-
-        // Update progress after batch
-        processedCount += batchMessages.length;
-        const updatedProgress: BatchAnalysisProgress = {
-          status: 'running',
-          total: unanalyzedMessages.length,
-          processed: processedCount,
-          successful: successfulCount,
-          failed: failedCount,
-          startTime: progress.startTime
-        };
-        await updateBatchProgress(updatedProgress);
-
-        logger.info(`Batch progress: ${processedCount}/${unanalyzedMessages.length}`, {
-          successful: successfulCount,
-          failed: failedCount
-        });
-      }
-
-      return {
-        total: unanalyzedMessages.length,
-        successful: successfulCount,
-        failed: failedCount
-      };
+      // Final progress update is handled in .then() block
+      return statistics;
     })();
 
     analysisTask
@@ -1750,7 +1793,7 @@ async function startBatchAnalysis(folderId?: string): Promise<BatchAnalysisStart
           successful: statistics.successful,
           failed: statistics.failed,
           startTime: progress.startTime,
-          endTime: Date.now()
+          endTime: Date.now(),
         };
         await updateBatchProgress(finalProgress);
         logger.info('Batch analysis completed successfully', statistics);
@@ -1761,7 +1804,7 @@ async function startBatchAnalysis(folderId?: string): Promise<BatchAnalysisStart
           const finalProgress: BatchAnalysisProgress = {
             ...cancelProgress,
             status: 'cancelled',
-            endTime: Date.now()
+            endTime: Date.now(),
           };
           await updateBatchProgress(finalProgress);
         } else {
@@ -1773,11 +1816,11 @@ async function startBatchAnalysis(folderId?: string): Promise<BatchAnalysisStart
             failed: 0,
             startTime: progress.startTime,
             endTime: Date.now(),
-            errorMessage: error instanceof Error ? error.message : String(error)
+            errorMessage: error instanceof Error ? error.message : String(error),
           };
           await updateBatchProgress(errorProgress);
           logger.error('Batch analysis failed', {
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
         }
       })
@@ -1787,15 +1830,15 @@ async function startBatchAnalysis(folderId?: string): Promise<BatchAnalysisStart
 
     return {
       success: true,
-      messageCount: unanalyzedMessages.length
+      messageCount: unanalyzedMessages.length,
     };
   } catch (error) {
     logger.error('Failed to start batch analysis', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     return {
       success: false,
-      error: `Failed to start batch analysis: ${error instanceof Error ? error.message : String(error)}`
+      error: `Failed to start batch analysis: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
@@ -1811,14 +1854,14 @@ async function cancelBatchAnalysis(): Promise<{ success: boolean; message: strin
     if (currentProgress.status !== 'running') {
       return {
         success: false,
-        message: 'No batch analysis is currently running.'
+        message: 'No batch analysis is currently running.',
       };
     }
 
     if (currentAbortController === null) {
       return {
         success: false,
-        message: 'Batch analysis controller not available.'
+        message: 'Batch analysis controller not available.',
       };
     }
 
@@ -1829,16 +1872,16 @@ async function cancelBatchAnalysis(): Promise<{ success: boolean; message: strin
 
     return {
       success: true,
-      message: 'Batch analysis cancellation requested. The current batch will be cancelled.'
+      message: 'Batch analysis cancellation requested. The current batch will be cancelled.',
     };
   } catch (error) {
     logger.error('Failed to cancel batch analysis', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
 
     return {
       success: false,
-      message: `Failed to cancel batch analysis: ${error instanceof Error ? error.message : String(error)}`
+      message: `Failed to cancel batch analysis: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
@@ -1854,18 +1897,71 @@ async function clearQueue(cancelRunning: boolean = false): Promise<ClearQueueRes
 
     return {
       success: true,
-      ...result
+      ...result,
     };
   } catch (error) {
     logger.error('Failed to clear queues', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
 
     return {
       success: false,
       clearedTasks: 0,
       cancelledProviders: [],
-      providers: {}
+      providers: {},
+    };
+  }
+}
+
+/**
+ * Clears all entries from analysis cache
+ * @returns Promise resolving to success result
+ */
+async function clearCache(): Promise<{ success: boolean; message: string }> {
+  try {
+    await analysisCache.clear();
+
+    logger.info('Analysis cache cleared');
+
+    return {
+      success: true,
+      message: 'Cache erfolgreich geleert',
+    };
+  } catch (error) {
+    logger.error('Failed to clear cache', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return {
+      success: false,
+      message: `Fehler beim Leeren des Cache: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+/**
+ * Gets cache statistics
+ * @returns Promise resolving to cache stats
+ */
+async function getCacheStats(): Promise<GetCacheStatsResponse> {
+  try {
+    const stats = await analysisCache.getStats();
+
+    logger.info('Cache stats retrieved', { ...stats } as Record<string, unknown>);
+
+    return {
+      success: true,
+      totalEntries: stats.totalEntries,
+      hitRate: stats.hitRate,
+    };
+  } catch (error) {
+    logger.error('Failed to get cache stats', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return {
+      success: false,
+      message: `Fehler beim Abrufen der Statistiken: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
@@ -1901,12 +1997,27 @@ async function handleRuntimeMessage(
 
     if (isCancelBatchAnalysisMessage(message)) {
       const result = await cancelBatchAnalysis();
+      if (result.success) {
+        await clearQueue(true);
+      }
       sendResponse(result);
       return false;
     }
 
     if (isClearQueueMessage(message)) {
       const result = await clearQueue(message.cancelRunning ?? false);
+      sendResponse(result);
+      return false;
+    }
+
+    if (isClearCacheMessage(message)) {
+      const result = await clearCache();
+      sendResponse(result);
+      return false;
+    }
+
+    if (isGetCacheStatsMessage(message)) {
+      const result = await getCacheStats();
       sendResponse(result);
       return false;
     }
@@ -1924,10 +2035,15 @@ async function handleRuntimeMessage(
     sendResponse({ success: false, message: 'Unknown message type' });
     return false;
   } catch (error) {
-    logAndDisplayError(error, ErrorType.SYSTEM, {
-      message,
-      action: 'handle_runtime_message',
-    }, 'Internal error processing message');
+    logAndDisplayError(
+      error,
+      ErrorType.SYSTEM,
+      {
+        message,
+        action: 'handle_runtime_message',
+      },
+      'Internal error processing message'
+    );
     sendResponse({ success: false, message: 'Internal error processing message' });
     return false;
   }
@@ -1964,14 +2080,18 @@ registerFolderContextMenu();
 
 const browserAction = messenger.browserAction || messenger.action;
 if (browserAction && browserAction.onClicked) {
-  browserAction.onClicked.addListener(async (tab: any) => {
+  browserAction.onClicked.addListener(async (tab: Tab) => {
     try {
       logger.info('Toolbar button clicked', { tabId: tab.id, tabType: tab.type });
 
       const displayedMessage = await messenger.messageDisplay.getDisplayedMessage(tab.id);
 
       if (!displayedMessage) {
-        await showNotification('Keine Nachricht', 'Keine Nachricht in diesem Tab angezeigt', 'error');
+        await showNotification(
+          'Keine Nachricht',
+          'Keine Nachricht in diesem Tab angezeigt',
+          'error'
+        );
         logger.info('No message displayed in tab');
         return;
       }
@@ -1984,14 +2104,24 @@ if (browserAction && browserAction.onClicked) {
       if (result.success) {
         logger.info('Toolbar button: Single message analysis completed', { messageId });
       } else {
-        logAndDisplayError(result.message, ErrorType.USER, {
-          messageId,
-        }, `Einzelne Nachricht Analyse fehlgeschlagen: ${result.message}`);
+        logAndDisplayError(
+          result.message,
+          ErrorType.USER,
+          {
+            messageId,
+          },
+          `Einzelne Nachricht Analyse fehlgeschlagen: ${result.message}`
+        );
       }
     } catch (error) {
-      logAndDisplayError(error, ErrorType.SYSTEM, {
-        action: 'toolbar_button_click',
-      }, 'Fehler beim Klicken auf den Toolbar-Button');
+      logAndDisplayError(
+        error,
+        ErrorType.SYSTEM,
+        {
+          action: 'toolbar_button_click',
+        },
+        'Fehler beim Klicken auf den Toolbar-Button'
+      );
     }
   });
 

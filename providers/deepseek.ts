@@ -1,6 +1,7 @@
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
 import { retryWithBackoff, validateLLMResponse, logger, maskApiKey, TagResponse } from './utils';
 import { CustomTags } from '../core/config';
+import { ANALYSIS_SYSTEM_PROMPT } from './constants';
 
 // ============================================================================
 // DEEPSEEK API TYPES
@@ -91,8 +92,8 @@ export type AnalyzeDeepseekResult = TagResponse | null;
 // CONSTANTS
 // ============================================================================
 
-const DEEPSEEK_API_URL: string = "https://api.deepseek.com/chat/completions";
-const DEEPSEEK_MODEL: string = "deepseek-chat";
+const DEEPSEEK_API_URL: string = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_MODEL: string = 'deepseek-chat';
 
 // ============================================================================
 // TYPE GUARDS
@@ -106,11 +107,16 @@ function isDeepSeekApiResponse(data: unknown): data is DeepSeekApiResponse {
   return (
     typeof data === 'object' &&
     data !== null &&
-    'id' in data && typeof data.id === 'string' &&
-    'object' in data && typeof data.object === 'string' &&
-    'created' in data && typeof data.created === 'number' &&
-    'model' in data && typeof data.model === 'string' &&
-    'choices' in data && Array.isArray(data.choices) &&
+    'id' in data &&
+    typeof data.id === 'string' &&
+    'object' in data &&
+    typeof data.object === 'string' &&
+    'created' in data &&
+    typeof data.created === 'number' &&
+    'model' in data &&
+    typeof data.model === 'string' &&
+    'choices' in data &&
+    Array.isArray(data.choices) &&
     data.choices.length > 0 &&
     typeof data.choices[0] === 'object' &&
     data.choices[0] !== null &&
@@ -119,7 +125,8 @@ function isDeepSeekApiResponse(data: unknown): data is DeepSeekApiResponse {
     data.choices[0].message !== null &&
     'content' in data.choices[0].message &&
     typeof data.choices[0].message.content === 'string' &&
-    'usage' in data && typeof data.usage === 'object' &&
+    'usage' in data &&
+    typeof data.usage === 'object' &&
     data.usage !== null &&
     'total_tokens' in data.usage &&
     typeof data.usage.total_tokens === 'number'
@@ -178,7 +185,7 @@ async function fetchWithTimeout(
   try {
     const response: Response = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response;
@@ -231,7 +238,7 @@ export async function analyzeWithDeepseek(
 
   // Validate API key presence
   if (!deepseekApiKey) {
-    logger.error("DeepSeek Error: API key is not set.");
+    logger.error('DeepSeek Error: API key is not set.');
     return null;
   }
 
@@ -244,19 +251,19 @@ export async function analyzeWithDeepseek(
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${deepseekApiKey}`
+            Authorization: `Bearer ${deepseekApiKey}`,
           },
           body: JSON.stringify({
             model: DEEPSEEK_MODEL,
             messages: [
               {
                 role: 'system',
-                content: 'You are an email analysis expert. Your task is to analyze the provided email data and respond only with a single, clean JSON object that strictly follows the requested schema. Do not include any conversational text, markdown formatting, or explanations in your response.'
+                content: ANALYSIS_SYSTEM_PROMPT,
               },
-              { role: 'user', content: prompt }
+              { role: 'user', content: prompt },
             ],
-            stream: false
-          } as DeepSeekApiRequest)
+            stream: false,
+          } as DeepSeekApiRequest),
         },
         30000
       );
@@ -287,9 +294,9 @@ export async function analyzeWithDeepseek(
     return validateLLMResponse(rawText);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error("DeepSeek Error", {
+    logger.error('DeepSeek Error', {
       error: errorMessage,
-      apiKey: maskApiKey(deepseekApiKey)
+      apiKey: maskApiKey(deepseekApiKey),
     });
     return null;
   }
@@ -303,9 +310,5 @@ export async function analyzeWithDeepseek(
  * @returns Promise resolving to validated TagResponse or null on failure
  */
 export async function analyzeEmail(input: AnalyzeDeepseekInput): Promise<AnalyzeDeepseekResult> {
-  return analyzeWithDeepseek(
-    input.settings,
-    input.structuredData,
-    input.customTags
-  );
+  return analyzeWithDeepseek(input.settings, input.structuredData, input.customTags);
 }

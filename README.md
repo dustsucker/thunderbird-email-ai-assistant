@@ -1,4 +1,5 @@
 # Thunderbird Email AI Assistant
+
 > AI-powered, multi-provider mail tagging and classification engine for Thunderbird.
 
 Plugin page: https://addons.thunderbird.net/eN-US/thunderbird/addon/email-assistant/
@@ -22,17 +23,17 @@ After installing the add-on, you can configure it by going to `Tools > Add-ons a
 The General tab allows you to select your preferred LLM provider and enter the necessary credentials (API Key or local URL).
 
 ![Ollama Settings](doc/screenshots/settings-ollama.png)
-*Ollama provider settings, with fields for a local URL and model name.*
+_Ollama provider settings, with fields for a local URL and model name._
 
 ![Mistral Settings](doc/screenshots/settings-mistral.png)
-*Settings for a cloud provider like Mistral, requiring an API key.*
+_Settings for a cloud provider like Mistral, requiring an API key._
 
 ### Custom Tags
 
 The Custom Tags tab is where you can define the categories for email analysis. You can add, edit, or delete tags. Each tag has a name, a unique key, a color, and a specific prompt instruction that tells the LLM what to check for.
 
 ![Custom Tags](doc/screenshots/settings-tags.png)
-*The interface for managing custom tags.*
+_The interface for managing custom tags._
 
 ### Usage
 
@@ -41,11 +42,10 @@ Once configured, the extension will automatically process new incoming emails. I
 ### Organizing emails
 
 Once automated tagging is working, you may create filters that will move tagged messages to folders or take other actions. You should set those filters to run
-periodically, as tagging is executed after initial filtering. 
-
+periodically, as tagging is executed after initial filtering.
 
 ![Tagged Message](doc/screenshots/tagged-message.png)
-*An example of an email that has been automatically tagged by the assistant.*
+_An example of an email that has been automatically tagged by the assistant._
 
 ## Development
 
@@ -57,12 +57,14 @@ periodically, as tagging is executed after initial filtering.
 ### Build Instructions
 
 1.  **Clone the repository:**
+
     ```bash
     git clone https://github.com/mcj-kr/thunderbird-email-ai-assistant.git
     cd thunderbird-email-ai-assistant
     ```
 
 2.  **Install dependencies:**
+
     ```bash
     npm install
     ```
@@ -73,13 +75,15 @@ periodically, as tagging is executed after initial filtering.
     ./build.bash
     ```
 
-## Installation                                                                                                                                                                                     
+## Installation
+
 ### Adding plugin
+
 Install plugin from: https://addons.thunderbird.net/eN-US/thunderbird/addon/email-assistant/
 
-### Temporary Installation (for Development)                                                                                                                                                        
+### Temporary Installation (for Development)
 
-1.  Build the extension using the instructions above.                                                                                                                                           
-2.  In Thunderbird, go to `Tools > Add-ons and Themes`.                                                                                                                                             
-3.  Click the gear icon, select `Debug Add-ons`, and then click `Load Temporary Add-on...`.                                                                                                         
-4.  Select the generated `.zip` file from the `web-ext-artifacts/` directory.                   
+1.  Build the extension using the instructions above.
+2.  In Thunderbird, go to `Tools > Add-ons and Themes`.
+3.  Click the gear icon, select `Debug Add-ons`, and then click `Load Temporary Add-on...`.
+4.  Select the generated `.zip` file from the `web-ext-artifacts/` directory.

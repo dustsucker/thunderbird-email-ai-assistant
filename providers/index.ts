@@ -120,7 +120,9 @@ export function getMistralSettings(config: ProviderConfig): GetProviderSettings<
 /**
  * Extracts Deepseek-specific settings from full provider config
  */
-export function getDeepseekSettings(config: ProviderConfig): GetProviderSettings<Provider.DEEPSEEK> {
+export function getDeepseekSettings(
+  config: ProviderConfig
+): GetProviderSettings<Provider.DEEPSEEK> {
   return {
     deepseekApiKey: config.deepseekApiKey,
   };

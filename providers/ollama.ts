@@ -260,7 +260,9 @@ export function isValidOllamaUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url);
     return (
-      (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1' || parsedUrl.hostname === '::1') &&
+      (parsedUrl.hostname === 'localhost' ||
+        parsedUrl.hostname === '127.0.0.1' ||
+        parsedUrl.hostname === '::1') &&
       parsedUrl.pathname.endsWith('/api/generate')
     );
   } catch {

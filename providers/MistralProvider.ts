@@ -1,11 +1,19 @@
-import { BaseProvider, BaseProviderSettings, RequestBody, AnalyzeInput, AnalyzeOutput, TagResponse } from './BaseProvider';
+import {
+  BaseProvider,
+  BaseProviderSettings,
+  RequestBody,
+  AnalyzeInput,
+  AnalyzeOutput,
+  TagResponse,
+} from './BaseProvider';
 import { StructuredEmailData } from '../core/analysis';
 import { CustomTags } from '../core/config';
 import { Logger } from './Logger';
 import { Validator, isMistralResponse, MistralResponse } from './Validator';
+import { ANALYSIS_SYSTEM_PROMPT_DETAILED } from './constants';
 
-const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions" as const;
-const MISTRAL_MODEL = "mistral-large-latest" as const;
+const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions' as const;
+const MISTRAL_MODEL = 'mistral-large-latest' as const;
 
 interface MistralMessage {
   role: 'system' | 'user' | 'assistant';
@@ -38,7 +46,8 @@ export class MistralProvider extends BaseProvider {
   }
 
   protected validateSettings(settings: BaseProviderSettings): boolean {
-    if (!Validator.validateApiKey(settings.apiKey)) {
+    const apiKey = this.getApiKey(settings);
+    if (!Validator.validateApiKey(apiKey)) {
       this.logger.error('Mistral API key is not set or invalid');
       return false;
     }
@@ -56,11 +65,11 @@ export class MistralProvider extends BaseProvider {
       messages: [
         {
           role: 'system',
-          content: 'You are an email analysis expert. Your task is to analyze the provided email data and respond only with a single, clean JSON object that strictly follows the requested schema. Do not include any conversational text, markdown formatting, or explanations in your response.'
+          content: ANALYSIS_SYSTEM_PROMPT_DETAILED,
         },
-        { role: 'user', content: prompt }
+        { role: 'user', content: prompt },
       ],
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
     };
     return requestBody;
   }
@@ -86,6 +95,6 @@ export async function analyzeWithMistral(
   return mistralProvider.analyze({
     settings: { apiKey: settings.mistralApiKey },
     structuredData,
-    customTags
+    customTags,
   });
 }

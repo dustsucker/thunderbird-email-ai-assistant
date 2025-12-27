@@ -1,10 +1,10 @@
-import {DEFAULTS, HARDCODED_TAGS, TAG_KEY_PREFIX, TAG_NAME_PREFIX} from './core/config.js';
+import { DEFAULTS, HARDCODED_TAGS, TAG_KEY_PREFIX, TAG_NAME_PREFIX } from './core/config.js';
 import { findEmailParts } from './core/analysis.js';
 import { PROVIDER_ENGINES } from './providers';
-import {ensureTagsExist} from "./core/tags";
+import { ensureTagsExist } from './core/tags';
 import { logger } from './providers/utils.js';
 
-logger.info("Spam-Filter Extension: Background script loaded.");
+logger.info('Spam-Filter Extension: Background script loaded.');
 
 class RateLimiter {
   constructor(config) {
@@ -18,7 +18,7 @@ class RateLimiter {
         tokens: config[provider].limit,
         lastRefill: Date.now(),
         limit: config[provider].limit,
-        window: config[provider].window
+        window: config[provider].window,
       };
       this.queues[provider] = [];
       this.processing[provider] = null;
@@ -56,7 +56,7 @@ class RateLimiter {
           const { fn, resolve, reject } = this.queues[provider].shift();
 
           while (!this.hasTokens(provider)) {
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise((r) => setTimeout(r, 100));
           }
 
           this.consumeToken(provider);
@@ -91,16 +91,16 @@ const rateLimiter = new RateLimiter({
   ollama: { limit: 1000, window: 60000 },
   mistral: { limit: 50, window: 60000 },
   deepseek: { limit: 50, window: 60000 },
-  gemini: { limit: 50, window: 60000 }
+  gemini: { limit: 50, window: 60000 },
 });
 
 async function updateBadge(status) {
   const settings = await messenger.storage.local.get(DEFAULTS);
-  
+
   const badgeConfig = {
     processing: { text: '⏳', color: '#2196F3' },
     success: { text: '', color: '' },
-    error: { text: '⚠', color: '#F44336' }
+    error: { text: '⚠', color: '#F44336' },
   };
 
   const config = badgeConfig[status];
@@ -123,7 +123,7 @@ async function showNotification(title, message, type = 'info') {
       type: 'basic',
       iconUrl: 'icon.png',
       title: title,
-      message: message
+      message: message,
     });
   }
 }
@@ -136,8 +136,9 @@ async function analyzeEmail(structuredData, priority = 1) {
     logger.info(`Using provider: ${settings.provider}`);
     try {
       await updateBadge('processing');
-      const result = await rateLimiter.execute(settings.provider, () => 
-        engine(settings, structuredData, settings.customTags), 
+      const result = await rateLimiter.execute(
+        settings.provider,
+        () => engine(settings, structuredData, settings.customTags),
         priority
       );
       await updateBadge('success');
@@ -165,28 +166,28 @@ async function analyzeEmail(structuredData, priority = 1) {
 function calculatePriority(headers) {
   const from = headers['from'] ? headers['from'][0] : '';
   const subject = headers['subject'] ? headers['subject'][0] : '';
-  
+
   const highPriorityKeywords = ['urgent', 'important', 'asap', 'priority'];
   const highPriorityDomains = ['@company.com', '@important.org'];
-  
+
   let priority = 1;
-  
+
   for (const keyword of highPriorityKeywords) {
     if (subject.toLowerCase().includes(keyword)) {
       priority += 1;
     }
   }
-  
+
   for (const domain of highPriorityDomains) {
     if (from.includes(domain)) {
       priority += 2;
     }
   }
-  
+
   return priority;
 }
 
-logger.info("Spam-Filter Extension: Setting up onNewMailReceived handler");
+logger.info('Spam-Filter Extension: Setting up onNewMailReceived handler');
 
 messenger.messages.onNewMailReceived.addListener(async (folder, messages) => {
   logger.info(`Spam-Filter Extension: Received ${messages.messages.length} new messages`);
@@ -195,27 +196,28 @@ messenger.messages.onNewMailReceived.addListener(async (folder, messages) => {
     try {
       const fullMessage = await messenger.messages.getFull(message.id);
       const { body, attachments } = findEmailParts(fullMessage.parts);
-      
+
       const structuredData = {
-          headers: fullMessage.headers,
-          body: body,
-          attachments: attachments
+        headers: fullMessage.headers,
+        body: body,
+        attachments: attachments,
       };
 
       const priority = calculatePriority(fullMessage.headers);
       const analysis = await analyzeEmail(structuredData, priority);
 
       if (!analysis) {
-        logger.warn("Skipping tagging due to analysis failure", { messageId: message.id });
+        logger.warn('Skipping tagging due to analysis failure', { messageId: message.id });
         continue;
       }
 
       const { customTags } = await messenger.storage.local.get({ customTags: DEFAULTS.customTags });
       const messageDetails = await messenger.messages.get(message.id);
       const tagSet = new Set(messageDetails.tags || []);
-      
+
       // Handle hardcoded tags
-      if (analysis.is_scam || analysis.spf_pass === false || analysis.dkim_pass === false) tagSet.add(HARDCODED_TAGS.is_scam.key);
+      if (analysis.is_scam || analysis.spf_pass === false || analysis.dkim_pass === false)
+        tagSet.add(HARDCODED_TAGS.is_scam.key);
       if (analysis.spf_pass === false) tagSet.add(HARDCODED_TAGS.spf_fail.key);
       if (analysis.dkim_pass === false) tagSet.add(HARDCODED_TAGS.dkim_fail.key);
 
@@ -226,7 +228,10 @@ messenger.messages.onNewMailReceived.addListener(async (folder, messages) => {
         }
       }
       tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.tagged);
-      logger.info("Analysis complete, tagging", { messageId: message.id, tagSet: Array.from(tagSet) });
+      logger.info('Analysis complete, tagging', {
+        messageId: message.id,
+        tagSet: Array.from(tagSet),
+      });
 
       await messenger.messages.update(message.id, { tags: Array.from(tagSet) });
     } catch (error) {
@@ -235,7 +240,7 @@ messenger.messages.onNewMailReceived.addListener(async (folder, messages) => {
         `Message ID: ${message.id}\nError: ${error.message}`,
         'error'
       );
-      logger.error("Error processing message", { messageId: message.id, error: error.message });
+      logger.error('Error processing message', { messageId: message.id, error: error.message });
     }
   }
 });

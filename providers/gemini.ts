@@ -38,7 +38,13 @@ interface GeminiGenerateContentRequest {
 /**
  * Gemini API finish reason
  */
-type GeminiFinishReason = 'FINISH_REASON_UNSPECIFIED' | 'STOP' | 'MAX_TOKENS' | 'SAFETY' | 'RECITATION' | 'OTHER';
+type GeminiFinishReason =
+  | 'FINISH_REASON_UNSPECIFIED'
+  | 'STOP'
+  | 'MAX_TOKENS'
+  | 'SAFETY'
+  | 'RECITATION'
+  | 'OTHER';
 
 /**
  * Gemini API content in response
@@ -102,7 +108,7 @@ async function fetchWithTimeout(
   try {
     const response: Response = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response;
@@ -120,11 +126,7 @@ async function fetchWithTimeout(
  * Type guard to check if value is a valid GeminiGenerateContentResponse
  */
 function isGeminiResponse(value: unknown): value is GeminiGenerateContentResponse {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'candidates' in value
-  );
+  return typeof value === 'object' && value !== null && 'candidates' in value;
 }
 
 /**
@@ -145,7 +147,9 @@ function hasValidText(candidate: GeminiCandidate): candidate is GeminiCandidate 
 /**
  * Type guard to check if response has error
  */
-function isErrorResponse(value: unknown): value is { error: { code: number; message: string; status: string } } {
+function isErrorResponse(
+  value: unknown
+): value is { error: { code: number; message: string; status: string } } {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -196,12 +200,12 @@ export async function analyzeWithGemini<T extends TagResponse = TagResponse>(
     const requestBody: GeminiGenerateContentRequest = {
       contents: [
         {
-          parts: [{ text: prompt }]
-        }
+          parts: [{ text: prompt }],
+        },
       ],
       generationConfig: {
-        response_mime_type: 'application/json'
-      }
+        response_mime_type: 'application/json',
+      },
     };
 
     // Fetch with retry logic
@@ -211,9 +215,9 @@ export async function analyzeWithGemini<T extends TagResponse = TagResponse>(
         {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
-          body: JSON.stringify(requestBody)
+          body: JSON.stringify(requestBody),
         },
         30000
       );
@@ -262,7 +266,7 @@ export async function analyzeWithGemini<T extends TagResponse = TagResponse>(
     const errorMessage: string = error instanceof Error ? error.message : String(error);
     logger.error('Gemini Error', {
       error: errorMessage,
-      apiKey: maskApiKey(geminiApiKey)
+      apiKey: maskApiKey(geminiApiKey),
     });
     return null;
   }

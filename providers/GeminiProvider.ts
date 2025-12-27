@@ -4,6 +4,7 @@ import { validateLLMResponse, TagResponse } from './utils';
 import { BaseProvider, BaseProviderSettings, AnalyzeInput, AnalyzeOutput } from './BaseProvider';
 import { Logger } from './Logger';
 import { Validator, isGeminiResponse } from './Validator';
+import { ANALYSIS_SYSTEM_PROMPT_DETAILED } from './constants';
 
 const GEMINI_MODEL = 'gemini-1.5-flash-latest';
 
@@ -94,10 +95,9 @@ export class GeminiProvider extends BaseProvider {
     return `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${this.apiKey}`;
   }
 
-  protected getHeaders(settings: BaseProviderSettings): Record<string, string> {
-    return {
-      'Content-Type': 'application/json'
-    };
+  protected getApiKey(settings: BaseProviderSettings): string | undefined {
+    // Gemini uses API key in URL, not in headers
+    return undefined;
   }
 
   protected validateSettings(settings: BaseProviderSettings): boolean {
@@ -113,12 +113,12 @@ export class GeminiProvider extends BaseProvider {
     const requestBody: GeminiGenerateContentRequest & Record<string, unknown> = {
       contents: [
         {
-          parts: [{ text: prompt }]
-        }
+          parts: [{ text: ANALYSIS_SYSTEM_PROMPT_DETAILED + '\n\n' + prompt }],
+        },
       ],
       generationConfig: {
-        response_mime_type: 'application/json'
-      }
+        response_mime_type: 'application/json',
+      },
     };
     return requestBody;
   }
@@ -149,10 +149,11 @@ export class GeminiProvider extends BaseProvider {
       const parsedResponse = JSON.parse(text);
       return validateLLMResponse(parsedResponse);
     } catch (error) {
-      throw new Error(`Failed to parse Gemini response as JSON: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to parse Gemini response as JSON: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
-
 }
 
 export const geminiProvider = new GeminiProvider('');
@@ -163,9 +164,9 @@ export async function analyzeWithGemini<T extends TagResponse = TagResponse>(
   customTags: CustomTags
 ): Promise<T | null> {
   const provider = new GeminiProvider(settings.geminiApiKey || '');
-  return await provider.analyze({
+  return (await provider.analyze({
     settings: settings as BaseProviderSettings,
     structuredData,
-    customTags
-  }) as T | null;
+    customTags,
+  })) as T | null;
 }

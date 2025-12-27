@@ -1,5 +1,5 @@
 import { DEFAULTS } from './core/config.js';
-import {ensureTagsExist} from "./core/tags";
+import { ensureTagsExist } from './core/tags';
 import { logger } from './providers/utils.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -16,24 +16,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tagForm = document.getElementById('tag-form');
   const closeModalBtn = document.querySelector('.close-button');
   const addNewTagBtn = document.getElementById('add-new-tag-btn');
-  
+
   let currentCustomTags = [];
 
   // --- Tab Logic ---
   const tabs = document.querySelectorAll('.tab-button');
   const tabContents = document.querySelectorAll('.tab-content');
-  tabs.forEach(tab => {
+  tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
+      tabs.forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
-      tabContents.forEach(c => c.classList.remove('active'));
+      tabContents.forEach((c) => c.classList.remove('active'));
       document.getElementById(tab.dataset.tab).classList.add('active');
     });
   });
 
   // --- General Settings Logic ---
   function showRelevantSettings(provider) {
-    document.querySelectorAll('.provider-settings').forEach(div => div.style.display = 'none');
+    document.querySelectorAll('.provider-settings').forEach((div) => (div.style.display = 'none'));
     const settingsToShow = document.getElementById(`${provider}-settings`);
     if (settingsToShow) settingsToShow.style.display = 'block';
   }
@@ -42,19 +42,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const settings = await messenger.storage.local.get(DEFAULTS);
 
     providerSelect.value = settings.provider;
-    if(document.getElementById('ollama-api-url'))
+    if (document.getElementById('ollama-api-url'))
       document.getElementById('ollama-api-url').value = settings.ollamaApiUrl;
-    if(document.getElementById('ollama-model'))
+    if (document.getElementById('ollama-model'))
       document.getElementById('ollama-model').value = settings.ollamaModel;
-    if(document.getElementById('openai-api-key'))
+    if (document.getElementById('openai-api-key'))
       document.getElementById('openai-api-key').value = settings.openaiApiKey;
-    if(document.getElementById('gemini-api-key'))
+    if (document.getElementById('gemini-api-key'))
       document.getElementById('gemini-api-key').value = settings.geminiApiKey;
-    if(document.getElementById('claude-api-key'))
+    if (document.getElementById('claude-api-key'))
       document.getElementById('claude-api-key').value = settings.claudeApiKey;
-    if(document.getElementById('mistral-api-key'))
+    if (document.getElementById('mistral-api-key'))
       document.getElementById('mistral-api-key').value = settings.mistralApiKey;
-    if(document.getElementById('deepseek-api-key'))
+    if (document.getElementById('deepseek-api-key'))
       document.getElementById('deepseek-api-key').value = settings.deepseekApiKey;
     showRelevantSettings(settings.provider);
   }
@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       case 'ollama':
         settingsToSave.ollamaApiUrl = document.getElementById('ollama-api-url').value.trim();
         settingsToSave.ollamaModel = document.getElementById('ollama-model').value.trim();
-        permissionOrigin = new URL(settingsToSave.ollamaApiUrl).origin + "/*";
+        permissionOrigin = new URL(settingsToSave.ollamaApiUrl).origin + '/*';
         break;
       case 'openai':
         settingsToSave.openaiApiKey = document.getElementById('openai-api-key').value.trim();
@@ -97,11 +97,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Request permission if an API key or URL is set
-    if (Object.values(settingsToSave).some(val => val)) {
+    if (Object.values(settingsToSave).some((val) => val)) {
       try {
         permissionGranted = await messenger.permissions.request({ origins: [permissionOrigin] });
       } catch (e) {
-        logger.error("Error requesting permission", { error: e.message });
+        logger.error('Error requesting permission', { error: e.message });
         statusMessage.textContent = 'Error with permission request.';
         permissionGranted = false;
       }
@@ -111,20 +111,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         await messenger.storage.local.set(settingsToSave);
         statusMessage.textContent = 'Settings saved!';
-        setTimeout(() => { statusMessage.textContent = ''; }, 3000);
+        setTimeout(() => {
+          statusMessage.textContent = '';
+        }, 3000);
       } catch (e) {
-        logger.error("Error saving settings", { error: e.message });
+        logger.error('Error saving settings', { error: e.message });
         statusMessage.textContent = 'Error saving settings.';
       }
     } else {
       statusMessage.textContent = 'Permission denied. Settings not saved.';
     }
 
-
     generalStatusMessage.textContent = 'General settings saved!';
-    setTimeout(() => { generalStatusMessage.textContent = ''; }, 3000);
+    setTimeout(() => {
+      generalStatusMessage.textContent = '';
+    }, 3000);
   });
-  
+
   providerSelect.addEventListener('change', (e) => showRelevantSettings(e.target.value));
 
   // --- Tag Management Logic ---
@@ -205,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
     const index = parseInt(document.getElementById('tag-index').value, 10);
     const key = document.getElementById('tag-key').value.trim();
-    
+
     const isDuplicate = currentCustomTags.some((tag, i) => tag.key === key && i !== index);
     if (isDuplicate) {
       alert('Error: Tag key must be unique.');
@@ -219,12 +222,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       prompt: document.getElementById('tag-prompt').value.trim(),
     };
 
-    if (index === -1) { // Add new
+    if (index === -1) {
+      // Add new
       currentCustomTags.push(newTag);
-    } else { // Update existing
+    } else {
+      // Update existing
       currentCustomTags[index] = newTag;
     }
-    
+
     saveCustomTags();
     closeModal();
   });

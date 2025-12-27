@@ -5,7 +5,7 @@ function clean() {
   const rootDir = path.join(__dirname, '..');
   const files = fs.readdirSync(rootDir);
 
-  files.forEach(file => {
+  files.forEach((file) => {
     if (file.endsWith('.zip')) {
       const filePath = path.join(rootDir, file);
       fs.unlinkSync(filePath);

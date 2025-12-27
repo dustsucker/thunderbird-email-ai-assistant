@@ -10,7 +10,8 @@ import {
   ErrorSeverity,
   ErrorType,
   ErrorDisplay,
-  ShowErrorRuntimeMessage
+  ShowErrorRuntimeMessage,
+  debounce,
 } from './providers/utils';
 
 /**
@@ -29,7 +30,9 @@ import { fetchZaiModels } from './providers/zai';
 declare const messenger: {
   storage: {
     local: {
-      get(keys: Partial<ProviderConfig> | { customTags?: CustomTags }): Promise<Partial<ProviderConfig> & { customTags?: CustomTags }>;
+      get(
+        keys: Partial<ProviderConfig> | { customTags?: CustomTags }
+      ): Promise<Partial<ProviderConfig> & { customTags?: CustomTags }>;
       set(items: Partial<ProviderConfig> & { customTags?: CustomTags }): Promise<void>;
     };
   };
@@ -40,6 +43,30 @@ declare const messenger: {
     request(permissions: { permissions?: string[]; origins?: string[] }): Promise<boolean>;
   };
 };
+
+interface BrowserRuntime {
+  sendMessage<T = unknown>(message: unknown, callback?: (response: T) => void): void;
+  onMessage: {
+    addListener(
+      callback: (
+        message: unknown,
+        sender: unknown,
+        sendResponse: (response?: unknown) => void
+      ) => void
+    ): void;
+  };
+  lastError?: { message: string };
+}
+
+interface BrowserExtension {
+  runtime: BrowserRuntime;
+}
+
+declare global {
+  interface Window {
+    browser: BrowserExtension;
+  }
+}
 
 // ============================================================================
 // DOM Element Interfaces
@@ -103,9 +130,23 @@ interface BatchAnalysisElements {
 }
 
 /**
+ * Cache Management DOM Elements
+ */
+interface CacheManagementElements {
+  clearCacheBtn: HTMLButtonElement;
+  cacheStatusMessage: HTMLSpanElement;
+  cacheStats: HTMLSpanElement;
+}
+
+/**
  * All DOM Elements
  */
-interface DOMElements extends GeneralSettingsElements, TagManagementElements, BatchAnalysisElements {
+interface DOMElements
+  extends
+    GeneralSettingsElements,
+    TagManagementElements,
+    BatchAnalysisElements,
+    CacheManagementElements {
   tabs: TabElements['tabButtons'];
   tabContents: TabElements['tabContents'];
 }
@@ -286,6 +327,8 @@ type BatchRuntimeMessage =
   | { action: 'getBatchProgress' }
   | { action: 'cancelBatchAnalysis' }
   | { action: 'clearQueue'; cancelRunning?: boolean }
+  | { action: 'clearCache' }
+  | { action: 'getCacheStats' }
   | ShowErrorRuntimeMessage;
 
 /**
@@ -294,7 +337,8 @@ type BatchRuntimeMessage =
 type BatchRuntimeResponse =
   | BatchAnalysisResponse
   | BatchProgress
-  | BatchCancelResponse;
+  | BatchCancelResponse
+  | { success: boolean; message: string };
 
 // ============================================================================
 // Helper Functions
@@ -474,8 +518,23 @@ function getAllDOMElements(): DOMElements {
   const analyzeProgressText = getElementById<HTMLSpanElement>('analyze-progress-text');
   const analyzeStatusMessage = getElementById<HTMLSpanElement>('analyze-status-message');
 
-  if (!analyzeAllBtn || !cancelAnalysisBtn || !killQueueBtn || !analyzeProgress || !analyzeProgressText || !analyzeStatusMessage) {
+  if (
+    !analyzeAllBtn ||
+    !cancelAnalysisBtn ||
+    !killQueueBtn ||
+    !analyzeProgress ||
+    !analyzeProgressText ||
+    !analyzeStatusMessage
+  ) {
     throw new Error('Required batch analysis elements not found');
+  }
+
+  const clearCacheBtn = getElementById<HTMLButtonElement>('clear-cache-btn');
+  const cacheStatusMessage = getElementById<HTMLSpanElement>('cache-status-message');
+  const cacheStats = getElementById<HTMLSpanElement>('cache-stats');
+
+  if (!clearCacheBtn || !cacheStatusMessage || !cacheStats) {
+    throw new Error('Required cache management elements not found');
   }
 
   return {
@@ -487,6 +546,9 @@ function getAllDOMElements(): DOMElements {
     analyzeProgress,
     analyzeProgressText,
     analyzeStatusMessage,
+    clearCacheBtn,
+    cacheStatusMessage,
+    cacheStats,
     tabs: document.querySelectorAll('.tab-button'),
     tabContents: document.querySelectorAll('.tab-content'),
   };
@@ -529,7 +591,10 @@ function handleTabClick(
 /**
  * Initializes tab functionality
  */
-function initializeTabs(tabs: NodeListOf<HTMLButtonElement>, tabContents: NodeListOf<HTMLDivElement>): void {
+function initializeTabs(
+  tabs: NodeListOf<HTMLButtonElement>,
+  tabContents: NodeListOf<HTMLDivElement>
+): void {
   tabs.forEach((tab) => {
     tab.addEventListener('click', handleTabClick(tabs, tabContents));
   });
@@ -558,7 +623,7 @@ function showRelevantSettings(provider: string): void {
  */
 async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<void> {
   try {
-    const settings = await messenger.storage.local.get(DEFAULTS) as GeneralSettingsStorage;
+    const settings = (await messenger.storage.local.get(DEFAULTS)) as GeneralSettingsStorage;
 
     elements.providerSelect.value = settings.provider || DEFAULTS.provider;
 
@@ -769,7 +834,7 @@ async function populateZaiModels(): Promise<void> {
     zaiModelSelect.innerHTML = '';
 
     // Add new options
-    models.forEach(model => {
+    models.forEach((model) => {
       const option = document.createElement('option');
       option.value = model;
       option.textContent = model;
@@ -794,7 +859,7 @@ function renderTagList(container: HTMLDivElement, customTags: CustomTags): void 
     const item = document.createElement('div');
     item.className = 'tag-item';
     item.innerHTML = `
-      <div class="tag-color-preview" style="background-color: ${tag.color};"></div>
+      <div class="tag-color-preview" style="background-color: ${escapeHtml(tag.color)};"></div>
       <div class="tag-details">
         <div class="tag-name">${escapeHtml(tag.name)}</div>
         <div class="tag-key">Key: ${escapeHtml(tag.key)}</div>
@@ -830,9 +895,8 @@ function updateBatchUI(
     elements.cancelAnalysisBtn.disabled = false;
   } else {
     elements.analyzeAllBtn.disabled = !isProviderConfigured;
-    elements.analyzeAllBtn.textContent = progress.status === 'cancelled'
-      ? 'Analysiere alle E-Mails'
-      : 'Analysiere alle E-Mails';
+    elements.analyzeAllBtn.textContent =
+      progress.status === 'cancelled' ? 'Analysiere alle E-Mails' : 'Analysiere alle E-Mails';
     elements.cancelAnalysisBtn.style.display = 'none';
     elements.cancelAnalysisBtn.disabled = true;
   }
@@ -875,7 +939,10 @@ function updateBatchUI(
 /**
  * Starts polling for batch analysis progress updates
  */
-function startProgressPolling(elements: BatchAnalysisElements, isProviderConfigured: boolean): void {
+function startProgressPolling(
+  elements: BatchAnalysisElements,
+  isProviderConfigured: boolean
+): void {
   // Clear any existing interval
   stopProgressPolling();
 
@@ -918,7 +985,7 @@ function handleBatchComplete(elements: BatchAnalysisElements, statistics: BatchS
     successful: statistics.successful,
     failed: statistics.failed,
     startTime: Date.now(),
-    endTime: Date.now()
+    endTime: Date.now(),
   };
   updateBatchUI(elements, progress, true);
 }
@@ -935,7 +1002,7 @@ function handleBatchError(elements: BatchAnalysisElements, error: string): void 
     failed: 0,
     startTime: Date.now(),
     endTime: Date.now(),
-    errorMessage: error
+    errorMessage: error,
   };
   updateBatchUI(elements, progress, true);
 }
@@ -1091,14 +1158,19 @@ function handleBackgroundError(message: ShowErrorRuntimeMessage): void {
  */
 async function sendMessage<T = unknown>(message: BatchRuntimeMessage): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    (window as any).browser.runtime.sendMessage(message, (response: T) => {
-      const lastError = (window as any).browser.runtime.lastError;
-      if (lastError) {
-        reject(new Error(lastError.message));
-      } else {
-        resolve(response);
-      }
-    });
+    // Type guard to ensure browser.runtime exists
+    if (typeof window !== 'undefined' && 'browser' in window && window.browser) {
+      window.browser.runtime.sendMessage<T>(message, (response: T) => {
+        const lastError = window.browser.runtime?.lastError;
+        if (lastError) {
+          reject(new Error(lastError.message));
+        } else {
+          resolve(response);
+        }
+      });
+    } else {
+      reject(new Error('Browser runtime not available'));
+    }
   });
 }
 
@@ -1106,16 +1178,26 @@ async function sendMessage<T = unknown>(message: BatchRuntimeMessage): Promise<T
  * Runtime message listener for error display and other messages
  */
 function setupRuntimeMessageListener(): void {
-  (window as any).browser.runtime.onMessage.addListener((message: BatchRuntimeMessage, sender: any, sendResponse: (response?: unknown) => void) => {
-    // Handle error display messages
-    if (message.action === 'showError') {
-      handleBackgroundError(message);
-      sendResponse({ success: true });
-      return false;
-    }
+  // Type guard to ensure browser.runtime exists
+  if (typeof window !== 'undefined' && 'browser' in window && window.browser) {
+    window.browser.runtime.onMessage.addListener(
+      (message: unknown, sender: unknown, sendResponse: (response?: unknown) => void) => {
+        // Type guard for BatchRuntimeMessage
+        if (typeof message === 'object' && message !== null && 'action' in message) {
+          const typedMessage = message as BatchRuntimeMessage;
 
-    return false; // Let other handlers process the message
-  });
+          // Handle error display messages
+          if (typedMessage.action === 'showError') {
+            handleBackgroundError(typedMessage as ShowErrorRuntimeMessage);
+            sendResponse({ success: true });
+            return false;
+          }
+        }
+
+        return false; // Let other handlers process the message
+      }
+    );
+  }
 }
 
 /**
@@ -1126,7 +1208,8 @@ async function handleAnalyzeAllClick(
   isProviderConfigured: boolean
 ): Promise<void> {
   if (!isProviderConfigured) {
-    elements.analyzeStatusMessage.textContent = 'Bitte konfigurieren Sie zuerst einen LLM-Provider.';
+    elements.analyzeStatusMessage.textContent =
+      'Bitte konfigurieren Sie zuerst einen LLM-Provider.';
     return;
   }
 
@@ -1176,7 +1259,7 @@ async function handleKillQueueClick(elements: BatchAnalysisElements): Promise<vo
   try {
     const response = await sendMessage<{ success: boolean; message: string }>({
       action: 'clearQueue',
-      cancelRunning: true
+      cancelRunning: true,
     });
 
     if (response.success) {
@@ -1188,6 +1271,61 @@ async function handleKillQueueClick(elements: BatchAnalysisElements): Promise<vo
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to clear queue', { error: errorMessage });
     elements.analyzeStatusMessage.textContent = `Fehler beim Leeren der Queue: ${errorMessage}`;
+  }
+}
+
+/**
+ * Handles clear cache button click
+ */
+async function handleClearCacheClick(elements: CacheManagementElements): Promise<void> {
+  try {
+    elements.clearCacheBtn.disabled = true;
+    elements.cacheStatusMessage.textContent = 'Cache wird geleert...';
+
+    const response = await sendMessage<{ success: boolean; message: string }>({
+      action: 'clearCache',
+    });
+
+    if (response.success) {
+      elements.cacheStatusMessage.textContent = response.message;
+    } else {
+      elements.cacheStatusMessage.textContent = response.message;
+    }
+
+    // Refresh cache stats after clearing
+    await updateCacheStats(elements);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to clear cache', { error: errorMessage });
+    elements.cacheStatusMessage.textContent = `Fehler beim Leeren des Cache: ${errorMessage}`;
+  } finally {
+    elements.clearCacheBtn.disabled = false;
+  }
+}
+
+/**
+ * Updates cache statistics display
+ */
+async function updateCacheStats(elements: CacheManagementElements): Promise<void> {
+  try {
+    const response = await sendMessage<{
+      success: boolean;
+      totalEntries?: number;
+      hitRate?: number;
+      message?: string;
+    }>({
+      action: 'getCacheStats',
+    });
+
+    if (response.success && response.totalEntries !== undefined && response.hitRate !== undefined) {
+      elements.cacheStats.textContent = `Cache-Einträge: ${response.totalEntries} | Hit-Rate: ${response.hitRate}%`;
+    } else {
+      elements.cacheStats.textContent = response.message || 'Cache-Statistiken nicht verfügbar';
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to get cache stats', { error: errorMessage });
+    elements.cacheStats.textContent = 'Fehler beim Laden der Statistiken';
   }
 }
 
@@ -1241,7 +1379,7 @@ async function initializeBatchAnalysis(elements: BatchAnalysisElements): Promise
     processed: 0,
     successful: 0,
     failed: 0,
-    startTime: 0
+    startTime: 0,
   };
   updateBatchUI(elements, progress, isConfigured);
 
@@ -1414,9 +1552,7 @@ async function handleTagFormSubmit(
   }
 
   // Check for duplicate keys (excluding current index for edits)
-  const isDuplicate = customTags.some(
-    (tag, i) => tag.key === key && i !== index
-  );
+  const isDuplicate = customTags.some((tag, i) => tag.key === key && i !== index);
   if (isDuplicate) {
     alert('Error: Tag key must be unique.');
     return;
@@ -1492,10 +1628,10 @@ function initializeOptionsPage(): void {
 
     // z.ai API key change handler - fetch models when key changes
     if (elements.zaiApiKey) {
+      const debouncedPopulateZaiModels = debounce(populateZaiModels, 500);
       elements.zaiApiKey.addEventListener('input', () => {
-        // Debounce to avoid excessive API calls
         if (elements.zaiApiKey?.value) {
-          setTimeout(() => populateZaiModels(), 500);
+          debouncedPopulateZaiModels();
         }
       });
     }
@@ -1503,6 +1639,16 @@ function initializeOptionsPage(): void {
     // Initialize batch analysis
     initializeBatchAnalysis(elements).catch((error) => {
       logger.error('Failed to initialize batch analysis', { error });
+    });
+
+    // Initialize cache management
+    updateCacheStats(elements).catch((error) => {
+      logger.error('Failed to initialize cache stats', { error });
+    });
+
+    // Cache management event listeners
+    elements.clearCacheBtn.addEventListener('click', () => {
+      handleClearCacheClick(elements);
     });
 
     // Load and initialize custom tags
@@ -1545,7 +1691,6 @@ function initializeOptionsPage(): void {
         logger.error('Failed to handle tag form submit', { error });
       });
     });
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to initialize options page', { error: errorMessage });

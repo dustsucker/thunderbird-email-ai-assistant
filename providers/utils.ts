@@ -3,6 +3,9 @@
  * @module providers/utils
  */
 
+import type { AppConfig, CustomTags } from '../core/config';
+import type { RequestBody } from './BaseProvider';
+
 // ============================================================================
 // TYPE DEFINITIONS AND INTERFACES
 // ============================================================================
@@ -33,11 +36,11 @@ export enum ErrorSeverity {
  * Error types for categorization
  */
 export enum ErrorType {
-  API = 'api',           // API call failures
+  API = 'api', // API call failures
   PROVIDER = 'provider', // Provider-specific errors
-  USER = 'user',         // User configuration/validation errors
-  SYSTEM = 'system',     // System-level errors (storage, permissions)
-  NETWORK = 'network',   // Network connectivity errors
+  USER = 'user', // User configuration/validation errors
+  SYSTEM = 'system', // System-level errors (storage, permissions)
+  NETWORK = 'network', // Network connectivity errors
   VALIDATION = 'validation', // Input validation errors
 }
 
@@ -67,7 +70,7 @@ export type LoggerContext = Record<string, unknown>;
 /**
  * Sanitized log context with stringified values
  */
-type SanitizedContext = Record<string, unknown>;
+type SanitizedContext = Record<string, unknown> | string;
 
 /**
  * Logger interface with typed methods
@@ -96,7 +99,9 @@ interface BaseError extends Error {
  * Type guard for error objects
  */
 function isError(value: unknown): value is Error {
-  return value instanceof Error || (typeof value === 'object' && value !== null && 'message' in value);
+  return (
+    value instanceof Error || (typeof value === 'object' && value !== null && 'message' in value)
+  );
 }
 
 /**
@@ -234,26 +239,51 @@ function log(level: LogLevel, message: string, context: LoggerContext = {}): voi
   if (level >= currentLogLevel) {
     const timestamp = new Date().toISOString();
     const levelName = LogLevel[level];
-    const sanitizedContext = sanitizeContext(context);
-    console.log(`[${timestamp}] [${levelName}]`, message, sanitizedContext);
+    // Separate log calls to prevent browser DevTools from showing raw context object
+    console.log(`[${timestamp}] [${levelName}] ${message}`);
+    if (Object.keys(context).length > 0) {
+      const sanitizedContext = sanitizeContext(context);
+      console.log('Context:', sanitizedContext);
+    }
   }
 }
 
 /**
- * Sanitizes context object by masking sensitive fields
+ * Sanitizes context object by masking sensitive fields recursively
+ * Handles nested objects and arrays to ensure API keys are never logged
  *
  * @param context - The context object to sanitize
+ * @param depth - Current recursion depth (prevents infinite recursion)
  * @returns Sanitized context object
  */
-function sanitizeContext(context: LoggerContext): SanitizedContext {
+function sanitizeContext(context: LoggerContext, depth: number = 0): SanitizedContext {
+  const MAX_DEPTH = 10;
+
   if (!context || typeof context !== 'object') return context;
+  if (depth > MAX_DEPTH) return '[Max depth reached]';
 
   const sanitized: SanitizedContext = {};
   const keyPatterns = ['key', 'token', 'password', 'secret'];
 
   for (const [key, value] of Object.entries(context)) {
     const isSensitive = keyPatterns.some((pattern) => key.toLowerCase().includes(pattern));
-    sanitized[key] = isSensitive ? maskApiKey(value) : value;
+
+    if (isSensitive) {
+      // Mask sensitive values
+      sanitized[key] = maskApiKey(value);
+    } else if (Array.isArray(value)) {
+      // Recursively sanitize array elements
+      sanitized[key] = value.map((item) =>
+        typeof item === 'object' && item !== null
+          ? sanitizeContext(item as LoggerContext, depth + 1)
+          : item
+      );
+    } else if (typeof value === 'object' && value !== null) {
+      // Recursively sanitize nested objects
+      sanitized[key] = sanitizeContext(value as LoggerContext, depth + 1);
+    } else {
+      sanitized[key] = value;
+    }
   }
 
   return sanitized;
@@ -290,8 +320,7 @@ export function logAndDisplayError(
   customMessage?: string
 ): void {
   // Extract error message
-  const errorMessage = customMessage ||
-    (error instanceof Error ? error.message : String(error));
+  const errorMessage = customMessage || (error instanceof Error ? error.message : String(error));
 
   // Determine severity based on error type and content
   const severity = determineErrorSeverity(error, type);
@@ -329,7 +358,8 @@ export function logAndDisplayError(
  * @returns Appropriate severity level
  */
 function determineErrorSeverity(error: unknown, type: ErrorType): ErrorSeverity {
-  const errorMessage = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  const errorMessage =
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
 
   // CRITICAL errors
   if (type === ErrorType.SYSTEM) {
@@ -480,7 +510,12 @@ function isRetryableStatus(status: number): boolean {
  * Type guard for objects with status property
  */
 function hasStatus(obj: unknown): obj is { status: number } {
-  return typeof obj === 'object' && obj !== null && 'status' in obj && typeof (obj as { status: unknown }).status === 'number';
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'status' in obj &&
+    typeof (obj as { status: unknown }).status === 'number'
+  );
 }
 
 /**
@@ -524,7 +559,8 @@ export async function retryWithBackoff<T>(
     } catch (error) {
       lastError = error;
 
-      const hasErrorStatus = isError(error) && typeof (error as unknown as { status?: unknown }).status === 'number';
+      const hasErrorStatus =
+        isError(error) && typeof (error as unknown as { status?: unknown }).status === 'number';
       const status = hasErrorStatus ? (error as unknown as { status: number }).status : null;
       const isTransient = isTransientError(error) || (status !== null && isRetryableStatus(status));
 
@@ -715,3 +751,203 @@ export function validateLLMResponse(response: unknown): TagResponse {
 
   return validated;
 }
+
+// ============================================================================
+// APP CONFIG VALIDATION
+// ============================================================================
+
+/**
+ * Type guard for checking if a value is a valid CustomTags array
+ * @param value - Value to check
+ * @returns True if value is a valid CustomTags array
+ */
+function isCustomTags(value: unknown): value is CustomTags {
+  if (!Array.isArray(value)) return false;
+
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) return false;
+    const tag = item as Record<string, unknown>;
+
+    if (typeof tag.key !== 'string' || tag.key.trim().length === 0) return false;
+    if (typeof tag.name !== 'string' || tag.name.trim().length === 0) return false;
+    if (typeof tag.color !== 'string' || !/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(tag.color))
+      return false;
+    // prompt is optional
+  }
+
+  return true;
+}
+
+/**
+ * Validates and sanitizes a partial AppConfig from storage
+ * @param result - Storage result to validate
+ * @returns Validated Partial<AppConfig> with fallback values for invalid fields
+ */
+export function validateAppConfig(result: Record<string, unknown>): Partial<AppConfig> {
+  const validated: Partial<AppConfig> = {};
+
+  // Validate provider (string, must be valid provider)
+  if (typeof result.provider === 'string') {
+    const { Provider } = require('../core/config');
+    if (Object.values(Provider).includes(result.provider as any)) {
+      validated.provider = result.provider as any;
+    }
+  }
+
+  // Validate boolean fields
+  if (typeof result.enableNotifications === 'boolean') {
+    validated.enableNotifications = result.enableNotifications;
+  }
+  if (typeof result.enableLogging === 'boolean') {
+    validated.enableLogging = result.enableLogging;
+  }
+
+  // Validate API key fields (strings)
+  if (typeof result.openaiApiKey === 'string') {
+    validated.openaiApiKey = result.openaiApiKey;
+  }
+  if (typeof result.geminiApiKey === 'string') {
+    validated.geminiApiKey = result.geminiApiKey;
+  }
+  if (typeof result.claudeApiKey === 'string') {
+    validated.claudeApiKey = result.claudeApiKey;
+  }
+  if (typeof result.mistralApiKey === 'string') {
+    validated.mistralApiKey = result.mistralApiKey;
+  }
+  if (typeof result.deepseekApiKey === 'string') {
+    validated.deepseekApiKey = result.deepseekApiKey;
+  }
+  if (typeof result.zaiApiKey === 'string') {
+    validated.zaiApiKey = result.zaiApiKey;
+  }
+
+  // Validate string fields (URLs, models)
+  if (typeof result.ollamaApiUrl === 'string') {
+    validated.ollamaApiUrl = result.ollamaApiUrl;
+  }
+  if (typeof result.ollamaModel === 'string') {
+    validated.ollamaModel = result.ollamaModel;
+  }
+  if (typeof result.zaiBaseUrl === 'string') {
+    validated.zaiBaseUrl = result.zaiBaseUrl;
+  }
+  if (typeof result.zaiModel === 'string') {
+    validated.zaiModel = result.zaiModel;
+  }
+
+  // Validate zaiVariant (must be 'paas' or 'coding')
+  if (result.zaiVariant === 'paas' || result.zaiVariant === 'coding') {
+    validated.zaiVariant = result.zaiVariant;
+  }
+
+  // Validate customTags (array of Tag objects)
+  if (isCustomTags(result.customTags)) {
+    validated.customTags = result.customTags;
+  }
+
+  return validated;
+}
+
+/**
+ * Validates customTags storage result
+ * @param result - Storage result containing customTags
+ * @returns Validated customTags or default if invalid
+ */
+export function validateCustomTagsResult(result: Record<string, unknown>): {
+  customTags: CustomTags;
+} {
+  if (isCustomTags(result.customTags)) {
+    return { customTags: result.customTags };
+  }
+
+  const { DEFAULT_CUSTOM_TAGS } = require('../core/config');
+  return { customTags: DEFAULT_CUSTOM_TAGS };
+}
+
+// ============================================================================
+// REQUEST BODY VALIDATION
+// ============================================================================
+
+/**
+ * Validates that a value is a valid RequestBody (non-null object)
+ * @param payload - Payload to validate
+ * @returns Validated RequestBody
+ * @throws {Error} If payload is invalid
+ */
+export function validateRequestBody(payload: unknown): RequestBody {
+  if (typeof payload !== 'object' || payload === null) {
+    throw new Error('RequestBody must be a non-null object');
+  }
+
+  return payload as Record<string, unknown>;
+}
+
+// ============================================================================
+// DEBOUNCE UTILITY
+// ============================================================================
+
+/**
+ * Creates a debounced version of a function that delays invoking func until after wait milliseconds
+ * have elapsed since the last time the debounced function was invoked.
+ *
+ * @template T - Function type to debounce
+ * @param func - Function to debounce
+ * @param wait - Delay in milliseconds
+ * @returns Debounced function
+ *
+ * @example
+ * const debouncedSearch = debounce((query: string) => searchAPI(query), 500);
+ * inputElement.addEventListener('input', () => debouncedSearch(inputElement.value));
+ */
+export function debounce<T extends (...args: any[]) => void>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: number | null = null;
+
+  return function (this: any, ...args: Parameters<T>) {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    timeout = window.setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+// ============================================================================
+// TYPE GUARDS FOR COMMON TYPES
+// ============================================================================
+
+/**
+ * Type guard for BatchAnalysisProgress
+ * @param value - Value to check
+ * @returns True if value is a valid BatchAnalysisProgress
+ */
+export function isBatchAnalysisProgress(value: unknown): value is BatchAnalysisProgress {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const obj = value as Record<string, unknown>;
+  const validStatuses = ['idle', 'running', 'completed', 'cancelled', 'error'];
+
+  return (
+    typeof obj.status === 'string' &&
+    validStatuses.includes(obj.status) &&
+    typeof obj.total === 'number' &&
+    typeof obj.processed === 'number' &&
+    typeof obj.successful === 'number' &&
+    typeof obj.failed === 'number' &&
+    typeof obj.startTime === 'number'
+  );
+}
+
+// Import BatchAnalysisProgress type for type guard
+type BatchAnalysisProgress = {
+  status: 'idle' | 'running' | 'completed' | 'cancelled' | 'error';
+  total: number;
+  processed: number;
+  successful: number;
+  failed: number;
+  startTime: number;
+  endTime?: number;
+  errorMessage?: string;
+};

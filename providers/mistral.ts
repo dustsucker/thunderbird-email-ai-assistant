@@ -5,13 +5,8 @@
 
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
 import { AppConfig, CustomTags } from '../core/config';
-import {
-  retryWithBackoff,
-  validateLLMResponse,
-  logger,
-  maskApiKey,
-  TagResponse
-} from './utils';
+import { retryWithBackoff, validateLLMResponse, logger, maskApiKey, TagResponse } from './utils';
+import { ANALYSIS_SYSTEM_PROMPT } from './constants';
 
 // ============================================================================
 // MISTRAL API TYPES
@@ -99,12 +94,12 @@ export interface MistralApiErrorResponse {
 /**
  * Mistral API endpoint URL
  */
-const MISTRAL_API_URL: string = "https://api.mistral.ai/v1/chat/completions" as const;
+const MISTRAL_API_URL: string = 'https://api.mistral.ai/v1/chat/completions' as const;
 
 /**
  * Default Mistral model to use
  */
-const MISTRAL_MODEL: string = "mistral-large-latest" as const;
+const MISTRAL_MODEL: string = 'mistral-large-latest' as const;
 
 /**
  * Default request timeout in milliseconds
@@ -134,12 +129,7 @@ function isMistralApiResponse(value: unknown): value is MistralApiResponse {
  * Type guard to check if a response is an error response
  */
 function isMistralErrorResponse(value: unknown): value is MistralApiErrorResponse {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'message' in value &&
-    'type' in value
-  );
+  return typeof value === 'object' && value !== null && 'message' in value && 'type' in value;
 }
 
 /**
@@ -180,7 +170,7 @@ async function fetchWithTimeout(
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response;
@@ -220,7 +210,7 @@ export async function analyzeWithMistral(
 
   // Validate API key
   if (!mistralApiKey) {
-    logger.error("Mistral Error: API key is not set.");
+    logger.error('Mistral Error: API key is not set.');
     return null;
   }
 
@@ -231,11 +221,11 @@ export async function analyzeWithMistral(
       messages: [
         {
           role: 'system',
-          content: 'You are an email analysis expert. Your task is to analyze the provided email data and respond only with a single, clean JSON object that strictly follows the requested schema. Do not include any conversational text, markdown formatting, or explanations in your response.'
+          content: ANALYSIS_SYSTEM_PROMPT,
         },
-        { role: 'user', content: prompt }
+        { role: 'user', content: prompt },
       ],
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
     };
 
     // Make API request with retry logic
@@ -246,8 +236,8 @@ export async function analyzeWithMistral(
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${mistralApiKey}`
+            Accept: 'application/json',
+            Authorization: `Bearer ${mistralApiKey}`,
           },
           body: JSON.stringify(requestBody),
         },
@@ -281,13 +271,12 @@ export async function analyzeWithMistral(
 
     // Validate and return LLM response
     return validateLLMResponse(rawText);
-
   } catch (error) {
     // Log error with masked API key
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error("Mistral Error", {
+    logger.error('Mistral Error', {
       error: errorMessage,
-      apiKey: maskApiKey(mistralApiKey)
+      apiKey: maskApiKey(mistralApiKey),
     });
     return null;
   }

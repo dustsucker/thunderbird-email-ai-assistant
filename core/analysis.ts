@@ -88,7 +88,7 @@ function isHtmlBody(part: EmailPart): boolean {
  * Type guard to check if a part is an attachment
  */
 function isAttachment(part: EmailPart): boolean {
-  return part.isAttachment || (part.name !== undefined);
+  return part.isAttachment || part.name !== undefined;
 }
 
 // ============================================================================
@@ -105,7 +105,7 @@ export function findEmailParts(parts: ReadonlyArray<EmailPart>): ParsedEmail {
   let htmlBody = '';
   const attachments: Attachment[] = [];
 
-  logger.debug("Parsing email parts...");
+  logger.debug('Parsing email parts...');
 
   /**
    * Recursively processes nested email parts
@@ -124,7 +124,7 @@ export function findEmailParts(parts: ReadonlyArray<EmailPart>): ParsedEmail {
       attachments.push({
         name: part.name,
         mimeType: part.contentType,
-        size: part.size || 0
+        size: part.size || 0,
       });
     }
   }
@@ -132,9 +132,7 @@ export function findEmailParts(parts: ReadonlyArray<EmailPart>): ParsedEmail {
   parts.forEach(recurse);
 
   // Convert HTML to plain text if available, otherwise use text body
-  const finalBody: string = htmlBody
-    ? convertHtmlToText(htmlBody)
-    : textBody;
+  const finalBody: string = htmlBody ? convertHtmlToText(htmlBody) : textBody;
 
   return { body: finalBody, attachments };
 }
@@ -178,8 +176,7 @@ export function buildPrompt(
   const frameSize: number = fullInstructions
     .replace('{headers}', headersJSON)
     .replace('{body}', '')
-    .replace('{attachments}', attachmentsJSON)
-    .length;
+    .replace('{attachments}', attachmentsJSON).length;
 
   // Calculate remaining space for email body
   const maxBodyLength: number = CONTEXT_CHAR_LIMIT - frameSize;
@@ -187,9 +184,9 @@ export function buildPrompt(
 
   // Truncate body if it exceeds available space
   if (emailBody.length > maxBodyLength) {
-    logger.warn("Body length exceeds remaining space, truncating", {
+    logger.warn('Body length exceeds remaining space, truncating', {
       bodyLength: emailBody.length,
-      maxBodyLength
+      maxBodyLength,
     });
     emailBody = truncateText(emailBody, maxBodyLength);
   }
@@ -202,9 +199,9 @@ export function buildPrompt(
 
   // Hard cut if prompt still exceeds limit (should not happen with proper truncation)
   if (finalPrompt.length > CONTEXT_CHAR_LIMIT) {
-    logger.error("Final prompt still too long, hard cutting", {
+    logger.error('Final prompt still too long, hard cutting', {
       promptLength: finalPrompt.length,
-      limit: CONTEXT_CHAR_LIMIT
+      limit: CONTEXT_CHAR_LIMIT,
     });
     return finalPrompt.substring(0, CONTEXT_CHAR_LIMIT);
   }

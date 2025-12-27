@@ -4,9 +4,11 @@ import { BaseProvider, BaseProviderSettings, RequestBody } from './BaseProvider'
 import { TagResponse } from './utils';
 import { Logger } from './Logger';
 import { isDeepseekResponse, DeepseekResponse } from './Validator';
+import { validateRequestBody } from './utils';
+import { ANALYSIS_SYSTEM_PROMPT_DETAILED } from './constants';
 
-const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions" as const;
-const DEEPSEEK_MODEL = "deepseek-chat" as const;
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions' as const;
+const DEEPSEEK_MODEL = 'deepseek-chat' as const;
 
 interface DeepseekProviderSettings extends BaseProviderSettings {
   deepseekApiKey?: string;
@@ -37,29 +39,21 @@ class DeepseekProvider extends BaseProvider {
     return DEEPSEEK_API_URL;
   }
 
-  protected validateSettings(settings: BaseProviderSettings): boolean {
+  protected getApiKey(settings: BaseProviderSettings): string | undefined {
     const deepseekSettings = settings as DeepseekProviderSettings;
-    const hasKey = deepseekSettings.deepseekApiKey && deepseekSettings.deepseekApiKey.trim().length > 0;
-    
+    return deepseekSettings.deepseekApiKey;
+  }
+
+  protected validateSettings(settings: BaseProviderSettings): boolean {
+    const apiKey = this.getApiKey(settings);
+    const hasKey = apiKey && apiKey.trim().length > 0;
+
     if (!hasKey) {
       this.logger.error('Deepseek Error: API key is not set.');
       return false;
     }
-    
+
     return true;
-  }
-
-  protected getHeaders(settings: BaseProviderSettings): Record<string, string> {
-    const deepseekSettings = settings as DeepseekProviderSettings;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-
-    if (deepseekSettings.deepseekApiKey) {
-      headers['Authorization'] = `Bearer ${deepseekSettings.deepseekApiKey}`;
-    }
-
-    return headers;
   }
 
   protected buildRequestBody(
@@ -69,23 +63,23 @@ class DeepseekProvider extends BaseProvider {
     customTags: CustomTags
   ): RequestBody {
     const model = settings.model || this.modelName;
-    
+
     const requestPayload: DeepseekApiRequest = {
       model,
       messages: [
         {
           role: 'system',
-          content: 'You are an email analysis expert. Your task is to analyze the provided email data and respond only with a single, clean JSON object that strictly follows the requested schema. Do not include any conversational text, markdown formatting, or explanations in your response.'
+          content: ANALYSIS_SYSTEM_PROMPT_DETAILED,
         },
         {
           role: 'user',
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
-      stream: false
+      stream: false,
     };
 
-    return requestPayload as unknown as RequestBody;
+    return validateRequestBody(requestPayload);
   }
 
   protected parseResponse(response: unknown): TagResponse {
@@ -95,7 +89,7 @@ class DeepseekProvider extends BaseProvider {
     }
 
     const content = response.choices[0]?.message?.content;
-    
+
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
       this.logger.error('Invalid response format: missing content');
       throw new Error('Invalid response format: missing content');
@@ -106,7 +100,7 @@ class DeepseekProvider extends BaseProvider {
       return this.validateResponse(parsed);
     } catch (error) {
       this.logger.error('Failed to parse JSON response', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw new Error('Failed to parse JSON response');
     }
@@ -133,13 +127,13 @@ export async function analyzeWithDeepseek(
   const providerSettings: DeepseekProviderSettings = {
     apiKey: settings.deepseekApiKey,
     deepseekApiKey: settings.deepseekApiKey,
-    model: DEEPSEEK_MODEL
+    model: DEEPSEEK_MODEL,
   };
 
   return deepseekProvider.analyze({
     settings: providerSettings,
     structuredData,
-    customTags
+    customTags,
   });
 }
 

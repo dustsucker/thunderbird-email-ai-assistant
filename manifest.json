@@ -14,10 +14,8 @@
     "messagesTagsList",
     "http://localhost:11434/api/generate"
   ],
-  "optional_permissions": [
-    "http://*/*",
-    "https://*/*"
-  ],
+  "optional_permissions": ["http://*/*", "https://*/*"],
+  "content_security_policy": "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://* http://*",
   "background": {
     "page": "background.html"
   },

@@ -46,7 +46,7 @@ export enum Provider {
   CLAUDE = 'claude',
   MISTRAL = 'mistral',
   DEEPSEEK = 'deepseek',
-  ZAI = 'zai'
+  ZAI = 'zai',
 }
 
 /**
@@ -112,18 +112,18 @@ export interface DefaultConfig extends AppConfig {}
 // Tag Key Constants
 // ============================================================================
 
-export const TAG_KEY_PREFIX: string = "_ma_" as const;
-export const TAG_NAME_PREFIX: string = "A:" as const;
+export const TAG_KEY_PREFIX: string = '_ma_' as const;
+export const TAG_NAME_PREFIX: string = 'A:' as const;
 
 // ============================================================================
 // Hardcoded Tags (readonly with const assertion)
 // ============================================================================
 
 export const HARDCODED_TAGS: HardcodedTags = {
-  is_scam: { key: "is_scam", name: "Scam Alert", color: "#FF5722" },
-  spf_fail: { key: "spf_fail", name: "SPF Fail", color: "#E91E63" },
-  dkim_fail: { key: "dkim_fail", name: "DKIM Fail", color: "#E91E63" },
-  tagged: { key: "tagged", name: "Tagged", color: "#4f4f4f" }
+  is_scam: { key: 'is_scam', name: 'Scam Alert', color: '#FF5722' },
+  spf_fail: { key: 'spf_fail', name: 'SPF Fail', color: '#E91E63' },
+  dkim_fail: { key: 'dkim_fail', name: 'DKIM Fail', color: '#E91E63' },
+  tagged: { key: 'tagged', name: 'Tagged', color: '#4f4f4f' },
 } as const;
 
 // ============================================================================
@@ -132,53 +132,59 @@ export const HARDCODED_TAGS: HardcodedTags = {
 
 export const DEFAULT_CUSTOM_TAGS: CustomTags = [
   {
-    key: "is_advertise",
-    name: "Advertisement",
-    color: "#FFC107",
-    prompt: "check if email is advertising something and contains an offer or someone is asking for contact to show the offer"
+    key: 'is_advertise',
+    name: 'Advertisement',
+    color: '#FFC107',
+    prompt:
+      'check if email is advertising something and contains an offer or someone is asking for contact to show the offer',
   },
   {
-    key: "is_business_approach",
-    name: "Business Ad",
-    color: "#2196F3",
-    prompt: "check if email is a cold marketing/sales/business approach (or next message in the approach process where sender reply to self to refresh the approach in the mailbox). Consider typical sales and lead generation scenarios."
+    key: 'is_business_approach',
+    name: 'Business Ad',
+    color: '#2196F3',
+    prompt:
+      'check if email is a cold marketing/sales/business approach (or next message in the approach process where sender reply to self to refresh the approach in the mailbox). Consider typical sales and lead generation scenarios.',
   },
   {
-    key: "is_personal",
-    name: "Personal",
-    color: "#4CAF50",
-    prompt: "check if this is non-sales scenario approach from someone who likes to contact in a non-business context."
+    key: 'is_personal',
+    name: 'Personal',
+    color: '#4CAF50',
+    prompt:
+      'check if this is non-sales scenario approach from someone who likes to contact in a non-business context.',
   },
   {
-    key: "is_business",
-    name: "Business",
-    color: "#af4c87",
-    prompt: "check if this looks like work related email"
+    key: 'is_business',
+    name: 'Business',
+    color: '#af4c87',
+    prompt: 'check if this looks like work related email',
   },
   {
-    key: "is_service_important",
-    name: "Service Important",
-    color: "#F44336",
-    prompt: "check if email contains important information related to already subscribed service (if this is subscription offer - ignore it): bill, password reset, login link, 2fa code, expiration notice. Consider common services like electricity, bank account, netflix, or similar subscription service."
+    key: 'is_service_important',
+    name: 'Service Important',
+    color: '#F44336',
+    prompt:
+      'check if email contains important information related to already subscribed service (if this is subscription offer - ignore it): bill, password reset, login link, 2fa code, expiration notice. Consider common services like electricity, bank account, netflix, or similar subscription service.',
   },
   {
-    key: "is_service_not_important",
-    name: "Service Info",
-    color: "#9E9E9E",
-    prompt: "check if email contains non critical information from already subscribed service (if this is subscription offer - ignore it) - like: daily posts update from linkedin, AWS invitation for conference, cross sale, tips how to use product, surveys, new offers"
+    key: 'is_service_not_important',
+    name: 'Service Info',
+    color: '#9E9E9E',
+    prompt:
+      'check if email contains non critical information from already subscribed service (if this is subscription offer - ignore it) - like: daily posts update from linkedin, AWS invitation for conference, cross sale, tips how to use product, surveys, new offers',
   },
   {
-    key: "is_bill",
-    name: "Bill",
-    color: "#f4b136",
-    prompt: "check if email contains bill or invoice information."
+    key: 'is_bill',
+    name: 'Bill',
+    color: '#f4b136',
+    prompt: 'check if email contains bill or invoice information.',
   },
   {
-    key: "has_calendar_invite",
-    name: "Appointment",
-    color: "#7F07f2",
-    prompt: "check if the mail has invitation to the call or meeting (with calendar appointment attached)"
-  }
+    key: 'has_calendar_invite',
+    name: 'Appointment',
+    color: '#7F07f2',
+    prompt:
+      'check if the mail has invitation to the call or meeting (with calendar appointment attached)',
+  },
 ] as const;
 
 // ============================================================================
@@ -200,7 +206,7 @@ export const DEFAULTS: Readonly<DefaultConfig> = {
   zaiVariant: 'paas' as const,
   customTags: DEFAULT_CUSTOM_TAGS,
   enableNotifications: true,
-  enableLogging: true
+  enableLogging: true,
 } as const;
 
 // ============================================================================
@@ -227,11 +233,9 @@ const PROMPT_INSTRUCTIONS: ReadonlyArray<string> = [
   '',
   '### INSTRUCTIONS',
   'Based on the data above, please populate the following JSON object:',
-  '- sender: simply extract \'from\'',
-  '- sender_consistent: check if from fields is consistent with headers and is not trying to spool identity',
-  '- spf_pass: (boolean) check if there is positive verification in spf headers (leave null if no information is available or for spf-soft fail with ~all)',
-  '- dkim_pass: (boolean) check if there is positive verification in dkim headers (leave null if no information is available)',
-  '- is_scam: (boolean) check if the mail sounds like a scam'
+  '- tags: (array of strings) list of tag keys where the corresponding check is true (e.g., ["is_advertise", "is_business"])',
+  '- confidence: (number between 0.0 and 1.0) your overall confidence in the analysis',
+  '- reasoning: (string) brief explanation of your analysis in one or two sentences',
 ] as const;
 
 export const PROMPT_BASE: string = PROMPT_INSTRUCTIONS.join('\n');

@@ -4,6 +4,7 @@ import { ProviderConfig, CustomTags } from '../core/config';
 import { TagResponse, extractJson } from './utils';
 import { Logger } from './Logger';
 import { isClaudeResponse } from './Validator';
+import { ANALYSIS_SYSTEM_PROMPT_DETAILED } from './constants';
 
 type ClaudeMessageRole = 'user' | 'assistant';
 
@@ -19,11 +20,10 @@ interface ClaudeApiRequest {
   messages: ClaudeMessage[];
 }
 
-const CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
-const CLAUDE_MODEL = "claude-sonnet-4-0";
-const CLAUDE_API_VERSION = "2023-06-01";
+const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+const CLAUDE_MODEL = 'claude-sonnet-4-0';
+const CLAUDE_API_VERSION = '2023-06-01';
 const DEFAULT_MAX_TOKENS = 4096;
-const DEFAULT_SYSTEM_PROMPT = "You are an email analysis expert. Your task is to analyze the provided email data and respond only with a single, clean JSON object that strictly follows the requested schema. Do not include any conversational text, markdown formatting, or explanations in your response.";
 
 export class ClaudeProvider extends BaseProvider {
   private readonly logger: Logger;
@@ -37,31 +37,31 @@ export class ClaudeProvider extends BaseProvider {
     return CLAUDE_API_URL;
   }
 
-  protected getHeaders(settings: BaseProviderSettings): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+  protected getAuthHeaderKey(): string {
+    return 'x-api-key';
+  }
+
+  protected formatAuthHeader(apiKey: string): string {
+    return apiKey;
+  }
+
+  protected getAdditionalHeaders(settings: BaseProviderSettings): Record<string, string> {
+    return {
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'anthropic-version': CLAUDE_API_VERSION,
     };
-
-    if (settings.apiKey) {
-      headers['x-api-key'] = settings.apiKey;
-    }
-
-    headers['anthropic-dangerous-direct-browser-access'] = 'true';
-    headers['anthropic-version'] = CLAUDE_API_VERSION;
-
-    return headers;
   }
 
   protected validateSettings(settings: BaseProviderSettings): boolean {
     const { apiKey } = settings;
 
     if (!apiKey) {
-      this.logger.error("Claude API key is not set");
+      this.logger.error('Claude API key is not set');
       return false;
     }
 
     if (typeof apiKey !== 'string' || apiKey.trim().length === 0) {
-      this.logger.error("Claude API key is invalid", { apiKey: this.maskApiKey(apiKey) });
+      this.logger.error('Claude API key is invalid', { apiKey: this.maskApiKey(apiKey) });
       return false;
     }
 
@@ -77,24 +77,22 @@ export class ClaudeProvider extends BaseProvider {
     return {
       model: settings.model || CLAUDE_MODEL,
       max_tokens: (settings as any).max_tokens || DEFAULT_MAX_TOKENS,
-      system: DEFAULT_SYSTEM_PROMPT,
-      messages: [
-        { role: "user" as const, content: prompt }
-      ]
+      system: ANALYSIS_SYSTEM_PROMPT_DETAILED,
+      messages: [{ role: 'user' as const, content: prompt }],
     };
   }
 
   protected parseResponse(response: unknown): TagResponse {
     if (!isClaudeResponse(response)) {
-      this.logger.error("Claude API returned invalid response structure", {
-        response: JSON.stringify(response).substring(0, 200)
+      this.logger.error('Claude API returned invalid response structure', {
+        response: JSON.stringify(response).substring(0, 200),
       });
       throw new Error('Invalid response format from Claude API');
     }
 
     const rawText = response.content[0]?.text;
     if (!rawText) {
-      this.logger.error("Claude API response missing content text");
+      this.logger.error('Claude API response missing content text');
       throw new Error('Invalid response format from Claude API');
     }
 
@@ -104,7 +102,7 @@ export class ClaudeProvider extends BaseProvider {
       return this.validateResponse(parsed);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error("Failed to parse Claude response", { error: errorMessage });
+      this.logger.error('Failed to parse Claude response', { error: errorMessage });
       throw new Error('Invalid response format from Claude API');
     }
   }
@@ -132,9 +130,9 @@ export async function analyzeWithClaude(
   return await claudeProvider.analyze({
     settings: {
       apiKey: settings.claudeApiKey,
-      model: CLAUDE_MODEL
+      model: CLAUDE_MODEL,
     },
     structuredData,
-    customTags
+    customTags,
   });
 }

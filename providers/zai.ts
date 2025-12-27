@@ -1,6 +1,7 @@
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
 import { ProviderConfig, CustomTags } from '../core/config';
 import { retryWithBackoff, validateLLMResponse, logger, maskApiKey } from './utils';
+import { ANALYSIS_SYSTEM_PROMPT_ZAI } from './constants';
 
 const ZAI_PAAS_API_URL = 'https://api.z.ai/api/paas/v4/chat/completions';
 const ZAI_CODING_API_URL = 'https://api.z.ai/api/coding/paas/v4/chat/completions';
@@ -84,8 +85,8 @@ export async function fetchZaiModels(apiKey: string, baseUrl?: string): Promise<
     const url = baseUrl || 'https://api.z.ai/api/paas/v4/models';
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`
-      }
+        Authorization: `Bearer ${apiKey}`,
+      },
     });
 
     if (!response.ok) {
@@ -110,7 +111,7 @@ export async function fetchZaiModels(apiKey: string, baseUrl?: string): Promise<
       'glm-4.5-air',
       'glm-4.5-x',
       'glm-4.5-airx',
-      'glm-4.5-flash'
+      'glm-4.5-flash',
     ];
     return FALLBACK_MODELS;
   }
@@ -191,7 +192,7 @@ async function fetchWithTimeout(
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response;
@@ -215,10 +216,15 @@ export async function analyzeWithZai(
   customTags: CustomTags
 ): Promise<AnalyzeWithZaiOutput> {
   const prompt = buildPrompt(structuredData, customTags);
-  const { zaiApiKey, zaiBaseUrl, zaiModel = DEFAULT_MODEL, zaiVariant = DEFAULT_VARIANT } = settings;
+  const {
+    zaiApiKey,
+    zaiBaseUrl,
+    zaiModel = DEFAULT_MODEL,
+    zaiVariant = DEFAULT_VARIANT,
+  } = settings;
 
   if (!isNonEmptyString(zaiApiKey)) {
-    logger.error("Z.ai Error: API key is not set.");
+    logger.error('Z.ai Error: API key is not set.');
     throw new Error('Z.ai Error: API key is not set');
   }
 
@@ -238,16 +244,16 @@ export async function analyzeWithZai(
         messages: [
           {
             role: 'system',
-            content: 'You are an email analysis assistant. Your ONLY task is to analyze the provided email data and respond with a single, valid JSON object. Return NOTHING except the JSON object - no conversational text, no markdown formatting (no ```json``` blocks), no explanations, no greetings, no "Here is the analysis" text. The response MUST start directly with { and end with }. Ensure all required fields are present with correct data types.'
+            content: ANALYSIS_SYSTEM_PROMPT_ZAI,
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         thinking: { type: 'enabled' },
         temperature: 0.3,
-        max_tokens: 4000
+        max_tokens: 4000,
       };
 
       const res = await fetchWithTimeout(
@@ -256,9 +262,9 @@ export async function analyzeWithZai(
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${zaiApiKey}`
+            Authorization: `Bearer ${zaiApiKey}`,
           },
-          body: JSON.stringify(requestPayload)
+          body: JSON.stringify(requestPayload),
         },
         DEFAULT_TIMEOUT
       );

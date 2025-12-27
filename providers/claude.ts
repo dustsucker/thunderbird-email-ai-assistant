@@ -11,8 +11,9 @@ import {
   retryWithBackoff,
   validateLLMResponse,
   logger,
-  maskApiKey
+  maskApiKey,
 } from './utils';
+import { ANALYSIS_SYSTEM_PROMPT } from './constants';
 
 // ============================================================================
 // CLAUDE API TYPES
@@ -100,9 +101,9 @@ function isErrorLike(value: unknown): value is { message: string; name?: string 
 // CONSTANTS
 // ============================================================================
 
-const CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
-const CLAUDE_MODEL = "claude-sonnet-4-0";
-const CLAUDE_API_VERSION = "2023-06-01";
+const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+const CLAUDE_MODEL = 'claude-sonnet-4-0';
+const CLAUDE_API_VERSION = '2023-06-01';
 
 // ============================================================================
 // FETCH WITH TIMEOUT
@@ -127,7 +128,7 @@ async function fetchWithTimeout(
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response;
@@ -157,7 +158,7 @@ export async function analyzeWithClaude(
   const { claudeApiKey } = settings;
 
   if (!claudeApiKey) {
-    logger.error("Claude Error: API key is not set.");
+    logger.error('Claude Error: API key is not set.');
     return null;
   }
 
@@ -169,16 +170,14 @@ export async function analyzeWithClaude(
           'Content-Type': 'application/json',
           'x-api-key': claudeApiKey,
           'anthropic-dangerous-direct-browser-access': 'true',
-          'anthropic-version': CLAUDE_API_VERSION
+          'anthropic-version': CLAUDE_API_VERSION,
         },
         body: JSON.stringify({
           model: CLAUDE_MODEL,
           max_tokens: 4096,
-          system: "You are an email analysis expert. Your task is to analyze the provided email data and respond only with a single, clean JSON object that strictly follows the requested schema. Do not include any conversational text, markdown formatting, or explanations in your response.",
-          messages: [
-            { role: "user", content: prompt }
-          ]
-        } as ClaudeApiRequest)
+          system: ANALYSIS_SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: prompt }],
+        } as ClaudeApiRequest),
       };
 
       return await fetchWithTimeout(CLAUDE_API_URL, requestOptions);
@@ -186,10 +185,10 @@ export async function analyzeWithClaude(
 
     if (!response.ok) {
       const text = await response.text();
-      logger.error("Claude API Error", {
+      logger.error('Claude API Error', {
         status: response.status,
         statusText: response.statusText,
-        body: text
+        body: text,
       });
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
@@ -198,8 +197,8 @@ export async function analyzeWithClaude(
 
     // Validate Claude API response structure
     if (!isClaudeApiResponse(result)) {
-      logger.error("Claude API returned invalid response structure", {
-        result: JSON.stringify(result).substring(0, 200)
+      logger.error('Claude API returned invalid response structure', {
+        result: JSON.stringify(result).substring(0, 200),
       });
       return null;
     }
@@ -207,7 +206,7 @@ export async function analyzeWithClaude(
     // Extract text from first content block
     const rawText = result.content[0]?.text;
     if (!rawText) {
-      logger.error("Claude API response missing content text");
+      logger.error('Claude API response missing content text');
       return null;
     }
 
@@ -218,9 +217,9 @@ export async function analyzeWithClaude(
     return validateLLMResponse(parsed);
   } catch (error) {
     const errorMessage = isErrorLike(error) ? error.message : String(error);
-    logger.error("Claude Error", {
+    logger.error('Claude Error', {
       error: errorMessage,
-      apiKey: maskApiKey(claudeApiKey)
+      apiKey: maskApiKey(claudeApiKey),
     });
     return null;
   }

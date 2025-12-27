@@ -161,6 +161,22 @@
           <span id="analyze-status-message" class="help-text" aria-live="polite"></span>
         </div>
       </div>
+
+      <hr>
+
+      <div class="cache-management-container">
+        <h2>Cache Management</h2>
+        <p class="help-text">LLM-Antworten werden für 24 Stunden zwischengespeichert, um Token-Verbrauch zu reduzieren.</p>
+        <div class="form-group">
+          <button type="button" id="clear-cache-btn" style="background-color: #dc3545; border-color: #dc3545; color: white;" aria-label="Clear cache">
+            Cache leeren
+          </button>
+          <span id="cache-status-message" class="help-text"></span>
+        </div>
+        <div class="form-group">
+          <span id="cache-stats" class="help-text"></span>
+        </div>
+      </div>
     </div>
 
     <!-- Custom Tags Tab -->

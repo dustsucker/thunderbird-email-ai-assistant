@@ -4,6 +4,7 @@ import { CustomTags, ProviderConfig } from '../core/config';
 import { TagResponse } from './utils';
 import { Logger } from './Logger';
 import { Validator, isZaiResponse, ZaiResponse } from './Validator';
+import { ANALYSIS_SYSTEM_PROMPT_DETAILED } from './constants';
 
 const ZAI_PAAS_API_URL = 'https://api.z.ai/api/paas/v4/chat/completions' as const;
 const ZAI_CODING_API_URL = 'https://api.z.ai/api/coding/paas/v4/chat/completions' as const;
@@ -51,6 +52,17 @@ interface ZaiErrorResponse {
   };
 }
 
+interface ZaiModel {
+  id: string;
+  object?: string;
+  created?: number;
+  owned_by?: string;
+}
+
+interface ZaiModelsResponse {
+  data?: ZaiModel[];
+}
+
 function isZaiErrorResponse(response: unknown): response is ZaiErrorResponse {
   return (
     typeof response === 'object' &&
@@ -85,23 +97,16 @@ export class ZaiProvider extends BaseProvider {
     return apiUrl;
   }
 
-  protected getHeaders(settings: BaseProviderSettings): Record<string, string> {
+  protected getApiKey(settings: BaseProviderSettings): string | undefined {
     const zaiSettings = settings as ZaiSettings;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-
-    if (zaiSettings.zaiApiKey) {
-      headers['Authorization'] = `Bearer ${zaiSettings.zaiApiKey}`;
-    }
-
-    return headers;
+    return zaiSettings.zaiApiKey;
   }
 
   protected validateSettings(settings: BaseProviderSettings): boolean {
     const zaiSettings = settings as ZaiSettings;
+    const apiKey = this.getApiKey(settings);
     const result = Validator.validateRequiredFields(
-      { apiKey: zaiSettings.zaiApiKey, model: zaiSettings.zaiModel || DEFAULT_MODEL },
+      { apiKey: apiKey, model: zaiSettings.zaiModel || DEFAULT_MODEL },
       ['apiKey', 'model']
     );
 
@@ -128,21 +133,17 @@ export class ZaiProvider extends BaseProvider {
       messages: [
         {
           role: 'system',
-          content: 'You are an email analysis assistant. Your ONLY task is to analyze the provided email data and respond with a single, valid JSON object. Return NOTHING except the JSON object - no conversational text, no markdown formatting (no ```json``` blocks), no explanations, no greetings, no "Here is the analysis" text. The response MUST start directly with { and end with }. Ensure all required fields are present with correct data types.'
+          content: ANALYSIS_SYSTEM_PROMPT_DETAILED,
         },
         {
           role: 'user',
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       temperature: 0.3,
       max_tokens: 4000,
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
     };
-
-    if (variant === 'coding') {
-      requestPayload.thinking = { type: 'enabled' };
-    }
 
     return requestPayload;
   }
@@ -153,7 +154,7 @@ export class ZaiProvider extends BaseProvider {
         error: response.error.message,
         type: response.error.type,
         param: response.error.param,
-        code: response.error.code
+        code: response.error.code,
       });
       throw new Error(`Z.ai API Error: ${response.error.message}`);
     }
@@ -163,18 +164,30 @@ export class ZaiProvider extends BaseProvider {
       throw new Error('Invalid response format from Z.ai API');
     }
 
-    const content = response.choices[0]?.message?.content;
+    // Type guard for content access
+    const content = response.choices?.[0]?.message?.content;
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      // Log detailed error with proper type checking
+      const hasChoices = 'choices' in response && Array.isArray(response.choices);
+      const choicesLength = hasChoices ? response.choices.length : 0;
+      const firstChoice = hasChoices && choicesLength > 0 ? response.choices[0] : null;
+      const hasMessage = firstChoice && typeof firstChoice === 'object' && 'message' in firstChoice;
+      const message = hasMessage ? (firstChoice as { message?: unknown }).message : null;
+      const hasUsage = 'usage' in response;
+
       this.logger.error('Invalid response format: missing content', {
         fullResponse: JSON.stringify(response, null, 2),
         responseType: typeof response,
-        hasChoices: 'choices' in response,
-        choicesLength: (response as any).choices?.length,
-        firstChoice: (response as any).choices?.[0],
-        hasMessage: 'message' in (response as any).choices?.[0],
-        message: (response as any).choices?.[0]?.message,
-        messageContent: (response as any).choices?.[0]?.message?.content,
-        hasUsage: 'usage' in response
+        hasChoices,
+        choicesLength,
+        firstChoice,
+        hasMessage,
+        message,
+        messageContent:
+          typeof message === 'object' && message !== null && 'content' in message
+            ? (message as { content?: unknown }).content
+            : undefined,
+        hasUsage,
       });
       throw new Error('Invalid response format: missing content');
     }
@@ -184,7 +197,10 @@ export class ZaiProvider extends BaseProvider {
       return this.validateResponse(parsedResponse);
     } catch (error) {
       // Handle abort/timeout errors specifically
-      if (error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+      if (
+        error instanceof Error &&
+        (error.name === 'AbortError' || error.name === 'TimeoutError')
+      ) {
         this.logger.error('Z.ai API request timeout', { error: error.message });
         throw new Error('Z.ai API Anfrage wurde abgebrochen (Timeout nach 5 Minuten)...');
       }
@@ -212,12 +228,13 @@ export class ZaiProvider extends BaseProvider {
       }
 
       const variant = this.settings.zaiVariant || DEFAULT_VARIANT;
-      const modelsApiUrl = variant === 'coding' ? ZAI_CODING_MODELS_API_URL : ZAI_PAAS_MODELS_API_URL;
+      const modelsApiUrl =
+        variant === 'coding' ? ZAI_CODING_MODELS_API_URL : ZAI_PAAS_MODELS_API_URL;
 
       const response = await fetch(modelsApiUrl, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`
-        }
+          Authorization: `Bearer ${apiKey}`,
+        },
       });
 
       if (!response.ok) {
@@ -225,8 +242,10 @@ export class ZaiProvider extends BaseProvider {
         return this.getFallbackModels();
       }
 
-      const data = await response.json();
-      const models = data.data?.map((m: any) => m.id) || [];
+      const data = (await response.json()) as ZaiModelsResponse;
+      const models =
+        data.data?.map((model) => model.id).filter((id): id is string => typeof id === 'string') ||
+        [];
 
       this.cachedModels = models;
       this.cacheTimestamp = Date.now();
@@ -234,22 +253,15 @@ export class ZaiProvider extends BaseProvider {
       return models;
     } catch (error) {
       this.logger.warn('Failed to fetch Z.ai models, using fallback', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return this.getFallbackModels();
     }
   }
 
   private getFallbackModels(): string[] {
-    return [
-      'glm-4.5',
-      'glm-4.5-air',
-      'glm-4.5-x',
-      'glm-4.5-airx',
-      'glm-4.5-flash'
-    ];
+    return ['glm-4.5', 'glm-4.5-air', 'glm-4.5-x', 'glm-4.5-airx', 'glm-4.5-flash'];
   }
-
 }
 
 export const zaiProvider = new ZaiProvider();
@@ -265,42 +277,42 @@ export async function analyzeWithZai(
     zaiBaseUrl: settings.zaiBaseUrl,
     zaiModel: settings.zaiModel || DEFAULT_MODEL,
     zaiVariant: settings.zaiVariant || DEFAULT_VARIANT,
-    model: settings.zaiModel || DEFAULT_MODEL
+    model: settings.zaiModel || DEFAULT_MODEL,
   };
 
   return await zaiProvider.analyze({
     settings: providerSettings,
     structuredData,
-    customTags
+    customTags,
   });
 }
 
-export async function fetchZaiModels(apiKey: string, baseUrl?: string, variant?: ZaiVariant): Promise<string[]> {
+export async function fetchZaiModels(
+  apiKey: string,
+  baseUrl?: string,
+  variant?: ZaiVariant
+): Promise<string[]> {
   try {
-    const url = baseUrl || (variant === 'coding' ? ZAI_CODING_MODELS_API_URL : ZAI_PAAS_MODELS_API_URL);
+    const url =
+      baseUrl || (variant === 'coding' ? ZAI_CODING_MODELS_API_URL : ZAI_PAAS_MODELS_API_URL);
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`
-      }
+        Authorization: `Bearer ${apiKey}`,
+      },
     });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch models: ${response.status}`);
     }
 
-    const data = await response.json();
-    return data.data?.map((m: any) => m.id) || [];
+    const data = (await response.json()) as ZaiModelsResponse;
+    return (
+      data.data?.map((model) => model.id).filter((id): id is string => typeof id === 'string') || []
+    );
   } catch (error) {
     console.warn('Failed to fetch z.ai models, using fallback:', error);
-    return [
-      'glm-4.5',
-      'glm-4.5-air',
-      'glm-4.5-x',
-      'glm-4.5-airx',
-      'glm-4.5-flash'
-    ];
+    return ['glm-4.5', 'glm-4.5-air', 'glm-4.5-x', 'glm-4.5-airx', 'glm-4.5-flash'];
   }
 }
 
 export { ZaiResponse };
-

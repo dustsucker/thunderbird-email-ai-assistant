@@ -1,6 +1,13 @@
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
 import { CustomTags } from '../core/config';
-import { retryWithBackoff, validateLLMResponse, logger, maskApiKey, TagResponse as UtilsTagResponse } from './utils';
+import {
+  retryWithBackoff,
+  validateLLMResponse,
+  logger,
+  maskApiKey,
+  TagResponse as UtilsTagResponse,
+  validateRequestBody,
+} from './utils';
 
 export type TagResponse = UtilsTagResponse;
 
@@ -66,7 +73,7 @@ const DEFAULT_RETRY_CONFIG = {
   maxRetries: 3,
   baseDelay: 1000,
   factor: 2,
-  jitter: 0.5
+  jitter: 0.5,
 } as const;
 
 // ============================================================================
@@ -92,7 +99,7 @@ async function fetchWithTimeout(
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response;
@@ -168,6 +175,52 @@ export abstract class BaseProvider {
   protected abstract validateSettings(settings: BaseProviderSettings): boolean;
 
   // ========================================================================
+  // TEMPLATE METHODS (can be overridden by subclasses)
+  // ========================================================================
+
+  /**
+   * Extracts the API key from provider settings
+   * Default implementation uses settings.apiKey
+   * Override for providers with custom key names (e.g., openaiApiKey, zaiApiKey)
+   * @param settings - Provider settings
+   * @returns API key or undefined
+   */
+  protected getApiKey(settings: BaseProviderSettings): string | undefined {
+    return settings.apiKey;
+  }
+
+  /**
+   * Returns the HTTP header key for authentication
+   * Default implementation returns 'Authorization'
+   * Override for providers with different auth header (e.g., Claude uses 'x-api-key')
+   * @returns Header key string
+   */
+  protected getAuthHeaderKey(): string {
+    return 'Authorization';
+  }
+
+  /**
+   * Formats the API key for the authentication header
+   * Default implementation uses Bearer token format
+   * Override for providers with different auth schemes
+   * @param apiKey - The API key to format
+   * @returns Formatted header value
+   */
+  protected formatAuthHeader(apiKey: string): string {
+    return `Bearer ${apiKey}`;
+  }
+
+  /**
+   * Returns additional provider-specific headers
+   * Override to add custom headers (e.g., Claude's version headers)
+   * @param settings - Provider settings
+   * @returns Additional headers object
+   */
+  protected getAdditionalHeaders(settings: BaseProviderSettings): HttpHeaders {
+    return {};
+  }
+
+  // ========================================================================
   // COMMON UTILITY METHODS
   // ========================================================================
 
@@ -177,10 +230,7 @@ export abstract class BaseProvider {
    * @param customTags - Custom tag configurations
    * @returns Analysis prompt string
    */
-  protected buildPrompt(
-    structuredData: StructuredEmailData,
-    customTags: CustomTags
-  ): string {
+  protected buildPrompt(structuredData: StructuredEmailData, customTags: CustomTags): string {
     return buildPrompt(structuredData, customTags);
   }
 
@@ -236,18 +286,24 @@ export abstract class BaseProvider {
 
   /**
    * Gets the API headers for the request
-   * Can be overridden by subclasses for provider-specific headers
+   * Uses template methods for provider-specific authentication
    * @param settings - Provider settings
    * @returns HTTP headers object
    */
   protected getHeaders(settings: BaseProviderSettings): HttpHeaders {
     const headers: HttpHeaders = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     };
 
-    if (settings.apiKey) {
-      headers['Authorization'] = `Bearer ${settings.apiKey}`;
+    // Add authentication header using template methods
+    const apiKey = this.getApiKey(settings);
+    if (apiKey) {
+      headers[this.getAuthHeaderKey()] = this.formatAuthHeader(apiKey);
     }
+
+    // Add provider-specific headers
+    const additionalHeaders = this.getAdditionalHeaders(settings);
+    Object.assign(headers, additionalHeaders);
 
     return headers;
   }
@@ -272,43 +328,40 @@ export abstract class BaseProvider {
 
     this.logDebug('Executing API request', {
       url: apiUrl,
-      hasApiKey: !!settings.apiKey,
-      model: settings.model
+      hasApiKey: !!this.getApiKey(settings),
+      model: settings.model,
     });
 
     try {
-      const response = await retryWithBackoff<Response>(
-        async (): Promise<Response> => {
-          const res = await fetchWithTimeout(
-            apiUrl,
-            {
-              method: 'POST',
-              headers,
-              body: JSON.stringify(requestBody)
-            },
-            this.timeout
-          );
+      const response = await retryWithBackoff<Response>(async (): Promise<Response> => {
+        const res = await fetchWithTimeout(
+          apiUrl,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(requestBody),
+          },
+          this.timeout
+        );
 
-          if (!isOkResponse(res)) {
-            const errorText = await res.text().catch(() => 'Could not read error response');
-            this.logError('API request failed', {
-              status: res.status,
-              statusText: res.statusText,
-              error: errorText
-            });
-            throw new Error(`API request failed: ${res.status} ${res.statusText}`);
-          }
+        if (!isOkResponse(res)) {
+          const errorText = await res.text().catch(() => 'Could not read error response');
+          this.logError('API request failed', {
+            status: res.status,
+            statusText: res.statusText,
+            error: errorText,
+          });
+          throw new Error(`API request failed: ${res.status} ${res.statusText}`);
+        }
 
-          return res;
-        },
-        this.retryConfig
-      );
+        return res;
+      }, this.retryConfig);
 
       return response;
     } catch (error) {
       this.logError('Request execution failed', {
         error: error instanceof Error ? error.message : String(error),
-        url: apiUrl
+        url: apiUrl,
       });
       throw error;
     }
@@ -332,7 +385,7 @@ export abstract class BaseProvider {
         hasBody: !!structuredData.body,
         attachmentCount: structuredData.attachments.length,
         tagCount: customTags.length,
-        model: settings.model
+        model: settings.model,
       });
 
       if (!this.validateSettings(settings)) {
@@ -343,12 +396,7 @@ export abstract class BaseProvider {
       const prompt = this.buildPrompt(structuredData, customTags);
       this.logDebug('Built analysis prompt', { promptLength: prompt.length });
 
-      const requestBody = this.buildRequestBody(
-        settings,
-        prompt,
-        structuredData,
-        customTags
-      );
+      const requestBody = this.buildRequestBody(settings, prompt, structuredData, customTags);
       this.logDebug('Built request body');
 
       const response = await this.executeRequest(settings, requestBody);
@@ -361,14 +409,14 @@ export abstract class BaseProvider {
 
       this.logInfo('Email analysis completed', {
         tagCount: validatedResponse.tags.length,
-        confidence: validatedResponse.confidence
+        confidence: validatedResponse.confidence,
       });
 
       return validatedResponse;
     } catch (error) {
       this.logError('Email analysis failed', {
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       // Re-throw the error with context
       if (error instanceof Error) {

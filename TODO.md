@@ -50,14 +50,14 @@ Organisierte Liste von Problemen und Verbesserungsmöglichkeiten
 
 ## Moderat (Code-Qualität)
 
-- [ ] Performance-Monitoring und Metriken (Schwierigkeit: 3/5, Datei: background.js, providers/*.js)
+- [ ] Performance-Monitoring und Metriken (Schwierigkeit: 3/5, Datei: background.js, providers/\*.js)
   - **Beschreibung:** Keine Überwachung von API-Antwortzeiten, Erfolgsraten und Kosten
   - **Warum wichtig:** Ohne Metriken ist es schwer Performance-Probleme zu erkennen und zu optimieren.
   - **Vorgeschlagene Lösung:** Analytics-Integration, Dashboard für Metriken, Cost-Tracking
 
 - [x] TypeScript Migration (✅ erledigt am 24.12.2025)
   - **Beschreibung:** Vollständige Migration von JavaScript zu TypeScript
-  - **Was gemacht:** Alle 11 JS-Dateien zu TypeScript migriert (background, options, core/*, providers/*)
+  - **Was gemacht:** Alle 11 JS-Dateien zu TypeScript migriert (background, options, core/_, providers/_)
   - **Neue Features:** Strict Types, Type Guards, Interfaces für Typ-Sicherheit
   - **Build-Konfiguration:** tsconfig.json, webpack mit ts-loader für TypeScript-Compilation
   - **Dependencies:** typescript, ts-loader, @types/chrome, @types/node
@@ -68,7 +68,7 @@ Organisierte Liste von Problemen und Verbesserungsmöglichkeiten
   - **Warum wichtig:** Code-Änderungen können bestehende Funktionalität brechen. Regressionen sind schwer zu finden.
   - **Vorgeschlagene Lösung:** Test-Setup (Jest oder Vitest), Unit-Tests für core/ Funktionen, Integrationstests für Provider
 
-- [ ] Duplizierter Provider-Code (Schwierigkeit: 3/5, Datei: providers/*.js)
+- [ ] Duplizierter Provider-Code (Schwierigkeit: 3/5, Datei: providers/\*.js)
   - **Beschreibung:** Alle Provider-Dateien haben ähnliche Struktur und wiederholen Code
   - **Warum wichtig:** Wartungsaufwand hoch, Änderungen müssen in allen Dateien gemacht werden, Code-Smell.
   - **Vorgeschlagene Lösung:** Abstrakte BaseProvider-Klasse, Factory-Pattern, Konfiguration statt Code-Duplizierung
@@ -85,7 +85,7 @@ Organisierte Liste von Problemen und Verbesserungsmöglichkeiten
   - **Warum wichtig:** Community-Contributions und Plugin-Erweiterungen werden erschwert.
   - **Vorgeschlagene Lösung:** Dynamic Import, Plugin-System, Provider-Discovery-Mechanismus
 
-- [ ] Konfigurierbare Modelle für Cloud-Provider (Schwierigkeit: 2/5, Datei: options.js, providers/*.js)
+- [ ] Konfigurierbare Modelle für Cloud-Provider (Schwierigkeit: 2/5, Datei: options.js, providers/\*.js)
   - **Beschreibung:** Cloud-Provider-Modelle sind hardcoded, nicht im UI änderbar
   - **Warum wichtig:** Nutzer können günstigere/neuere Modelle nicht wählen ohne Code-Änderungen.
   - **Vorgeschlagene Lösung:** Model-Selector in Options-UI, API-Aufruf für verfügbare Modelle, User-Preferences

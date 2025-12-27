@@ -3,9 +3,11 @@ import { CustomTags } from '../core/config';
 import { BaseProvider, BaseProviderSettings, RequestBody, TagResponse } from './BaseProvider';
 import { Logger } from './Logger';
 import { isOpenAIResponse, OpenAIResponse } from './Validator';
+import { validateRequestBody } from './utils';
+import { ANALYSIS_SYSTEM_PROMPT_DETAILED } from './constants';
 
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions" as const;
-const OPENAI_MODEL = "gpt-4o" as const;
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions' as const;
+const OPENAI_MODEL = 'gpt-4o' as const;
 
 interface OpenAIProviderSettings extends BaseProviderSettings {
   openaiApiKey?: string;
@@ -40,29 +42,21 @@ class OpenAIProvider extends BaseProvider {
     return OPENAI_API_URL;
   }
 
-  protected validateSettings(settings: BaseProviderSettings): boolean {
+  protected getApiKey(settings: BaseProviderSettings): string | undefined {
     const openaiSettings = settings as OpenAIProviderSettings;
-    const hasKey = openaiSettings.openaiApiKey && openaiSettings.openaiApiKey.trim().length > 0;
-    
+    return openaiSettings.openaiApiKey;
+  }
+
+  protected validateSettings(settings: BaseProviderSettings): boolean {
+    const apiKey = this.getApiKey(settings);
+    const hasKey = apiKey && apiKey.trim().length > 0;
+
     if (!hasKey) {
       this.logger.error('OpenAI Error: API key is not set.');
       return false;
     }
-    
+
     return true;
-  }
-
-  protected getHeaders(settings: BaseProviderSettings): Record<string, string> {
-    const openaiSettings = settings as OpenAIProviderSettings;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-
-    if (openaiSettings.openaiApiKey) {
-      headers['Authorization'] = `Bearer ${openaiSettings.openaiApiKey}`;
-    }
-
-    return headers;
   }
 
   protected buildRequestBody(
@@ -72,23 +66,23 @@ class OpenAIProvider extends BaseProvider {
     customTags: CustomTags
   ): RequestBody {
     const model = settings.model || this.modelName;
-    
+
     const requestPayload: OpenAIChatCompletionRequest = {
       model,
       messages: [
         {
           role: 'system',
-          content: 'You are an email analysis expert. Your task is to analyze the provided email data and respond only with a single, clean JSON object that strictly follows the requested schema. Do not include any conversational text, markdown formatting, or explanations in your response.'
+          content: ANALYSIS_SYSTEM_PROMPT_DETAILED,
         },
         {
           role: 'user',
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
     };
 
-    return requestPayload as unknown as RequestBody;
+    return validateRequestBody(requestPayload);
   }
 
   protected parseResponse(response: unknown): TagResponse {
@@ -98,7 +92,7 @@ class OpenAIProvider extends BaseProvider {
     }
 
     const content = response.choices[0]?.message?.content;
-    
+
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
       this.logger.error('Invalid response format: missing content');
       throw new Error('Invalid response format: missing content');
@@ -109,7 +103,7 @@ class OpenAIProvider extends BaseProvider {
       return this.validateResponse(parsed);
     } catch (error) {
       this.logger.error('Failed to parse JSON response', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw new Error('Failed to parse JSON response');
     }
@@ -136,13 +130,13 @@ export async function analyzeWithOpenAI(
   const providerSettings: OpenAIProviderSettings = {
     apiKey: settings.openaiApiKey,
     openaiApiKey: settings.openaiApiKey,
-    model: OPENAI_MODEL
+    model: OPENAI_MODEL,
   };
 
   return openAIProvider.analyze({
     settings: providerSettings,
     structuredData,
-    customTags
+    customTags,
   });
 }
 
