@@ -280,6 +280,8 @@ export async function analyzeWithZai(
     model: settings.zaiModel || DEFAULT_MODEL,
   };
 
+  zaiProvider.setSettings(providerSettings);
+
   return await zaiProvider.analyze({
     settings: providerSettings,
     structuredData,

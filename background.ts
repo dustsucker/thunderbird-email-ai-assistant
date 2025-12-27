@@ -1076,6 +1076,7 @@ async function analyzeSingleMessage(
     }
 
     tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.tagged.key);
+    tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.email_ai_analyzed.key);
 
     await messenger.messages.update(messageId, { tags: Array.from(tagSet) });
     logger.info('Single message tagged successfully', {
@@ -1263,6 +1264,7 @@ async function processEmailBatch(
         }
 
         tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.tagged.key);
+        tagSet.add(TAG_KEY_PREFIX + HARDCODED_TAGS.email_ai_analyzed.key);
 
         await messenger.messages.update(processed.messageId, { tags: Array.from(tagSet) });
         logger.info('Message tagged successfully', {
@@ -1279,8 +1281,16 @@ async function processEmailBatch(
       if (result.status === 'rejected') {
         failedCount++;
         successfulCount--; // Revert successful count for tagging failures
-        logger.error('Failed to apply tags', {
-          error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+
+        // Enhanced error logging with more details
+        const error = result.reason instanceof Error ? result.reason : new Error(String(result.reason));
+        logger.error('Failed to apply tags - DETAILED ERROR', {
+          errorMessage: error.message,
+          errorStack: error.stack,
+          errorName: error.name,
+          errorString: String(result.reason),
+          errorType: typeof result.reason,
+          errorKeys: typeof result.reason === 'object' ? Object.keys(result.reason) : undefined,
         });
       }
     }
@@ -1465,11 +1475,26 @@ function registerFolderContextMenu(): void {
  * @returns True if result is an ExtendedAnalysisResult
  */
 function isExtendedAnalysisResult(result: unknown): result is ExtendedAnalysisResult {
-  return (
-    typeof result === 'object' &&
-    result !== null &&
-    ('is_scam' in result || 'spf_pass' in result || 'dkim_pass' in result)
-  );
+  if (typeof result !== 'object' || result === null) {
+    return false;
+  }
+
+  const obj = result as Record<string, unknown>;
+
+  // Prüfe Basis-Felder von TagResponse/AnalysisResult
+  const hasTags = Array.isArray(obj.tags);
+  const hasConfidence = typeof obj.confidence === 'number';
+  const hasReasoning = typeof obj.reasoning === 'string';
+
+  const hasBasicFields = hasTags && hasConfidence && hasReasoning;
+
+  // Prüfe ob es Scam-Detection-Felder hat (optional)
+  const hasScamFields =
+    'is_scam' in obj ||
+    'spf_pass' in obj ||
+    'dkim_pass' in obj;
+
+  return hasBasicFields;
 }
 
 /**

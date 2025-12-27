@@ -1,0 +1,77 @@
+From: "Super Shop" <newsletter@super-shop.de>
+To: "Max Mustermann" <max.mustermann@email.com>
+Subject: ⚡ Mega Sale: Bis zu 70% Rabatt auf alle Produkte!
+Date: Mon, 27 Jan 2025 08:15:30 +0100
+Message-ID: <9876543210@super-shop.de>
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="----=_Part_123_456789.1234567890"
+
+------=_Part_123_456789.1234567890
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+🎉 MEGA SALE HIER! 🎉
+
+Sparen Sie bis zu 70% auf ALLE Produkte!
+
+Liebe Kundin, lieber Kunde,
+
+heute ist Ihr Glückstag! Wir starten unsere große Winter-Ausverkaufsaktion und Sie profitieren:
+
+✓ Bis zu 70% Rabatt auf Elektronik
+✓ 50% auf Kleidung und Accessoires
+✓ Gratis Versand ab 25€
+✓ 30 Tage Rückgaberecht
+
+UND DAS IST NOCH NICHT ALLES!
+
+Für die ersten 100 Bestellungen heute gibt es zusätzlich einen 10€ Gutschein für den nächsten Einkauf!
+
+🏃♂️ Schnell sein, Angebote gelten nur heute!
+🔥 Jetzt shoppen: https://www.super-shop.de/winter-sale
+
+Mit freundlichen Grüßen
+Ihr Super-Shop-Team
+
+---
+Abmelden: https://www.super-shop.de/unsubscribe?email=max.mustermann@email.com
+Impressum: Super Shop GmbH, Musterstraße 123, 12345 Berlin
+------=_Part_123_456789.1234567890
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+<h1>🎉 MEGA SALE HIER! 🎉</h1>
+<h2>Sparen Sie bis zu 70% auf ALLE Produkte!</h2>
+
+<p>Liebe Kundin, lieber Kunde,</p>
+
+<p>heute ist Ihr Glückstag! Wir starten unsere große Winter-Ausverkaufsaktion und Sie profitieren:</p>
+
+<ul>
+<li>✓ Bis zu 70% Rabatt auf Elektronik</li>
+<li>✓ 50% auf Kleidung und Accessoires</li>
+<li>✓ Gratis Versand ab 25€</li>
+<li>✓ 30 Tage Rückgaberecht</li>
+</ul>
+
+<h3>UND DAS IST NOCH NICHT ALLES!</h3>
+
+<p>Für die ersten 100 Bestellungen heute gibt es zusätzlich einen <strong>10€ Gutschein</strong> für den nächsten Einkauf!</p>
+
+<p>🏃♂️ <a href="https://www.super-shop.de/winter-sale">Schnell shoppen - Angebote gelten nur heute!</a></p>
+
+<hr>
+<p style="font-size: 12px; color: #666;">
+Abmelden: <a href="https://www.super-shop.de/unsubscribe?email=max.mustermann@email.com">Newsletter abmelden</a><br>
+Impressum: Super Shop GmbH, Musterstraße 123, 12345 Berlin
+</p>
+</body>
+</html>
+------=_Part_123_456789.1234567890--

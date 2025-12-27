@@ -21,3 +21,4 @@ options-bundle.js
 # Secrets
 sign.bash
 /tmp/**
+.env
