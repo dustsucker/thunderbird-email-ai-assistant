@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getConcurrencyLimit, validateConcurrencyConfig, ModelConcurrencyConfig, DEFAULTS } from '../core/config';
+import { getConcurrencyLimit, validateConcurrencyConfig, ModelConcurrencyConfig } from '../core/config';
+import { DEFAULTS } from '../core/config';
 
 describe('Config - getConcurrencyLimit', () => {
   describe('Provider Default Concurrency', () => {

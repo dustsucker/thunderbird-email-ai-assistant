@@ -41,6 +41,7 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
-    "html-to-text": "^9.0.5"
+    "html-to-text": "^9.0.5",
+    "tsyringe": "^4.10.0"
   }
 }

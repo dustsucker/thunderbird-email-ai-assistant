@@ -4,7 +4,7 @@ import {
   RequestBody,
   TagResponse,
   HttpHeaders,
-} from '../../providers/BaseProvider';
+} from '../../src/infrastructure/providers/BaseProvider';
 import { CustomTags } from '../../core/config';
 import { StructuredEmailData } from '../../core/analysis';
 
@@ -33,7 +33,7 @@ export class MockProvider extends BaseProvider {
     return 'mock://api';
   }
 
-  protected validateSettings(settings: BaseProviderSettings): boolean {
+  public validateSettings(settings: BaseProviderSettings): boolean {
     return true;
   }
 

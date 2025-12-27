@@ -1,7 +1,7 @@
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
 import { ProviderConfig, CustomTags } from '../core/config';
-import { retryWithBackoff, validateLLMResponse, logger, maskApiKey } from './utils';
-import { ANALYSIS_SYSTEM_PROMPT_ZAI } from './constants';
+import { retryWithBackoff, validateLLMResponse, logger, maskApiKey } from '../src/infrastructure/providers/ProviderUtils';
+import { ANALYSIS_SYSTEM_PROMPT_ZAI } from '../src/shared/constants/ProviderConstants';
 
 const ZAI_PAAS_API_URL = 'https://api.z.ai/api/paas/v4/chat/completions';
 const ZAI_CODING_API_URL = 'https://api.z.ai/api/coding/paas/v4/chat/completions';

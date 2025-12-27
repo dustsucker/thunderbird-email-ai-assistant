@@ -1,7 +1,7 @@
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
 import { ProviderConfig, CustomTags } from '../core/config';
-import { retryWithBackoff, validateLLMResponse, logger, maskApiKey } from './utils';
-import { ANALYSIS_SYSTEM_PROMPT } from './constants';
+import { retryWithBackoff, validateLLMResponse, logger, maskApiKey } from '../src/infrastructure/providers/ProviderUtils';
+import { ANALYSIS_SYSTEM_PROMPT } from '../src/shared/constants/ProviderConstants';
 
 // ============================================================================
 // OPENAI API TYPES

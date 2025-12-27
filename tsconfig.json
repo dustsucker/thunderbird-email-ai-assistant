@@ -13,7 +13,13 @@
     "moduleResolution": "node",
     "allowJs": true,
     "checkJs": false,
-    "types": ["webextension-polyfill", "node"]
+    "types": ["webextension-polyfill", "node"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "include": ["**/*.ts", "**/*.js"],
   "exclude": ["node_modules", "dist"]

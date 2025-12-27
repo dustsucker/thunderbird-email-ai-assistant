@@ -6,7 +6,7 @@ import {
   Tag,
   CustomTags,
 } from './config';
-import { logger } from '../providers/utils';
+import { logger } from '../src/infrastructure/providers/ProviderUtils';
 
 declare const messenger: {
   messages: {

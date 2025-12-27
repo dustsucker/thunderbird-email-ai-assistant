@@ -5,7 +5,7 @@
 
 import { Provider, ProviderConfig, CustomTags } from '../core/config';
 import { StructuredEmailData } from '../core/analysis';
-import { TagResponse } from './utils';
+import { TagResponse } from '../src/infrastructure/providers/ProviderUtils';
 
 // Import type for backward compatibility
 export type { TagResponse };
@@ -13,7 +13,7 @@ export type { TagResponse };
 import { analyzeWithOllama } from './ollama';
 import { analyzeWithOpenAI } from './openai';
 import { analyzeWithGemini } from './gemini';
-import { analyzeWithClaude } from './ClaudeProvider';
+import { analyzeWithClaude } from './claude';
 import { analyzeWithMistral } from './mistral';
 import { analyzeWithDeepseek } from './deepseek';
 import { analyzeWithZai, ZaiSettings } from './zai';

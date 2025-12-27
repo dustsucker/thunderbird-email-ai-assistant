@@ -1,7 +1,7 @@
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
-import { retryWithBackoff, validateLLMResponse, logger, maskApiKey, TagResponse } from './utils';
+import { retryWithBackoff, validateLLMResponse, logger, maskApiKey, TagResponse } from '../src/infrastructure/providers/ProviderUtils';
 import { CustomTags } from '../core/config';
-import { ANALYSIS_SYSTEM_PROMPT } from './constants';
+import { ANALYSIS_SYSTEM_PROMPT } from '../src/shared/constants/ProviderConstants';
 
 // ============================================================================
 // DEEPSEEK API TYPES

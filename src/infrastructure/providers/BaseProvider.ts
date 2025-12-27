@@ -1,5 +1,5 @@
-import { buildPrompt, StructuredEmailData } from '../core/analysis';
-import { CustomTags } from '../core/config';
+import { buildPrompt, StructuredEmailData } from '../../../core/analysis';
+import { CustomTags } from '../../../core/config';
 import {
   retryWithBackoff,
   validateLLMResponse,
@@ -7,7 +7,7 @@ import {
   maskApiKey,
   TagResponse as UtilsTagResponse,
   validateRequestBody,
-} from './utils';
+} from './ProviderUtils';
 
 export type TagResponse = UtilsTagResponse;
 
@@ -172,7 +172,7 @@ export abstract class BaseProvider {
    * @param settings - Provider settings to validate
    * @returns True if settings are valid
    */
-  protected abstract validateSettings(settings: BaseProviderSettings): boolean;
+  public abstract validateSettings(settings: BaseProviderSettings): boolean;
 
   // ========================================================================
   // TEMPLATE METHODS (can be overridden by subclasses)

@@ -12,7 +12,7 @@ import {
   ErrorDisplay,
   ShowErrorRuntimeMessage,
   debounce,
-} from './providers/utils';
+} from './src/infrastructure/providers/ProviderUtils';
 
 /**
  * Batch processing statistics
@@ -24,7 +24,7 @@ interface BatchStatistics {
   [key: string]: unknown;
 }
 import { ensureTagsExist } from './core/tags';
-import { logger } from './providers/utils';
+import { logger } from './src/infrastructure/providers/ProviderUtils';
 import { fetchZaiModels } from './providers/zai';
 
 declare const messenger: {

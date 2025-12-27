@@ -1,6 +1,6 @@
 import { htmlToText } from 'html-to-text';
-import { PROMPT_BASE, CONTEXT_CHAR_LIMIT, CustomTags, AppConfig, Tag } from './config';
-import { logger } from '../providers/utils';
+import { PROMPT_BASE, CONTEXT_CHAR_LIMIT, CustomTags } from './config';
+import { logger } from '../src/infrastructure/providers/ProviderUtils';
 
 // ============================================================================
 // Email Part Type Definitions
@@ -221,3 +221,4 @@ export function truncateText(text: string, maxLength: number): string {
   }
   return text.substring(0, maxLength);
 }
+

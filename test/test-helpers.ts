@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { MockProvider } from './mocks/MockProvider';
-import { BaseProviderSettings, TagResponse } from '../providers/BaseProvider';
+import { BaseProviderSettings, TagResponse } from '../src/infrastructure/providers/BaseProvider';
 import { DEFAULT_CUSTOM_TAGS } from '../core/config';
 import { loadEmailFixture } from './fixtures/fixture-loader';
 

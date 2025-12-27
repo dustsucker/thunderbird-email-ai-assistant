@@ -3,7 +3,7 @@
  * @module providers/utils
  */
 
-import type { AppConfig, CustomTags } from '../core/config';
+import type { AppConfig, CustomTags } from '@/shared/types/ProviderTypes';
 import type { RequestBody } from './BaseProvider';
 
 // ============================================================================

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { analyzeWithZai } from '../providers/ZaiProvider';
+import { analyzeWithZai } from '../providers/zai';
 import { loadEmailFixture } from './fixtures/fixture-loader';
 import { getTestConfig, TEST_TIMEOUT } from './test-config';
 import { DEFAULT_CUSTOM_TAGS } from '../core/config';

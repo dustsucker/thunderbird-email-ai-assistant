@@ -1,6 +1,6 @@
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
 import { ProviderConfig, CustomTags } from '../core/config';
-import { retryWithBackoff, validateLLMResponse, logger, maskApiKey, TagResponse } from './utils';
+import { retryWithBackoff, validateLLMResponse, logger, maskApiKey, TagResponse } from '../src/infrastructure/providers/ProviderUtils';
 
 // ============================================================================
 // GEMINI API TYPES

@@ -3,8 +3,8 @@
  * @module core/cache
  */
 
-import { TagResponse } from '../providers/utils';
-import { logger } from '../providers/utils';
+import { TagResponse } from '../src/infrastructure/providers/ProviderUtils';
+import { logger } from '../src/infrastructure/providers/ProviderUtils';
 
 // ============================================================================
 // CACHE TYPES

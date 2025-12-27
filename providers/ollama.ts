@@ -4,8 +4,8 @@
  */
 
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
-import { ProviderConfig, Provider, CustomTags } from '../core/config';
-import { retryWithBackoff, validateLLMResponse, logger, TagResponse, LoggerContext } from './utils';
+import { CustomTags, ProviderConfig } from '../core/config';
+import { retryWithBackoff, validateLLMResponse, logger, TagResponse, LoggerContext } from '../src/infrastructure/providers/ProviderUtils';
 
 // ============================================================================
 // OLLAMA API TYPE DEFINITIONS

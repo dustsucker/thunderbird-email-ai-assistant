@@ -5,8 +5,8 @@
 
 import { buildPrompt, StructuredEmailData } from '../core/analysis';
 import { AppConfig, CustomTags } from '../core/config';
-import { retryWithBackoff, validateLLMResponse, logger, maskApiKey, TagResponse } from './utils';
-import { ANALYSIS_SYSTEM_PROMPT } from './constants';
+import { retryWithBackoff, validateLLMResponse, logger, maskApiKey, TagResponse } from '../src/infrastructure/providers/ProviderUtils';
+import { ANALYSIS_SYSTEM_PROMPT } from '../src/shared/constants/ProviderConstants';
 
 // ============================================================================
 // MISTRAL API TYPES
