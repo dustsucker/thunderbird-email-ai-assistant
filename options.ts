@@ -25,7 +25,7 @@ interface BatchStatistics {
 }
 import { ensureTagsExist } from './core/tags';
 import { logger } from './src/infrastructure/providers/ProviderUtils';
-import { fetchZaiModels } from './providers/zai';
+import { fetchZaiModels } from './src/infrastructure/providers';
 
 declare const messenger: {
   storage: {
@@ -209,10 +209,12 @@ type PartialProviderConfig = {
   claudeApiKey?: string;
   mistralApiKey?: string;
   deepseekApiKey?: string;
-  zaiApiKey?: string;
-  zaiModel?: string;
-  zaiVariant?: 'paas' | 'coding';
-  zaiBaseUrl?: string;
+  zaiPaasApiKey?: string;
+  zaiPaasModel?: string;
+  zaiPaasBaseUrl?: string;
+  zaiCodingApiKey?: string;
+  zaiCodingModel?: string;
+  zaiCodingBaseUrl?: string;
 };
 
 // ============================================================================
@@ -231,10 +233,12 @@ interface GeneralSettingsStorage {
   claudeApiKey?: string;
   mistralApiKey?: string;
   deepseekApiKey?: string;
-  zaiApiKey?: string;
-  zaiModel?: string;
-  zaiVariant?: 'paas' | 'coding';
-  zaiBaseUrl?: string;
+  zaiPaasApiKey?: string;
+  zaiPaasModel?: string;
+  zaiPaasBaseUrl?: string;
+  zaiCodingApiKey?: string;
+  zaiCodingModel?: string;
+  zaiCodingBaseUrl?: string;
 }
 
 /**
@@ -398,7 +402,9 @@ function getPermissionOrigin(provider: Provider, settings: PartialProviderConfig
       return 'https://api.mistral.ai/';
     case Provider.DEEPSEEK:
       return 'https://api.deepseek.com/';
-    case Provider.ZAI:
+    case Provider.ZAI_PAAS:
+      return 'https://api.z.ai/';
+    case Provider.ZAI_CODING:
       return 'https://api.z.ai/';
     default:
       throw new Error(`Unknown provider: ${provider}`);
@@ -648,9 +654,10 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
     if (elements.deepseekApiKey) {
       elements.deepseekApiKey.value = settings.deepseekApiKey || '';
     }
-    if (elements.zaiApiKey) elements.zaiApiKey.value = settings.zaiApiKey || '';
-    if (elements.zaiModel) elements.zaiModel.value = settings.zaiModel || 'glm-4.5';
-    if (elements.zaiVariant) elements.zaiVariant.value = settings.zaiVariant || 'paas';
+    if (elements.zaiApiKey)
+      elements.zaiApiKey.value = settings.zaiPaasApiKey || settings.zaiCodingApiKey || '';
+    if (elements.zaiModel)
+      elements.zaiModel.value = settings.zaiPaasModel || settings.zaiCodingModel || 'glm-4.5';
 
     showRelevantSettings(settings.provider || DEFAULTS.provider);
 
@@ -731,15 +738,24 @@ function gatherProviderSettings(
         deepseekApiKey: elements.deepseekApiKey.value.trim(),
       };
 
-    case Provider.ZAI:
-      if (!elements.zaiApiKey || !elements.zaiModel || !elements.zaiVariant) {
-        throw new Error('Zai settings element not found');
+    case Provider.ZAI_PAAS:
+      if (!elements.zaiApiKey || !elements.zaiModel) {
+        throw new Error('Zai PaaS settings element not found');
       }
       return {
         ...baseSettings,
-        zaiApiKey: elements.zaiApiKey.value.trim(),
-        zaiModel: elements.zaiModel.value,
-        zaiVariant: elements.zaiVariant.value as 'paas' | 'coding',
+        zaiPaasApiKey: elements.zaiApiKey.value.trim(),
+        zaiPaasModel: elements.zaiModel.value,
+      };
+
+    case Provider.ZAI_CODING:
+      if (!elements.zaiApiKey || !elements.zaiModel) {
+        throw new Error('Zai Coding settings element not found');
+      }
+      return {
+        ...baseSettings,
+        zaiCodingApiKey: elements.zaiApiKey.value.trim(),
+        zaiCodingModel: elements.zaiModel.value,
       };
 
     default:
@@ -1355,8 +1371,10 @@ async function checkProviderConfigured(): Promise<boolean> {
         return !!settings.mistralApiKey;
       case 'deepseek':
         return !!settings.deepseekApiKey;
-      case 'zai':
-        return !!settings.zaiApiKey;
+      case 'zai-paas':
+        return !!settings.zaiPaasApiKey;
+      case 'zai-coding':
+        return !!settings.zaiCodingApiKey;
       default:
         return false;
     }

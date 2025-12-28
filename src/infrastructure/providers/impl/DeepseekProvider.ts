@@ -76,7 +76,8 @@ function isDeepSeekApiResponse(data: unknown): data is DeepSeekApiResponse {
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
-const ANALYSIS_SYSTEM_PROMPT = 'You are an AI email analysis assistant that analyzes emails and assigns tags.';
+const ANALYSIS_SYSTEM_PROMPT =
+  'You are an AI email analysis assistant that analyzes emails and assigns tags.';
 
 @injectable()
 export class DeepseekProvider extends BaseProvider {
@@ -127,5 +128,51 @@ export class DeepseekProvider extends BaseProvider {
       this.logger.error('DeepSeek Error: API key is not set.');
     }
     return isValid;
+  }
+
+  /**
+   * Fetches available models from DeepSeek API
+   * @param settings - Provider settings containing API key
+   * @returns Promise resolving to an array of available model IDs
+   */
+  public async listModels(settings: BaseProviderSettings): Promise<string[]> {
+    try {
+      const apiKey = settings.apiKey;
+      if (!apiKey) {
+        this.logger.error('Deepseek listModels: API key is missing');
+        return [];
+      }
+
+      const response = await fetch('https://api.deepseek.com/v1/models', {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        this.logger.error('Deepseek listModels: API request failed', { status: response.status });
+        return [];
+      }
+
+      const data = await response.json();
+
+      if (typeof data === 'object' && data !== null && 'data' in data && Array.isArray(data.data)) {
+        const models = data.data.map((model: unknown) => {
+          if (typeof model === 'object' && model !== null && 'id' in model) {
+            return model.id as string;
+          }
+          return '';
+        });
+
+        return models.filter(Boolean);
+      }
+
+      return [];
+    } catch (error) {
+      this.logger.error('Deepseek listModels: Failed to fetch models', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }
   }
 }

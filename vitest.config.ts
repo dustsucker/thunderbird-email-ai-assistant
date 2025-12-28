@@ -21,7 +21,7 @@ export default defineConfig({
         'doc/',
       ],
     },
-    setupFiles: [],
+    setupFiles: ['./test/test-setup.ts'],
     include: ['**/*.test.ts'],
   },
   resolve: {

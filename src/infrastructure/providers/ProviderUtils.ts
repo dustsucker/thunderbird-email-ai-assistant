@@ -788,7 +788,7 @@ export function validateAppConfig(result: Record<string, unknown>): Partial<AppC
 
   // Validate provider (string, must be valid provider)
   if (typeof result.provider === 'string') {
-    const { Provider } = require('../core/config');
+    const { Provider } = require('../../../core/config');
     if (Object.values(Provider).includes(result.provider as any)) {
       validated.provider = result.provider as any;
     }
@@ -818,27 +818,30 @@ export function validateAppConfig(result: Record<string, unknown>): Partial<AppC
   if (typeof result.deepseekApiKey === 'string') {
     validated.deepseekApiKey = result.deepseekApiKey;
   }
-  if (typeof result.zaiApiKey === 'string') {
-    validated.zaiApiKey = result.zaiApiKey;
+  if (typeof result.zaiPaasApiKey === 'string') {
+    validated.zaiPaasApiKey = result.zaiPaasApiKey;
+  }
+  if (typeof result.zaiCodingApiKey === 'string') {
+    validated.zaiCodingApiKey = result.zaiCodingApiKey;
   }
 
-  // Validate string fields (URLs, models)
   if (typeof result.ollamaApiUrl === 'string') {
     validated.ollamaApiUrl = result.ollamaApiUrl;
   }
   if (typeof result.ollamaModel === 'string') {
     validated.ollamaModel = result.ollamaModel;
   }
-  if (typeof result.zaiBaseUrl === 'string') {
-    validated.zaiBaseUrl = result.zaiBaseUrl;
+  if (typeof result.zaiPaasBaseUrl === 'string') {
+    validated.zaiPaasBaseUrl = result.zaiPaasBaseUrl;
   }
-  if (typeof result.zaiModel === 'string') {
-    validated.zaiModel = result.zaiModel;
+  if (typeof result.zaiPaasModel === 'string') {
+    validated.zaiPaasModel = result.zaiPaasModel;
   }
-
-  // Validate zaiVariant (must be 'paas' or 'coding')
-  if (result.zaiVariant === 'paas' || result.zaiVariant === 'coding') {
-    validated.zaiVariant = result.zaiVariant;
+  if (typeof result.zaiCodingBaseUrl === 'string') {
+    validated.zaiCodingBaseUrl = result.zaiCodingBaseUrl;
+  }
+  if (typeof result.zaiCodingModel === 'string') {
+    validated.zaiCodingModel = result.zaiCodingModel;
   }
 
   // Validate customTags (array of Tag objects)
@@ -861,7 +864,7 @@ export function validateCustomTagsResult(result: Record<string, unknown>): {
     return { customTags: result.customTags };
   }
 
-  const { DEFAULT_CUSTOM_TAGS } = require('../core/config');
+  const { DEFAULT_CUSTOM_TAGS } = require('../../../core/config');
   return { customTags: DEFAULT_CUSTOM_TAGS };
 }
 

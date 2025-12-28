@@ -46,7 +46,8 @@ export enum Provider {
   CLAUDE = 'claude',
   MISTRAL = 'mistral',
   DEEPSEEK = 'deepseek',
-  ZAI = 'zai',
+  ZAI_PAAS = 'zai-paas',
+  ZAI_CODING = 'zai-coding',
 }
 
 /**
@@ -61,10 +62,12 @@ export interface ProviderConfig {
   claudeApiKey: string;
   mistralApiKey: string;
   deepseekApiKey: string;
-  zaiApiKey: string;
-  zaiBaseUrl?: string;
-  zaiModel: string;
-  zaiVariant: 'paas' | 'coding';
+  zaiPaasApiKey: string;
+  zaiPaasBaseUrl?: string;
+  zaiPaasModel: string;
+  zaiCodingApiKey: string;
+  zaiCodingBaseUrl?: string;
+  zaiCodingModel: string;
   model?: string;
 }
 
@@ -209,10 +212,12 @@ export const DEFAULTS: Readonly<DefaultConfig> = {
   claudeApiKey: '',
   mistralApiKey: '',
   deepseekApiKey: '',
-  zaiApiKey: '',
-  zaiBaseUrl: undefined,
-  zaiModel: 'glm-4.5',
-  zaiVariant: 'paas' as const,
+  zaiPaasApiKey: '',
+  zaiPaasBaseUrl: undefined,
+  zaiPaasModel: 'glm-4.5',
+  zaiCodingApiKey: '',
+  zaiCodingBaseUrl: undefined,
+  zaiCodingModel: 'glm-4.7',
   customTags: DEFAULT_CUSTOM_TAGS,
   enableNotifications: true,
   enableLogging: true,
@@ -291,27 +296,26 @@ const PROVIDER_DEFAULT_CONCURRENCY: Record<Provider, number> = {
   [Provider.CLAUDE]: 5,
   [Provider.MISTRAL]: 10,
   [Provider.DEEPSEEK]: 10,
-  [Provider.ZAI]: 5,
+  [Provider.ZAI_PAAS]: 5,
+  [Provider.ZAI_CODING]: 5,
 } as const;
 
-export function getConcurrencyLimit(
-  config: AppConfig,
-  provider: string,
-  model: string,
-): number {
+export function getConcurrencyLimit(config: AppConfig, provider: string, model: string): number {
   if (!config.modelConcurrencyLimits) {
     return PROVIDER_DEFAULT_CONCURRENCY[provider as Provider] ?? 5;
   }
 
   const modelConfig = config.modelConcurrencyLimits.find(
-    (c) => c.provider === provider && c.model === model,
+    (c) => c.provider === provider && c.model === model
   );
 
   if (modelConfig && modelConfig.concurrency > 0) {
     return modelConfig.concurrency;
   }
 
-  const providerConfig = config.modelConcurrencyLimits.find((c) => c.provider === provider && !c.model);
+  const providerConfig = config.modelConcurrencyLimits.find(
+    (c) => c.provider === provider && !c.model
+  );
 
   if (providerConfig && providerConfig.concurrency > 0) {
     return providerConfig.concurrency;
@@ -332,9 +336,12 @@ export function validateConcurrencyConfig(config: ModelConcurrencyConfig[]): str
       errors.push('Either provider or model must be specified');
     }
 
-    if (entry.concurrency !== undefined && (entry.concurrency < 1 || !Number.isInteger(entry.concurrency))) {
+    if (
+      entry.concurrency !== undefined &&
+      (entry.concurrency < 1 || !Number.isInteger(entry.concurrency))
+    ) {
       errors.push(
-        `Invalid concurrency value for ${entry.provider}/${entry.model}: ${entry.concurrency}. Must be a positive integer.`,
+        `Invalid concurrency value for ${entry.provider}/${entry.model}: ${entry.concurrency}. Must be a positive integer.`
       );
     }
   }

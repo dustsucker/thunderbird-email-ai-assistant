@@ -150,4 +150,62 @@ export class GeminiProvider extends BaseProvider {
   protected override getHeaders(_settings: BaseProviderSettings): Record<string, string> {
     return { 'Content-Type': 'application/json' };
   }
+
+  /**
+   * Fetches available models from Google Gemini API
+   * Filters to only generative models (models that can generate text)
+   * @param settings - Provider settings containing API key
+   * @returns Promise resolving to an array of available model IDs
+   */
+  public async listModels(settings: BaseProviderSettings): Promise<string[]> {
+    try {
+      const apiKey = settings.apiKey;
+      if (!apiKey) {
+        this.logger.error('Gemini listModels: API key is missing');
+        return [];
+      }
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+      );
+
+      if (!response.ok) {
+        this.logger.error('Gemini listModels: API request failed', { status: response.status });
+        return [];
+      }
+
+      const data = await response.json();
+
+      if (
+        typeof data === 'object' &&
+        data !== null &&
+        'models' in data &&
+        Array.isArray(data.models)
+      ) {
+        const models = data.models
+          .filter((model: unknown) => {
+            if (typeof model === 'object' && model !== null && 'name' in model) {
+              const name = model.name as string;
+              return name.includes('generate');
+            }
+            return false;
+          })
+          .map((model: unknown) => {
+            if (typeof model === 'object' && model !== null && 'name' in model) {
+              return (model.name as string).replace('models/', '');
+            }
+            return '';
+          });
+
+        return models.filter(Boolean);
+      }
+
+      return [];
+    } catch (error) {
+      this.logger.error('Gemini listModels: Failed to fetch models', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }
+  }
 }

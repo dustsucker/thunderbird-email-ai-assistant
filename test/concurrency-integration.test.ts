@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getConcurrencyLimit, validateConcurrencyConfig, ModelConcurrencyConfig, AppConfig, DEFAULTS } from '../core/config';
+import {
+  getConcurrencyLimit,
+  validateConcurrencyConfig,
+  ModelConcurrencyConfig,
+  AppConfig,
+  DEFAULTS,
+} from '../core/config';
 
 describe('Concurrency Limiting - Integration Tests', () => {
   describe('End-to-End Concurrency Management', () => {
@@ -30,16 +36,14 @@ describe('Concurrency Limiting - Integration Tests', () => {
 
       const errors = validateConcurrencyConfig(invalidConfig);
       expect(errors.length).toBe(3);
-      expect(errors.some(e => e.includes('Invalid provider'))).toBe(true);
-      expect(errors.some(e => e.includes('Invalid concurrency'))).toBe(true);
+      expect(errors.some((e) => e.includes('Invalid provider'))).toBe(true);
+      expect(errors.some((e) => e.includes('Invalid concurrency'))).toBe(true);
     });
 
     it('should safely handle invalid configurations in getConcurrencyLimit', () => {
       const config: AppConfig = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'invalid', model: 'gpt-4', concurrency: 3 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'invalid', model: 'gpt-4', concurrency: 3 }],
       };
 
       const errors = validateConcurrencyConfig(config.modelConcurrencyLimits!);
@@ -79,14 +83,12 @@ describe('Concurrency Limiting - Integration Tests', () => {
     it('should simulate provider-wide concurrency limit', () => {
       const config: AppConfig = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'openai', concurrency: 7 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'openai', concurrency: 7 }],
       };
 
       const models = ['gpt-4', 'gpt-3.5-turbo', 'gpt-3.5'];
-      
-      models.forEach(model => {
+
+      models.forEach((model) => {
         const limit = getConcurrencyLimit(config, 'openai', model);
         expect(limit).toBe(7);
       });
@@ -95,9 +97,7 @@ describe('Concurrency Limiting - Integration Tests', () => {
     it('should demonstrate fallback to provider defaults', () => {
       const config: AppConfig = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'openai', model: 'gpt-4', concurrency: 3 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'openai', model: 'gpt-4', concurrency: 3 }],
       };
 
       const scenarios = [
@@ -107,7 +107,8 @@ describe('Concurrency Limiting - Integration Tests', () => {
         { provider: 'gemini', model: 'gemini-pro', expected: 5 },
         { provider: 'mistral', model: 'mistral-large', expected: 10 },
         { provider: 'deepseek', model: 'deepseek-chat', expected: 10 },
-        { provider: 'zai', model: 'glm-4', expected: 5 },
+        { provider: 'zai-paas', model: 'glm-4', expected: 5 },
+        { provider: 'zai-coding', model: 'glm-4', expected: 5 },
       ];
 
       scenarios.forEach(({ provider, model, expected }) => {
@@ -154,7 +155,8 @@ describe('Concurrency Limiting - Integration Tests', () => {
         { provider: 'mistral', concurrency: 8 },
         { provider: 'deepseek', concurrency: 8 },
         { provider: 'gemini', concurrency: 5 },
-        { provider: 'zai', concurrency: 5 },
+        { provider: 'zai-paas', concurrency: 5 },
+        { provider: 'zai-coding', concurrency: 5 },
       ];
 
       const errors = validateConcurrencyConfig(config);
@@ -171,9 +173,13 @@ describe('Concurrency Limiting - Integration Tests', () => {
 
       const errors = validateConcurrencyConfig(config);
       expect(errors.length).toBe(3);
-      expect(errors.some(e => e.includes('Invalid provider: invalid-provider'))).toBe(true);
-      expect(errors.some(e => e.includes('Invalid concurrency') && e.includes('openai/gpt-4'))).toBe(true);
-      expect(errors.some(e => e.includes('Invalid concurrency') && e.includes('ollama/gemma3:27b'))).toBe(true);
+      expect(errors.some((e) => e.includes('Invalid provider: invalid-provider'))).toBe(true);
+      expect(
+        errors.some((e) => e.includes('Invalid concurrency') && e.includes('openai/gpt-4'))
+      ).toBe(true);
+      expect(
+        errors.some((e) => e.includes('Invalid concurrency') && e.includes('ollama/gemma3:27b'))
+      ).toBe(true);
     });
   });
 
@@ -220,9 +226,7 @@ describe('Concurrency Limiting - Integration Tests', () => {
     it('should support gradual rollout of model-specific limits', () => {
       const gradualRolloutConfig: AppConfig = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'openai', concurrency: 10 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'openai', concurrency: 10 }],
       };
 
       expect(getConcurrencyLimit(gradualRolloutConfig, 'openai', 'gpt-4')).toBe(10);
@@ -265,9 +269,7 @@ describe('Concurrency Limiting - Integration Tests', () => {
     it('should handle zero concurrency with fallback to default', () => {
       const config: AppConfig = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'openai', model: 'gpt-4', concurrency: 0 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'openai', model: 'gpt-4', concurrency: 0 }],
       };
 
       const limit = getConcurrencyLimit(config, 'openai', 'gpt-4');
@@ -277,9 +279,7 @@ describe('Concurrency Limiting - Integration Tests', () => {
     it('should handle large concurrency values', () => {
       const config: AppConfig = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'openai', concurrency: 1000 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'openai', concurrency: 1000 }],
       };
 
       const limit = getConcurrencyLimit(config, 'openai', 'gpt-4');
@@ -308,18 +308,14 @@ describe('Concurrency Limiting - Integration Tests', () => {
 
   describe('Validation Edge Cases', () => {
     it('should validate that model is optional', () => {
-      const config: ModelConcurrencyConfig[] = [
-        { provider: 'openai', concurrency: 10 },
-      ];
+      const config: ModelConcurrencyConfig[] = [{ provider: 'openai', concurrency: 10 }];
 
       const errors = validateConcurrencyConfig(config);
       expect(errors).toEqual([]);
     });
 
     it('should detect missing provider when model is specified', () => {
-      const config: ModelConcurrencyConfig[] = [
-        { provider: '', model: 'gpt-4', concurrency: 10 },
-      ];
+      const config: ModelConcurrencyConfig[] = [{ provider: '', model: 'gpt-4', concurrency: 10 }];
 
       const errors = validateConcurrencyConfig(config);
       expect(errors.length).toBeGreaterThan(0);

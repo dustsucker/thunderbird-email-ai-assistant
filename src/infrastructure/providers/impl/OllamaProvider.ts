@@ -131,4 +131,52 @@ export class OllamaProvider extends BaseProvider {
   protected override getHeaders(_settings: BaseProviderSettings): Record<string, string> {
     return { 'Content-Type': 'application/json' };
   }
+
+  /**
+   * Fetches available models from Ollama API
+   * @param settings - Provider settings containing API URL
+   * @returns Promise resolving to an array of available model names
+   */
+  public async listModels(settings: BaseProviderSettings): Promise<string[]> {
+    try {
+      const baseUrl = settings.apiUrl || DEFAULT_OLLAMA_URL.replace('/api/generate', '');
+      const tagsUrl = `${baseUrl}/api/tags`;
+
+      const response = await fetch(tagsUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        this.logger.error('Ollama listModels: API request failed', { status: response.status });
+        return [];
+      }
+
+      const data = await response.json();
+
+      if (
+        typeof data === 'object' &&
+        data !== null &&
+        'models' in data &&
+        Array.isArray(data.models)
+      ) {
+        const models = data.models.map((model: unknown) => {
+          if (typeof model === 'object' && model !== null && 'name' in model) {
+            return model.name as string;
+          }
+          return '';
+        });
+
+        return models.filter(Boolean);
+      }
+
+      return [];
+    } catch (error) {
+      this.logger.error('Ollama listModels: Failed to fetch models', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }
+  }
 }

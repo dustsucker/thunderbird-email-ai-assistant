@@ -159,6 +159,15 @@ export interface IProvider {
   analyze(input: IAnalyzeInput): Promise<ITagResponse>;
 
   /**
+   * Lists available models for this provider.
+   * Optional - providers without model selection should return empty array.
+   *
+   * @param settings - Provider settings (API key, etc.)
+   * @returns Promise resolving to array of available model names
+   */
+  listModels?(settings: IProviderSettings): Promise<string[]>;
+
+  /**
    * Unique provider identifier.
    *
    * Used for provider registration and dependency injection resolution.

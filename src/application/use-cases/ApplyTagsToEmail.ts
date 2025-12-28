@@ -14,6 +14,9 @@
 import { injectable, inject } from 'tsyringe';
 import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import { EventBus } from '@/domain/events/EventBus';
+import { createTagAppliedEvent } from '@/domain/events/TagAppliedEvent';
+import { createTagCreatedEvent } from '@/domain/events/TagCreatedEvent';
 
 // ============================================================================
 // Type Definitions
@@ -70,7 +73,8 @@ export class ApplyTagsToEmail {
 
   constructor(
     @inject('ITagManager') private readonly tagManager: ITagManager,
-    @inject('ILogger') private readonly logger: ILogger
+    @inject('ILogger') private readonly logger: ILogger,
+    @inject(EventBus) private readonly eventBus: EventBus
   ) {
     this.logger.debug('ApplyTagsToEmail use case initialized');
   }
@@ -131,6 +135,15 @@ export class ApplyTagsToEmail {
         appliedTags: ensuredTags,
         createdTags,
       });
+
+      // Publish TagAppliedEvent
+      await this.eventBus.publish(
+        createTagAppliedEvent(messageId, ensuredTags, {
+          skippedTags: tagKeys.filter((k) => !ensuredTags.includes(k)),
+          createdTags,
+          replaceTags,
+        })
+      );
 
       return {
         messageId,
@@ -195,6 +208,11 @@ export class ApplyTagsToEmail {
           await this.tagManager.ensureTagExists(tagKey, tagName, defaultColor);
           created.push(tagKey);
           applied.push(tagKey);
+
+          // Publish TagCreatedEvent
+          await this.eventBus.publish(
+            createTagCreatedEvent(tagKey, tagName, defaultColor)
+          );
         } else {
           // Tag does not exist and creation is disabled
           this.logger.warn('Tag does not exist and creation is disabled', { tagKey });

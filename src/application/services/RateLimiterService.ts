@@ -23,7 +23,7 @@ import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 /**
  * Rate limiter bucket state.
  */
-interface RateLimiterBucket {
+export interface RateLimiterBucket {
   /** Current number of tokens available */
   tokens: number;
   /** Timestamp of last token refill */
@@ -37,7 +37,7 @@ interface RateLimiterBucket {
 /**
  * Rate limiter configuration for a provider.
  */
-interface RateLimiterConfig {
+export interface RateLimiterConfig {
   /** Maximum number of tokens per time window */
   limit: number;
   /** Time window in milliseconds */
@@ -47,14 +47,12 @@ interface RateLimiterConfig {
 /**
  * Rate limiter configuration map for all providers.
  */
-interface RateLimiterConfigMap {
-  [provider: string]: RateLimiterConfig;
-}
+export type RateLimiterConfigMap = Record<string, RateLimiterConfig>;
 
 /**
  * Queued task for rate limiter.
  */
-interface QueuedTask<T = unknown> {
+export interface QueuedTask<T = unknown> {
   /** Async function to execute */
   fn: () => Promise<T>;
   /** Resolve function for the task promise */
@@ -68,33 +66,27 @@ interface QueuedTask<T = unknown> {
 /**
  * Rate limiter state buckets map.
  */
-interface RateLimiterBuckets {
-  [provider: string]: RateLimiterBucket;
-}
+export type RateLimiterBuckets = Record<string, RateLimiterBucket>;
 
 /**
  * Rate limiter queues map.
  */
-interface RateLimiterQueues {
-  [provider: string]: QueuedTask<unknown>[];
-}
+export type RateLimiterQueues = Record<string, QueuedTask<unknown>[]>;
 
 /**
  * Rate limiter processing promises map.
  */
-interface RateLimiterProcessing {
-  [provider: string]: Promise<void> | null;
-}
+export type RateLimiterProcessing = Record<string, Promise<void> | null>;
 
 /**
  * Model concurrency configuration.
  */
-type ModelConcurrencyConfig = Record<string, number>;
+export type ModelConcurrencyConfig = Record<string, number>;
 
 /**
  * Semaphore state for a model.
  */
-interface ModelSemaphore {
+export interface ModelSemaphore {
   /** Number of currently active requests */
   active: number;
   /** Maximum concurrent requests allowed */
@@ -102,6 +94,11 @@ interface ModelSemaphore {
   /** Array of waiting promises */
   waiting: Array<{ resolve: () => void; reject: (reason: unknown) => void }>;
 }
+
+/**
+ * Priority type for rate limiter tasks.
+ */
+export type Priority = number;
 
 /**
  * Statistics for rate limiter.

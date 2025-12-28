@@ -16,13 +16,13 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import crypto from 'node:crypto';
 import type { IMailReader } from '@/infrastructure/interfaces/IMailReader';
 import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
 import type { IProvider } from '@/infrastructure/interfaces/IProvider';
 import type { ICache } from '@/infrastructure/interfaces/ICache';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IEmailMessage } from '@/infrastructure/interfaces/IMailReader';
+import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import type {
   ITagResponse,
   IProviderSettings,
@@ -30,6 +30,36 @@ import type {
 } from '@/infrastructure/interfaces/IProvider';
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
+import { EventBus } from '@/domain/events/EventBus';
+import { createEmailAnalyzedEvent } from '@/domain/events/EmailAnalyzedEvent';
+import { createProviderErrorEvent } from '@/domain/events/ProviderErrorEvent';
+
+// ============================================================================
+// Browser-compatible Crypto Utilities
+// ============================================================================
+
+/**
+ * SHA-256 hash function using Web Crypto API (browser-compatible).
+ *
+ * @param message - String to hash
+ * @returns Promise resolving to hex-encoded SHA-256 hash
+ * @throws {Error} If Web Crypto API is not available
+ */
+async function sha256(message: string): Promise<string> {
+  // Get crypto.subtle from global window or self (for Web Workers)
+  const subtleCrypto =
+    (typeof window !== 'undefined' && window.crypto?.subtle) ||
+    (typeof self !== 'undefined' && self.crypto?.subtle);
+
+  if (!subtleCrypto) {
+    throw new Error('Web Crypto API (crypto.subtle) is not available in this environment');
+  }
+
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await subtleCrypto.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 // ============================================================================
 // Type Definitions
@@ -93,10 +123,12 @@ export class AnalyzeEmail {
   constructor(
     @inject('IMailReader') private readonly mailReader: IMailReader,
     @inject('ITagManager') private readonly tagManager: ITagManager,
-    @inject('IProvider') private readonly provider: IProvider,
+    @inject('ProviderFactory') private readonly providerFactory: ProviderFactory,
     @inject('ICache') private readonly cache: ICache,
     @inject('ILogger') private readonly logger: ILogger,
-    @inject(EmailContentExtractor) private readonly contentExtractor: EmailContentExtractor
+    @inject(EmailContentExtractor) private readonly contentExtractor: EmailContentExtractor,
+    @inject(EventBus) private readonly eventBus: EventBus,
+    @inject('IConfigRepository') private readonly configRepository: IConfigRepository
   ) {
     this.logger.debug('AnalyzeEmail use case initialized');
   }
@@ -136,11 +168,13 @@ export class AnalyzeEmail {
       cacheTtl = 24 * 60 * 60 * 1000, // 24 hours default
       forceReanalyze = false,
       applyTags = true,
-      customTags = [],
+      customTags,
     } = config;
 
     const providerId = (providerSettings.provider as string) ?? 'unknown';
     this.logger.info('Starting email analysis', { messageId, providerId });
+
+    const startTime = Date.now();
 
     try {
       // Step 1: Retrieve email from Thunderbird
@@ -149,10 +183,13 @@ export class AnalyzeEmail {
       // Step 2: Extract structured content
       const structuredData = this.extractEmailContent(email);
 
-      // Step 3: Generate cache key
-      const cacheKey = this.generateCacheKey(email, providerSettings);
+      // Step 3: Load custom tags from ConfigRepository if not provided
+      const tagsToUse = customTags ?? await this.loadCustomTags();
 
-      // Step 4: Check cache (unless force re-analysis)
+      // Step 4: Generate cache key
+      const cacheKey = await this.generateCacheKey(email, providerSettings);
+
+      // Step 5: Check cache (unless force re-analysis)
       if (!forceReanalyze) {
         const cachedResult = await this.checkCache(cacheKey);
         if (cachedResult) {
@@ -160,28 +197,47 @@ export class AnalyzeEmail {
           if (applyTags) {
             await this.applyTagsToEmail(messageId, cachedResult.tags);
           }
+
+          // Publish EmailAnalyzedEvent (from cache)
+          await this.eventBus.publish(
+            createEmailAnalyzedEvent(messageId, providerSettings.provider as string, providerSettings.model as string, cachedResult, {
+              fromCache: true,
+              cacheKey,
+              duration: Date.now() - startTime,
+            })
+          );
+
           return cachedResult;
         }
       }
 
-      // Step 5: Get provider from factory (if providerId is specified)
+      // Step 6: Get provider from factory (if providerId is specified)
       const provider = this.getProvider(providerSettings);
 
-      // Step 6: Perform AI analysis
+      // Step 7: Perform AI analysis
       const analysisResult = await this.analyzeWithProvider(
         structuredData,
         providerSettings,
-        customTags,
+        tagsToUse,
         provider
       );
 
-      // Step 7: Cache the result
+      // Step 8: Cache the result
       await this.cacheResult(cacheKey, analysisResult, cacheTtl);
 
-      // Step 8: Apply tags to the message
+      // Step 9: Apply tags to the message
       if (applyTags) {
         await this.applyTagsToEmail(messageId, analysisResult.tags);
       }
+
+      // Publish EmailAnalyzedEvent
+      await this.eventBus.publish(
+        createEmailAnalyzedEvent(messageId, providerSettings.provider as string, providerSettings.model as string, analysisResult, {
+          fromCache: false,
+          cacheKey,
+          duration: Date.now() - startTime,
+        })
+      );
 
       this.logger.info('Email analysis completed', {
         messageId,
@@ -193,6 +249,21 @@ export class AnalyzeEmail {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Email analysis failed', { messageId, error: errorMessage });
+
+      // Publish ProviderErrorEvent
+      await this.eventBus.publish(
+        createProviderErrorEvent(
+          providerSettings.provider as string,
+          providerSettings.model as string,
+          errorMessage,
+          {
+            messageId,
+            error: error instanceof Error ? error : undefined,
+            errorType: 'api_error',
+          }
+        )
+      );
+
       throw new Error(`Failed to analyze email ${messageId}: ${errorMessage}`);
     }
   }
@@ -200,6 +271,28 @@ export class AnalyzeEmail {
   // ==========================================================================
   // Private Methods
   // ==========================================================================
+
+  /**
+   * Loads custom tags from ConfigRepository.
+   *
+   * @returns Array of custom tags for analysis
+   */
+  private async loadCustomTags(): Promise<Array<{ key: string; name: string; description: string }>> {
+    try {
+      const customTags = await this.configRepository.getCustomTags();
+      return customTags.map((tag) => ({
+        key: tag.key,
+        name: tag.name,
+        description: tag.prompt ?? '',
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn('Failed to load custom tags from ConfigRepository, using empty array', {
+        error: errorMessage,
+      });
+      return [];
+    }
+  }
 
   /**
    * Retrieves email from Thunderbird.
@@ -303,9 +396,12 @@ export class AnalyzeEmail {
    *
    * @param email - Email message
    * @param providerSettings - Provider settings
-   * @returns SHA-256 hash as cache key
+   * @returns Promise resolving to SHA-256 hash as cache key
    */
-  private generateCacheKey(email: IEmailMessage, providerSettings: IProviderSettings): string {
+  private async generateCacheKey(
+    email: IEmailMessage,
+    providerSettings: IProviderSettings
+  ): Promise<string> {
     const keyData = JSON.stringify({
       subject: email.subject,
       from: email.from,
@@ -315,7 +411,7 @@ export class AnalyzeEmail {
       model: providerSettings.model,
     });
 
-    const hash = crypto.createHash('sha256').update(keyData).digest('hex');
+    const hash = await sha256(keyData);
     this.logger.debug('Generated cache key', { hash });
 
     return hash;
@@ -362,7 +458,7 @@ export class AnalyzeEmail {
     this.logger.debug('Getting provider from factory', { providerId });
 
     try {
-      return ProviderFactory.getProvider(providerId);
+      return this.providerFactory.getProvider(providerId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to get provider', { providerId, error: errorMessage });

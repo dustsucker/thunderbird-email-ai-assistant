@@ -15,10 +15,13 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { ApplyTagsToEmail } from '@/application/use-cases/ApplyTagsToEmail';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
+import { EventBus } from '@/domain/events/EventBus';
+import { createProviderErrorEvent } from '@/domain/events/ProviderErrorEvent';
 
 // ============================================================================
 // Type Definitions
@@ -306,12 +309,15 @@ export class MessageHandler {
    * @param analyzeBatch - Batch email analysis use case
    * @param _applyTags - Tag application use case (reserved for future use)
    * @param logger - Logger instance for logging operations
+   * @param configRepository - Config repository for loading provider settings
    */
   constructor(
     @inject(AnalyzeEmail) analyzeEmail: AnalyzeEmail,
     @inject(AnalyzeBatchEmails) analyzeBatch: AnalyzeBatchEmails,
     @inject(ApplyTagsToEmail) _applyTags: ApplyTagsToEmail,
-    @inject('ILogger') logger: ILogger
+    @inject('ILogger') logger: ILogger,
+    @inject(EventBus) private readonly eventBus: EventBus,
+    @inject('IConfigRepository') private readonly configRepository: IConfigRepository
   ) {
     this.analyzeEmail = analyzeEmail;
     this.analyzeBatch = analyzeBatch;
@@ -500,6 +506,21 @@ export class MessageHandler {
           message,
           error: errorMessage,
         });
+
+        // Publish ProviderErrorEvent for internal errors
+        this.eventBus
+          .publish(
+            createProviderErrorEvent('message-handler', 'unknown', errorMessage, {
+              error: error instanceof Error ? error : undefined,
+              errorType: 'unknown',
+            })
+          )
+          .catch((publishError) => {
+            this.logger.error('Failed to publish ProviderErrorEvent', {
+              error: publishError instanceof Error ? publishError.message : String(publishError),
+            });
+          });
+
         sendResponse({ success: false, message: 'Internal error processing message' });
       }
     })();
@@ -558,39 +579,43 @@ export class MessageHandler {
         startTime: Date.now(),
       };
 
-      // Start batch analysis in background
-      this.analyzeBatch
-        .execute(messageIds, {
+      // Execute batch analysis and wait for completion
+      try {
+        const result = await this.analyzeBatch.execute(messageIds, {
           providerSettings,
           priority: 1,
           concurrency: 3,
-        })
-        .then((result) => {
-          this.batchProgress = {
-            ...this.batchProgress,
-            status: 'completed',
-            processed: result.total,
-            successful: result.successCount,
-            failed: result.failureCount,
-            endTime: Date.now(),
-          };
-          this.logger.info('Batch analysis completed', result as unknown as Record<string, unknown>);
-        })
-        .catch((error) => {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          this.batchProgress = {
-            ...this.batchProgress,
-            status: 'error',
-            endTime: Date.now(),
-            errorMessage,
-          };
-          this.logger.error('Batch analysis failed', { error: errorMessage });
         });
 
-      return {
-        success: true,
-        messageCount: messageIds.length,
-      };
+        this.batchProgress = {
+          ...this.batchProgress,
+          status: 'completed',
+          processed: result.total,
+          successful: result.successCount,
+          failed: result.failureCount,
+          endTime: Date.now(),
+        };
+        this.logger.info('Batch analysis completed', result as unknown as Record<string, unknown>);
+
+        return {
+          success: true,
+          messageCount: messageIds.length,
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.batchProgress = {
+          ...this.batchProgress,
+          status: 'error',
+          endTime: Date.now(),
+          errorMessage,
+        };
+        this.logger.error('Batch analysis failed', { error: errorMessage });
+
+        return {
+          success: false,
+          error: `Batch analysis failed: ${errorMessage}`,
+        };
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to start batch analysis', { error: errorMessage });
@@ -745,28 +770,23 @@ export class MessageHandler {
   }
 
   /**
-   * Gets provider settings from storage.
+   * Gets provider settings from ConfigRepository.
    *
    * @returns Provider settings
    */
   private async getProviderSettings(): Promise<IProviderSettings> {
     try {
-      // @ts-expect-error - messenger is a global Thunderbird API
-      if (typeof messenger === 'undefined' || !messenger.storage) {
-        return { provider: '' };
-      }
+      const appConfig = await this.configRepository.getAppConfig();
+      const defaultProvider = appConfig.defaultProvider;
 
-      // @ts-expect-error - messenger.storage.local is a Thunderbird API
-      const result = await messenger.storage.local.get({
-        provider: '',
-        apiKey: '',
-        model: '',
-      });
+      const providerSettings = await this.configRepository.getProviderSettings(defaultProvider);
 
       return {
-        provider: result.provider as string,
-        apiKey: result.apiKey as string,
-        model: result.model as string,
+        provider: defaultProvider,
+        apiKey: providerSettings.apiKey,
+        model: providerSettings.model,
+        apiUrl: providerSettings.apiUrl,
+        additionalConfig: providerSettings.additionalConfig,
       };
     } catch (error) {
       this.logger.error('Failed to get provider settings', {

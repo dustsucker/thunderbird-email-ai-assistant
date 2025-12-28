@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getConcurrencyLimit, validateConcurrencyConfig, ModelConcurrencyConfig } from '../core/config';
+import {
+  getConcurrencyLimit,
+  validateConcurrencyConfig,
+  ModelConcurrencyConfig,
+} from '../core/config';
 import { DEFAULTS } from '../core/config';
 
 describe('Config - getConcurrencyLimit', () => {
@@ -34,8 +38,13 @@ describe('Config - getConcurrencyLimit', () => {
       expect(limit).toBe(10);
     });
 
-    it('should return default concurrency for zai provider', () => {
-      const limit = getConcurrencyLimit(DEFAULTS, 'zai', 'glm-4');
+    it('should return default concurrency for zai-paas provider', () => {
+      const limit = getConcurrencyLimit(DEFAULTS, 'zai-paas', 'glm-4');
+      expect(limit).toBe(5);
+    });
+
+    it('should return default concurrency for zai-coding provider', () => {
+      const limit = getConcurrencyLimit(DEFAULTS, 'zai-coding', 'glm-4');
       expect(limit).toBe(5);
     });
 
@@ -49,9 +58,7 @@ describe('Config - getConcurrencyLimit', () => {
     it('should return model-specific concurrency when configured', () => {
       const config = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'openai', model: 'gpt-4', concurrency: 3 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'openai', model: 'gpt-4', concurrency: 3 }],
       };
 
       const limit = getConcurrencyLimit(config, 'openai', 'gpt-4');
@@ -61,9 +68,7 @@ describe('Config - getConcurrencyLimit', () => {
     it('should return provider default when model not configured', () => {
       const config = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'openai', model: 'gpt-4', concurrency: 3 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'openai', model: 'gpt-4', concurrency: 3 }],
       };
 
       const limit = getConcurrencyLimit(config, 'openai', 'gpt-3.5-turbo');
@@ -86,9 +91,7 @@ describe('Config - getConcurrencyLimit', () => {
     it('should return provider default if concurrency is 0', () => {
       const config = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'openai', model: 'gpt-4', concurrency: 0 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'openai', model: 'gpt-4', concurrency: 0 }],
       };
 
       const limit = getConcurrencyLimit(config, 'openai', 'gpt-4');
@@ -100,9 +103,7 @@ describe('Config - getConcurrencyLimit', () => {
     it('should return provider-specific concurrency when configured', () => {
       const config = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'openai', concurrency: 7 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'openai', concurrency: 7 }],
       };
 
       const limit = getConcurrencyLimit(config, 'openai', 'gpt-4');
@@ -138,9 +139,7 @@ describe('Config - getConcurrencyLimit', () => {
     it('should return provider default if provider-level concurrency is 0', () => {
       const config = {
         ...DEFAULTS,
-        modelConcurrencyLimits: [
-          { provider: 'openai', concurrency: 0 },
-        ],
+        modelConcurrencyLimits: [{ provider: 'openai', concurrency: 0 }],
       };
 
       const limit = getConcurrencyLimit(config, 'openai', 'gpt-4');
@@ -194,9 +193,7 @@ describe('Config - validateConcurrencyConfig', () => {
     });
 
     it('should accept configuration without model', () => {
-      const config: ModelConcurrencyConfig[] = [
-        { provider: 'openai', concurrency: 10 },
-      ];
+      const config: ModelConcurrencyConfig[] = [{ provider: 'openai', concurrency: 10 }];
 
       const errors = validateConcurrencyConfig(config);
       expect(errors).toEqual([]);
@@ -228,7 +225,8 @@ describe('Config - validateConcurrencyConfig', () => {
         { provider: 'claude', concurrency: 5 },
         { provider: 'mistral', concurrency: 10 },
         { provider: 'deepseek', concurrency: 10 },
-        { provider: 'zai', concurrency: 5 },
+        { provider: 'zai-paas', concurrency: 5 },
+        { provider: 'zai-coding', concurrency: 5 },
       ];
 
       const errors = validateConcurrencyConfig(config);
@@ -238,9 +236,7 @@ describe('Config - validateConcurrencyConfig', () => {
 
   describe('Invalid Provider', () => {
     it('should reject invalid provider name', () => {
-      const config: ModelConcurrencyConfig[] = [
-        { provider: 'invalid-provider', concurrency: 5 },
-      ];
+      const config: ModelConcurrencyConfig[] = [{ provider: 'invalid-provider', concurrency: 5 }];
 
       const errors = validateConcurrencyConfig(config);
       expect(errors.length).toBe(1);
@@ -248,9 +244,7 @@ describe('Config - validateConcurrencyConfig', () => {
     });
 
     it('should reject empty provider string', () => {
-      const config: ModelConcurrencyConfig[] = [
-        { provider: '', model: 'gpt-4', concurrency: 5 },
-      ];
+      const config: ModelConcurrencyConfig[] = [{ provider: '', model: 'gpt-4', concurrency: 5 }];
 
       const errors = validateConcurrencyConfig(config);
       expect(errors.length).toBeGreaterThan(0);
@@ -335,18 +329,14 @@ describe('Config - validateConcurrencyConfig', () => {
 
   describe('Missing Required Fields', () => {
     it('should reject entry with neither provider nor model', () => {
-      const config: ModelConcurrencyConfig[] = [
-        { provider: '', model: '', concurrency: 5 },
-      ];
+      const config: ModelConcurrencyConfig[] = [{ provider: '', model: '', concurrency: 5 }];
 
       const errors = validateConcurrencyConfig(config);
       expect(errors.length).toBeGreaterThan(0);
     });
 
     it('should accept entry with only provider specified', () => {
-      const config: ModelConcurrencyConfig[] = [
-        { provider: 'openai', concurrency: 5 },
-      ];
+      const config: ModelConcurrencyConfig[] = [{ provider: 'openai', concurrency: 5 }];
 
       const errors = validateConcurrencyConfig(config);
       expect(errors).toEqual([]);
@@ -355,14 +345,12 @@ describe('Config - validateConcurrencyConfig', () => {
 
   describe('Multiple Errors in Single Entry', () => {
     it('should report both invalid provider and invalid concurrency', () => {
-      const config: ModelConcurrencyConfig[] = [
-        { provider: 'invalid', concurrency: -1 },
-      ];
+      const config: ModelConcurrencyConfig[] = [{ provider: 'invalid', concurrency: -1 }];
 
       const errors = validateConcurrencyConfig(config);
       expect(errors.length).toBe(2);
-      expect(errors.some(e => e.includes('Invalid provider'))).toBe(true);
-      expect(errors.some(e => e.includes('Invalid concurrency'))).toBe(true);
+      expect(errors.some((e) => e.includes('Invalid provider'))).toBe(true);
+      expect(errors.some((e) => e.includes('Invalid concurrency'))).toBe(true);
     });
   });
 
@@ -377,8 +365,10 @@ describe('Config - validateConcurrencyConfig', () => {
 
       const errors = validateConcurrencyConfig(config);
       expect(errors.length).toBe(2);
-      expect(errors.some(e => e.includes('Invalid provider: invalid'))).toBe(true);
-      expect(errors.some(e => e.includes('Invalid concurrency') && e.includes('claude/claude-3'))).toBe(true);
+      expect(errors.some((e) => e.includes('Invalid provider: invalid'))).toBe(true);
+      expect(
+        errors.some((e) => e.includes('Invalid concurrency') && e.includes('claude/claude-3'))
+      ).toBe(true);
     });
   });
 });

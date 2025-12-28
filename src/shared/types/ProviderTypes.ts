@@ -20,7 +20,8 @@ export enum Provider {
   CLAUDE = 'claude',
   MISTRAL = 'mistral',
   DEEPSEEK = 'deepseek',
-  ZAI = 'zai',
+  ZAI_PAAS = 'zai-paas',
+  ZAI_CODING = 'zai-coding',
 }
 
 export interface ProviderConfig {
@@ -32,10 +33,12 @@ export interface ProviderConfig {
   claudeApiKey: string;
   mistralApiKey: string;
   deepseekApiKey: string;
-  zaiApiKey: string;
-  zaiBaseUrl?: string;
-  zaiModel: string;
-  zaiVariant: 'paas' | 'coding';
+  zaiPaasApiKey: string;
+  zaiPaasBaseUrl?: string;
+  zaiPaasModel: string;
+  zaiCodingApiKey: string;
+  zaiCodingBaseUrl?: string;
+  zaiCodingModel: string;
   model?: string;
 }
 

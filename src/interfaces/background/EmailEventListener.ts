@@ -18,6 +18,8 @@ import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
+import { EventBus } from '@/domain/events/EventBus';
+import { createEmailReceivedEvent } from '@/domain/events/EmailReceivedEvent';
 
 // ============================================================================
 // Type Definitions
@@ -114,7 +116,8 @@ export class EmailEventListener {
     @inject('IMailReader') _mailReader: IMailReader,
     @inject(AnalyzeEmail) _analyzeEmail: AnalyzeEmail,
     @inject(AnalyzeBatchEmails) analyzeBatch: AnalyzeBatchEmails,
-    @inject('ILogger') logger: ILogger
+    @inject('ILogger') logger: ILogger,
+    @inject(EventBus) private readonly eventBus: EventBus
   ) {
     this.analyzeBatch = analyzeBatch;
     this.logger = logger;
@@ -246,6 +249,37 @@ export class EmailEventListener {
       if (!providerSettings.provider) {
         this.logger.warn('No provider configured, skipping email analysis');
         return;
+      }
+
+      // Publish EmailReceivedEvent for each message
+      for (const message of messages.messages) {
+        try {
+          // Get message details
+          // @ts-expect-error - messenger is a global Thunderbird API
+          const messageDetails = await messenger.messages.getFull(message.id);
+          
+          await this.eventBus.publish(
+            createEmailReceivedEvent(
+              {
+                id: message.id,
+                subject: messageDetails.subject || '',
+                from: messageDetails.author || '',
+                to: messageDetails.recipients?.map((r: { email: string }) => r.email) || [],
+              },
+              {
+                name: folder.name,
+                type: folder.type,
+                path: folder.path,
+              }
+            )
+          );
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.logger.warn('Failed to publish EmailReceivedEvent', {
+            messageId: message.id,
+            error: errorMessage,
+          });
+        }
       }
 
       // Start batch analysis for new messages

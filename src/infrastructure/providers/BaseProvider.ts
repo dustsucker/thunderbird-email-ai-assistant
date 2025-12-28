@@ -1,5 +1,5 @@
 import { buildPrompt, StructuredEmailData } from '../../../core/analysis';
-import { CustomTags } from '../../../core/config';
+import type { CustomTags } from '../../../core/config';
 import {
   retryWithBackoff,
   validateLLMResponse,

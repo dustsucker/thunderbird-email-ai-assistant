@@ -53,7 +53,8 @@ function isClaudeApiResponse(value: unknown): value is ClaudeApiResponse {
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 const CLAUDE_MODEL = 'claude-sonnet-4-0';
 const CLAUDE_API_VERSION = '2023-06-01';
-const ANALYSIS_SYSTEM_PROMPT = 'You are an AI email analysis assistant that analyzes emails and assigns tags.';
+const ANALYSIS_SYSTEM_PROMPT =
+  'You are an AI email analysis assistant that analyzes emails and assigns tags.';
 
 @injectable()
 export class ClaudeProvider extends BaseProvider {
@@ -119,5 +120,52 @@ export class ClaudeProvider extends BaseProvider {
       'anthropic-dangerous-direct-browser-access': 'true',
       'anthropic-version': CLAUDE_API_VERSION,
     };
+  }
+
+  /**
+   * Fetches available models from Anthropic API
+   * @param settings - Provider settings containing API key
+   * @returns Promise resolving to an array of available model IDs
+   */
+  public async listModels(settings: BaseProviderSettings): Promise<string[]> {
+    try {
+      const apiKey = settings.apiKey;
+      if (!apiKey) {
+        this.logger.error('Claude listModels: API key is missing');
+        return [];
+      }
+
+      const response = await fetch('https://api.anthropic.com/v1/models', {
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': CLAUDE_API_VERSION,
+        },
+      });
+
+      if (!response.ok) {
+        this.logger.error('Claude listModels: API request failed', { status: response.status });
+        return [];
+      }
+
+      const data = await response.json();
+
+      if (typeof data === 'object' && data !== null && 'data' in data && Array.isArray(data.data)) {
+        const models = data.data.map((model: unknown) => {
+          if (typeof model === 'object' && model !== null && 'id' in model) {
+            return model.id as string;
+          }
+          return '';
+        });
+
+        return models.filter(Boolean);
+      }
+
+      return [];
+    } catch (error) {
+      this.logger.error('Claude listModels: Failed to fetch models', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }
   }
 }

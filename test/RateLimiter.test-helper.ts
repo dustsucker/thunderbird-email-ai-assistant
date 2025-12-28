@@ -1,4 +1,4 @@
-import {
+import type {
   RateLimiterConfigMap,
   RateLimiterBuckets,
   RateLimiterQueues,
@@ -7,7 +7,7 @@ import {
   ModelSemaphore,
   ModelConcurrencyConfig,
   Priority,
-} from '../background';
+} from '../src/application/services/RateLimiterService';
 
 export { RateLimiterConfigMap, RateLimiterBuckets, RateLimiterQueues, RateLimiterProcessing, QueuedTask, ModelSemaphore, ModelConcurrencyConfig, Priority };
 

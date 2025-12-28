@@ -19,6 +19,7 @@ import type { ICache } from './src/infrastructure/interfaces/ICache';
 import type { IQueue } from './src/infrastructure/interfaces/IQueue';
 import type { IMailReader } from './src/infrastructure/interfaces/IMailReader';
 import type { ITagManager } from './src/infrastructure/interfaces/ITagManager';
+import type { IConfigRepository } from './src/infrastructure/interfaces/IConfigRepository';
 
 // ============================================================================
 // Core Implementations
@@ -29,6 +30,7 @@ import { MemoryCache } from './src/infrastructure/cache/MemoryCache';
 import { PriorityQueue } from './src/application/services/PriorityQueue';
 import { ThunderbirdMailReader } from './src/interfaces/adapters/ThunderbirdMailReader';
 import { ThunderbirdTagManager } from './src/interfaces/adapters/ThunderbirdTagManager';
+import { IndexedDBConfigRepository } from './src/infrastructure/repositories/IndexedDBConfigRepository';
 
 // ============================================================================
 // Services
@@ -98,7 +100,9 @@ interface Tab {
 declare const messenger: {
   messages: {
     onNewMailReceived: {
-      addListener(callback: (folder: ThunderbirdFolder, messages: { messages: Array<{ id: number }> }) => void): void;
+      addListener(
+        callback: (folder: ThunderbirdFolder, messages: { messages: Array<{ id: number }> }) => void
+      ): void;
     };
     getFull(messageId: number): Promise<unknown>;
     list(folderId?: string): Promise<{ messages: Array<{ id: number }> }>;
@@ -118,6 +122,11 @@ declare const messenger: {
     onSuspend: {
       addListener(callback: () => void): void;
     };
+    sendMessage(message: {
+      action: string;
+      folderId?: string;
+      messageId?: string;
+    }): Promise<unknown>;
   };
   menus: {
     create(createProperties: Record<string, unknown>, callback?: () => void): void;
@@ -136,7 +145,12 @@ declare const messenger: {
     };
   };
   notifications: {
-    create(options: { type: string; iconUrl: string; title: string; message: string }): Promise<string>;
+    create(options: {
+      type: string;
+      iconUrl: string;
+      title: string;
+      message: string;
+    }): Promise<string>;
   };
 };
 
@@ -292,6 +306,7 @@ class BackgroundScript {
     container.registerSingleton<IQueue>('IQueue', PriorityQueue);
     container.registerSingleton<IMailReader>('IMailReader', ThunderbirdMailReader);
     container.registerSingleton<ITagManager>('ITagManager', ThunderbirdTagManager);
+    container.registerSingleton<IConfigRepository>('IConfigRepository', IndexedDBConfigRepository);
 
     startupLogger.info('Core interfaces registered');
 
@@ -366,7 +381,10 @@ class BackgroundScript {
         },
         () => {
           if (browser.runtime && browser.runtime.lastError) {
-            this.logger?.error('Failed to create message list context menu', browser.runtime.lastError);
+            this.logger?.error(
+              'Failed to create message list context menu',
+              browser.runtime.lastError
+            );
           } else {
             this.logger?.info('Message list context menu registered');
           }
@@ -383,7 +401,10 @@ class BackgroundScript {
         },
         () => {
           if (browser.runtime && browser.runtime.lastError) {
-            this.logger?.error('Failed to create message display context menu', browser.runtime.lastError);
+            this.logger?.error(
+              'Failed to create message display context menu',
+              browser.runtime.lastError
+            );
           } else {
             this.logger?.info('Message display context menu registered');
           }
@@ -396,7 +417,7 @@ class BackgroundScript {
       this.logger?.info('All context menus registered successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger?.error('Failed to register context menus', errorMessage);
+      this.logger?.error('Failed to register context menus', { error: errorMessage });
     }
   }
 
@@ -433,6 +454,11 @@ class BackgroundScript {
             title: 'Batch-Analysis gestartet',
             message: `Batch-Analysis für Ordner "${folder.name}" gestartet`,
           });
+
+          await messenger.runtime.sendMessage({
+            action: 'startBatchAnalysis',
+            folderId: folder.id,
+          });
         }
         return;
       }
@@ -455,6 +481,11 @@ class BackgroundScript {
             title: 'Analyse gestartet',
             message: `Analyse für Nachricht ${messageId} gestartet`,
           });
+
+          await messenger.runtime.sendMessage({
+            action: 'analyzeSingleMessage',
+            messageId: String(messageId),
+          });
         }
         return;
       }
@@ -462,7 +493,7 @@ class BackgroundScript {
       this.logger?.warn('Unknown context menu item', { menuItemId });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger?.error('Failed to handle context menu click', errorMessage);
+      this.logger?.error('Failed to handle context menu click', { error: errorMessage });
     }
   }
 
@@ -506,7 +537,7 @@ class BackgroundScript {
           });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logger?.error('Failed to handle toolbar button click', errorMessage);
+          this.logger?.error('Failed to handle toolbar button click', { error: errorMessage });
         }
       });
 
@@ -563,7 +594,8 @@ class BackgroundScript {
           type: 'basic',
           iconUrl: 'icon.png',
           title: 'Fehler beim Starten',
-          message: 'Die Erweiterung konnte nicht gestartet werden. Bitte überprüfen Sie die Konsole.',
+          message:
+            'Die Erweiterung konnte nicht gestartet werden. Bitte überprüfen Sie die Konsole.',
         });
       }
     } catch {

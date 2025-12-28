@@ -16,6 +16,7 @@
 import { injectable, inject } from 'tsyringe';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { AnalyzeEmail } from './AnalyzeEmail';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 
@@ -101,6 +102,16 @@ interface QueueItem {
   providerSettings: IProviderSettings;
 }
 
+/**
+ * Default batch configuration values.
+ */
+const DEFAULT_BATCH_CONFIG = {
+  DEFAULT_CONCURRENCY: 3,
+  DEFAULT_PRIORITY: 1,
+  DEFAULT_DELAY_BETWEEN_ANALYSES: 0,
+  DEFAULT_CONTINUE_ON_ERROR: true,
+} as const;
+
 // ============================================================================
 // Use Case Implementation
 // ============================================================================
@@ -139,6 +150,7 @@ export class AnalyzeBatchEmails {
   private readonly analyzeEmail: AnalyzeEmail;
   private readonly queue: IQueue;
   private readonly logger: ILogger;
+  private readonly configRepository: IConfigRepository;
 
   // Batch state
   private isProcessing = false;
@@ -159,11 +171,13 @@ export class AnalyzeBatchEmails {
   constructor(
     @inject(AnalyzeEmail) analyzeEmail: AnalyzeEmail,
     @inject('IQueue') queue: IQueue,
-    @inject('ILogger') logger: ILogger
+    @inject('ILogger') logger: ILogger,
+    @inject('IConfigRepository') configRepository: IConfigRepository
   ) {
     this.analyzeEmail = analyzeEmail;
     this.queue = queue;
     this.logger = logger;
+    this.configRepository = configRepository;
     this.logger.debug('AnalyzeBatchEmails use case initialized');
   }
 
@@ -189,16 +203,16 @@ export class AnalyzeBatchEmails {
    * console.log(`Success: ${result.successCount}, Failed: ${result.failureCount}`);
    * ```
    */
-  async execute(
-    messageIds: string[],
-    config: BatchAnalysisConfig
-  ): Promise<BatchAnalysisResult> {
-    const {
-      priority = 1,
-      concurrency = 3,
-      delayBetweenAnalyses = 0,
-      continueOnError = true,
-    } = config;
+  async execute(messageIds: string[], config: BatchAnalysisConfig): Promise<BatchAnalysisResult> {
+    // Load batch settings from AppConfig with fallback to defaults
+    const appConfig = await this.loadAppConfig();
+    const concurrency =
+      config.concurrency ?? this.getConcurrencyLimit(appConfig, config.providerSettings);
+    const priority = config.priority ?? DEFAULT_BATCH_CONFIG.DEFAULT_PRIORITY;
+    const delayBetweenAnalyses =
+      config.delayBetweenAnalyses ?? DEFAULT_BATCH_CONFIG.DEFAULT_DELAY_BETWEEN_ANALYSES;
+    const continueOnError =
+      config.continueOnError ?? DEFAULT_BATCH_CONFIG.DEFAULT_CONTINUE_ON_ERROR;
 
     if (this.isProcessing) {
       throw new Error('Batch analysis is already running. Wait for current batch to complete.');
@@ -243,7 +257,7 @@ export class AnalyzeBatchEmails {
       }
 
       // Wait for all workers to complete
-      // (The batch will resolve via resolvePromise when all workers finish)
+      await Promise.all(this.activeWorkers);
 
       // Resolve the batch promise
       const result: BatchAnalysisResult = {
@@ -265,6 +279,7 @@ export class AnalyzeBatchEmails {
         cancelled: result.cancelled,
       });
 
+      this.resetState();
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -369,6 +384,76 @@ export class AnalyzeBatchEmails {
   // ==========================================================================
   // Private Methods
   // ==========================================================================
+
+  /**
+   * Loads application configuration from ConfigRepository.
+   *
+   * @returns Application config with fallback to defaults
+   */
+  private async loadAppConfig(): Promise<{
+    defaultProvider: string;
+    modelConcurrencyLimits:
+      | import('@/infrastructure/interfaces/IConfigRepository').IModelConcurrencyConfig[]
+      | undefined;
+  }> {
+    try {
+      const appConfig = await this.configRepository.getAppConfig();
+      return {
+        defaultProvider: appConfig.defaultProvider,
+        modelConcurrencyLimits: appConfig.modelConcurrencyLimits,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn('Failed to load app config from ConfigRepository, using defaults', {
+        error: errorMessage,
+      });
+      return {
+        defaultProvider: 'openai',
+        modelConcurrencyLimits: undefined,
+      };
+    }
+  }
+
+  /**
+   * Gets concurrency limit from AppConfig or defaults.
+   *
+   * @param appConfig - Application configuration
+   * @param providerSettings - Provider settings
+   * @returns Concurrency limit
+   */
+  private getConcurrencyLimit(
+    appConfig: {
+      defaultProvider: string;
+      modelConcurrencyLimits:
+        | import('@/infrastructure/interfaces/IConfigRepository').IModelConcurrencyConfig[]
+        | undefined;
+    },
+    providerSettings: IProviderSettings
+  ): number {
+    const providerId = (providerSettings.provider as string) ?? appConfig.defaultProvider;
+    const model = (providerSettings.model as string) ?? '';
+
+    // Check model-specific concurrency
+    if (appConfig.modelConcurrencyLimits) {
+      const modelConfig = appConfig.modelConcurrencyLimits.find(
+        (c) => c.provider === providerId && c.model === model
+      );
+      if (modelConfig && modelConfig.concurrency > 0) {
+        return modelConfig.concurrency;
+      }
+
+      // Check provider-specific concurrency
+      const providerConfig = appConfig.modelConcurrencyLimits.find(
+        (c) => c.provider === providerId && !c.model
+      );
+      if (providerConfig && providerConfig.concurrency > 0) {
+        return providerConfig.concurrency;
+      }
+    }
+
+    // Return default concurrency
+    return DEFAULT_BATCH_CONFIG.DEFAULT_CONCURRENCY;
+  }
 
   /**
    * Starts a worker process for processing queue items.

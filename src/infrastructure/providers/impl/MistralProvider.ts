@@ -74,7 +74,8 @@ function isMistralErrorResponse(value: unknown): value is MistralApiErrorRespons
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MISTRAL_MODEL = 'mistral-large-latest';
-const ANALYSIS_SYSTEM_PROMPT = 'You are an AI email analysis assistant that analyzes emails and assigns tags.';
+const ANALYSIS_SYSTEM_PROMPT =
+  'You are an AI email analysis assistant that analyzes emails and assigns tags.';
 
 @injectable()
 export class MistralProvider extends BaseProvider {
@@ -123,5 +124,51 @@ export class MistralProvider extends BaseProvider {
       this.logger.error('Mistral Error: API key is not set.');
     }
     return isValid;
+  }
+
+  /**
+   * Fetches available models from Mistral AI API
+   * @param settings - Provider settings containing API key
+   * @returns Promise resolving to an array of available model IDs
+   */
+  public async listModels(settings: BaseProviderSettings): Promise<string[]> {
+    try {
+      const apiKey = settings.apiKey;
+      if (!apiKey) {
+        this.logger.error('Mistral listModels: API key is missing');
+        return [];
+      }
+
+      const response = await fetch('https://api.mistral.ai/v1/models', {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      if (!response.ok) {
+        this.logger.error('Mistral listModels: API request failed', { status: response.status });
+        return [];
+      }
+
+      const data = await response.json();
+
+      if (typeof data === 'object' && data !== null && 'data' in data && Array.isArray(data.data)) {
+        const models = data.data.map((model: unknown) => {
+          if (typeof model === 'object' && model !== null && 'id' in model) {
+            return model.id as string;
+          }
+          return '';
+        });
+
+        return models.filter(Boolean);
+      }
+
+      return [];
+    } catch (error) {
+      this.logger.error('Mistral listModels: Failed to fetch models', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }
   }
 }
