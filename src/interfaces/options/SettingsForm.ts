@@ -212,7 +212,8 @@ export class SettingsForm {
         'claude',
         'mistral',
         'deepseek',
-        'zai',
+        'zai-paas',
+        'zai-coding',
       ] as const;
 
       for (const providerId of providers) {
@@ -260,17 +261,27 @@ export class SettingsForm {
               }
               break;
 
-            case 'zai':
-              if (this.elements.zaiApiKey) {
-                this.elements.zaiApiKey.value = settings.apiKey ?? '';
+            case 'zai-paas':
+              if (this.elements.zaiPaasApiKey) {
+                this.elements.zaiPaasApiKey.value = settings.apiKey ?? '';
               }
-              if (this.elements.zaiModel) {
-                this.elements.zaiModel.value = settings.model ?? 'glm-4.5';
+              if (this.elements.zaiPaasModel) {
+                this.elements.zaiPaasModel.value = settings.model ?? 'glm-4.5';
               }
-              // Extract variant from additional config
-              const variant = settings.additionalConfig?.variant as 'paas' | 'coding' | undefined;
-              if (this.elements.zaiVariant) {
-                this.elements.zaiVariant.value = variant ?? 'paas';
+              if (this.elements.zaiPaasBaseUrl) {
+                this.elements.zaiPaasBaseUrl.value = settings.apiUrl ?? '';
+              }
+              break;
+
+            case 'zai-coding':
+              if (this.elements.zaiCodingApiKey) {
+                this.elements.zaiCodingApiKey.value = settings.apiKey ?? '';
+              }
+              if (this.elements.zaiCodingModel) {
+                this.elements.zaiCodingModel.value = settings.model ?? 'glm-4.7';
+              }
+              if (this.elements.zaiCodingBaseUrl) {
+                this.elements.zaiCodingBaseUrl.value = settings.apiUrl ?? '';
               }
               break;
           }
@@ -377,10 +388,11 @@ export class SettingsForm {
       case 'deepseek':
         return !!settings.deepseekApiKey?.trim();
 
-      case 'zai':
-        return !!settings.zaiApiKey?.trim();
+      case 'zai-paas':
+        return !!settings.zaiPaasApiKey?.trim();
 
-        return !!settings.zaiApiKey?.trim();
+      case 'zai-coding':
+        return !!settings.zaiCodingApiKey?.trim();
 
       default:
         this.logger.warn('Unknown provider', { provider: settings.provider });
@@ -411,9 +423,12 @@ export class SettingsForm {
     const claudeApiKey = document.getElementById('claude-api-key') as HTMLInputElement;
     const mistralApiKey = document.getElementById('mistral-api-key') as HTMLInputElement;
     const deepseekApiKey = document.getElementById('deepseek-api-key') as HTMLInputElement;
-    const zaiApiKey = document.getElementById('zai-api-key') as HTMLInputElement;
-    const zaiModel = document.getElementById('zai-model') as HTMLSelectElement;
-    const zaiVariant = document.getElementById('zai-variant') as HTMLSelectElement;
+    const zaiPaasApiKey = document.getElementById('zai-paas-api-key') as HTMLInputElement;
+    const zaiPaasModel = document.getElementById('zai-paas-model') as HTMLSelectElement;
+    const zaiPaasBaseUrl = document.getElementById('zai-paas-base-url') as HTMLInputElement;
+    const zaiCodingApiKey = document.getElementById('zai-coding-api-key') as HTMLInputElement;
+    const zaiCodingModel = document.getElementById('zai-coding-model') as HTMLSelectElement;
+    const zaiCodingBaseUrl = document.getElementById('zai-coding-base-url') as HTMLInputElement;
 
     if (!providerSelect || !generalForm || !generalStatusMessage) {
       throw new Error('Required general settings elements not found');
@@ -430,9 +445,12 @@ export class SettingsForm {
       claudeApiKey,
       mistralApiKey,
       deepseekApiKey,
-      zaiApiKey,
-      zaiModel,
-      zaiVariant,
+      zaiPaasApiKey,
+      zaiPaasModel,
+      zaiPaasBaseUrl,
+      zaiCodingApiKey,
+      zaiCodingModel,
+      zaiCodingBaseUrl,
     };
   }
 
@@ -522,15 +540,26 @@ export class SettingsForm {
           deepseekApiKey: this.elements.deepseekApiKey.value.trim(),
         };
 
-      case 'zai':
-        if (!this.elements.zaiApiKey || !this.elements.zaiModel || !this.elements.zaiVariant) {
-          throw new Error('Zai settings element not found');
+      case 'zai-paas':
+        if (!this.elements.zaiPaasApiKey || !this.elements.zaiPaasModel) {
+          throw new Error('Zai PaaS settings element not found');
         }
         return {
           ...baseSettings,
-          zaiApiKey: this.elements.zaiApiKey.value.trim(),
-          zaiModel: this.elements.zaiModel.value,
-          zaiVariant: this.elements.zaiVariant.value as 'paas' | 'coding',
+          zaiPaasApiKey: this.elements.zaiPaasApiKey.value.trim(),
+          zaiPaasModel: this.elements.zaiPaasModel.value,
+          zaiPaasBaseUrl: this.elements.zaiPaasBaseUrl?.value.trim() ?? '',
+        };
+
+      case 'zai-coding':
+        if (!this.elements.zaiCodingApiKey || !this.elements.zaiCodingModel) {
+          throw new Error('Zai Coding settings element not found');
+        }
+        return {
+          ...baseSettings,
+          zaiCodingApiKey: this.elements.zaiCodingApiKey.value.trim(),
+          zaiCodingModel: this.elements.zaiCodingModel.value,
+          zaiCodingBaseUrl: this.elements.zaiCodingBaseUrl?.value.trim() ?? '',
         };
 
       default:
@@ -600,9 +629,10 @@ export class SettingsForm {
       case 'deepseek':
         return 'https://api.deepseek.com/';
 
-      case 'zai':
+      case 'zai-paas':
         return 'https://api.z.ai/';
 
+      case 'zai-coding':
         return 'https://api.z.ai/';
 
       default:
@@ -696,9 +726,21 @@ export class SettingsForm {
         }
         break;
 
-      case 'zai':
-        if (this.elements?.zaiApiKey?.value) {
-          settings.apiKey = this.elements.zaiApiKey.value.trim();
+      case 'zai-paas':
+        if (this.elements?.zaiPaasApiKey?.value) {
+          settings.apiKey = this.elements.zaiPaasApiKey.value.trim();
+        }
+        if (this.elements?.zaiPaasBaseUrl?.value) {
+          settings.apiUrl = this.elements.zaiPaasBaseUrl.value.trim();
+        }
+        break;
+
+      case 'zai-coding':
+        if (this.elements?.zaiCodingApiKey?.value) {
+          settings.apiKey = this.elements.zaiCodingApiKey.value.trim();
+        }
+        if (this.elements?.zaiCodingBaseUrl?.value) {
+          settings.apiUrl = this.elements.zaiCodingBaseUrl.value.trim();
         }
         break;
     }
@@ -717,7 +759,8 @@ export class SettingsForm {
     switch (providerId) {
       case 'ollama':
         return !!settings.apiUrl?.trim();
-      case 'zai':
+      case 'zai-paas':
+      case 'zai-coding':
       case 'openai':
       case 'gemini':
       case 'claude':
@@ -740,8 +783,11 @@ export class SettingsForm {
 
     // Find the correct dropdown for the provider
     switch (providerId) {
-      case 'zai':
-        modelDropdown = this.elements?.zaiModel ?? null;
+      case 'zai-paas':
+        modelDropdown = this.elements?.zaiPaasModel ?? null;
+        break;
+      case 'zai-coding':
+        modelDropdown = this.elements?.zaiCodingModel ?? null;
         break;
       // Other providers can be added here in the future
     }
@@ -811,13 +857,16 @@ export class SettingsForm {
         settings.model = 'deepseek-chat';
         break;
 
-      case 'zai':
-        settings.apiKey = partial.zaiApiKey ?? '';
-        settings.model = partial.zaiModel ?? 'glm-4.5';
-        settings.apiUrl = partial.zaiBaseUrl;
-        settings.additionalConfig = {
-          variant: partial.zaiVariant ?? 'paas',
-        };
+      case 'zai-paas':
+        settings.apiKey = partial.zaiPaasApiKey ?? '';
+        settings.model = partial.zaiPaasModel ?? 'glm-4.5';
+        settings.apiUrl = partial.zaiPaasBaseUrl;
+        break;
+
+      case 'zai-coding':
+        settings.apiKey = partial.zaiCodingApiKey ?? '';
+        settings.model = partial.zaiCodingModel ?? 'glm-4.7';
+        settings.apiUrl = partial.zaiCodingBaseUrl;
         break;
 
       default:
