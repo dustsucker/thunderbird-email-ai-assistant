@@ -1,5 +1,5 @@
 import { htmlToText } from 'html-to-text';
-import { PROMPT_BASE, CustomTags } from './config';
+import { PROMPT_BASE, CustomTags, HARDCODED_TAGS, type Tag } from './config';
 import { logger } from '../src/infrastructure/providers/ProviderUtils';
 
 // ============================================================================
@@ -57,7 +57,10 @@ export interface AnalysisData {
 /**
  * Result of prompt building operation
  */
-export type PromptBuilderResult = string;
+export interface PromptBuilderResult {
+  prompt: string;
+  allTagsDescription: string;
+}
 
 // ============================================================================
 // Type Guards
@@ -154,27 +157,56 @@ function convertHtmlToText(html: string): string {
  * Builds a prompt for AI analysis with proper context limit handling
  * @param structuredData - Structured email data including headers, body, and attachments
  * @param customTags - Array of custom tag configurations
- * @returns Constructed prompt string for AI analysis
+ * @returns Object containing constructed prompt and all tags description
  */
 export function buildPrompt(
   structuredData: StructuredEmailData,
   customTags: CustomTags
 ): PromptBuilderResult {
+  // 1. Alle Tags sammeln und mergen
+  const hardcodedTagsAsArray: Tag[] = Object.values(HARDCODED_TAGS);
+  const allTags = [...hardcodedTagsAsArray, ...customTags];
+
+  // 2. Tag-Definitionen als Text-Format generieren (NICHT als JSON!)
+  const tagNamesList: string = allTags.map((tag) => tag.key).join(', ');
+
+  const instructionsText: string = `
+
+=== AVAILABLE TAGS ===
+The following tags are available: ${tagNamesList}
+
+=== TAG DEFINITIONS ===
+${allTags.map((tag) => `${tag.key}: ${tag.prompt || 'custom tag'}`).join('\n')}
+
+### INSTRUCTIONS
+Based on the data above, return a JSON object with:
+- tags: array of tag keys where the check is true
+- confidence: number (0.0-1.0)
+- reasoning: brief explanation
+
+IMPORTANT: Return ONLY the JSON object, not the individual tag values!
+`;
+
+  // 3. Headers und Attachments JSON
   const headersJSON: string = JSON.stringify(structuredData.headers, null, 2);
   const attachmentsJSON: string = JSON.stringify(structuredData.attachments, null, 2);
 
-  const customInstructions: string = customTags
-    .map((tag) => `- ${tag.key}: (boolean) ${tag.prompt}`)
-    .join('\n');
-
-  const fullInstructions: string = `${PROMPT_BASE}\n${customInstructions}`;
-
-  const finalPrompt: string = fullInstructions
+  // 4. Platzhalter ersetzen
+  const finalPrompt: string = `${PROMPT_BASE}\n${instructionsText}`
     .replace('{headers}', headersJSON)
     .replace('{body}', structuredData.body)
     .replace('{attachments}', attachmentsJSON);
 
-  return finalPrompt;
+  // 5. Debug-Log hinzufügen
+  logger.debug('[DEBUG-PROMPT] Generated prompt:', {
+    tagDefinitionsCount: allTags.length,
+    promptLength: finalPrompt.length,
+  });
+
+  return {
+    prompt: finalPrompt,
+    allTagsDescription: tagNamesList,
+  };
 }
 
 /**

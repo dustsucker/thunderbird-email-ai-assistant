@@ -239,7 +239,8 @@ export abstract class BaseProvider {
    * @returns Analysis prompt string
    */
   protected buildPrompt(structuredData: StructuredEmailData, customTags: CustomTags): string {
-    return buildPrompt(structuredData, customTags);
+    const result = buildPrompt(structuredData, customTags);
+    return result.prompt;
   }
 
   /**

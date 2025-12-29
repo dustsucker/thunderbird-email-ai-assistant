@@ -83,6 +83,13 @@ export class ApplyTagsToEmail {
   }
 
   // ==========================================================================
+  // Private Fields
+  // ==========================================================================
+
+  /** Flag to track if hardcoded tags have been ensured */
+  private hardcodedTagsEnsured: boolean = false;
+
+  // ==========================================================================
   // Public Methods
   // ==========================================================================
 
@@ -108,6 +115,13 @@ export class ApplyTagsToEmail {
     tagKeys: string[],
     config: ApplyTagsConfig = {}
   ): Promise<ApplyTagsResult> {
+    // Hardcoded Tags beim ersten Mal erstellen
+    if (!this.hardcodedTagsEnsured) {
+      await this.ensureHardcodedTagsExist();
+      this.hardcodedTagsEnsured = true;
+      this.logger.info('✅ Hardcoded tags ensured on first execution');
+    }
+
     const { createMissingTags = false, replaceTags = false, defaultColor = '#9E9E9E' } = config;
 
     this.logger.info('🏷️  Applying tags to email', {
@@ -123,10 +137,18 @@ export class ApplyTagsToEmail {
         throw new Error(`Invalid message ID: ${messageId}`);
       }
 
-      // Ensure all tags exist
-      this.logger.debug('➡️  Ensuring tags exist', { tagKeys, createMissingTags });
+      // Validate and filter tags
+      const { validTags, invalidTags, warnings } = await this.validateAndFilterTags(tagKeys);
+
+      // Log warnings for invalid tags
+      if (warnings.length > 0) {
+        warnings.forEach((warning) => this.logger.warn(warning));
+      }
+
+      // Ensure all valid tags exist
+      this.logger.debug('➡️  Ensuring tags exist', { tagKeys: validTags, createMissingTags });
       const { applied: ensuredTags, created: createdTags } = await this.ensureTagsExist(
-        tagKeys,
+        validTags,
         createMissingTags,
         defaultColor
       );
@@ -147,7 +169,7 @@ export class ApplyTagsToEmail {
       this.logger.debug('➡️  Publishing TagAppliedEvent');
       await this.eventBus.publish(
         createTagAppliedEvent(messageId, ensuredTags, {
-          skippedTags: tagKeys.filter((k) => !ensuredTags.includes(k)),
+          skippedTags: invalidTags,
           createdTags,
           replaceTags,
         })
@@ -156,7 +178,7 @@ export class ApplyTagsToEmail {
       return {
         messageId,
         appliedTags: ensuredTags,
-        skippedTags: tagKeys.filter((k) => !ensuredTags.includes(k)),
+        skippedTags: invalidTags,
         createdTags,
       };
     } catch (error) {
@@ -332,6 +354,81 @@ export class ApplyTagsToEmail {
   // ==========================================================================
   // Private Methods
   // ==========================================================================
+
+  /**
+   * Ensures all hardcoded tags exist in Thunderbird.
+   *
+   * Automatically creates all tags defined in HARDCODED_TAGS if they don't exist.
+   * This is called once on the first execution to ensure the system has all
+   * required tags available.
+   *
+   * @private
+   */
+  private async ensureHardcodedTagsExist(): Promise<void> {
+    for (const [key, tagConfig] of Object.entries(HARDCODED_TAGS)) {
+      try {
+        await this.tagManager.ensureTagExists(key, tagConfig.name, tagConfig.color);
+        this.logger.debug('Hardcoded tag ensured', { key, name: tagConfig.name });
+      } catch (error) {
+        this.logger.warn('Failed to ensure hardcoded tag', { key, error: String(error) });
+      }
+    }
+  }
+
+  /**
+   * Validates and filters tags against defined tags.
+   *
+   * Checks each tag key against hardcoded tags and custom tags.
+   * Returns valid tags that are defined and invalid tags that should be discarded.
+   *
+   * @param tagKeys - Tag keys to validate
+   * @returns Promise resolving to valid tags, invalid tags, and warning messages
+   */
+  private async validateAndFilterTags(tagKeys: string[]): Promise<{
+    validTags: string[];
+    invalidTags: string[];
+    warnings: string[];
+  }> {
+    this.logger.debug(`[DEBUG-TagValidation] Validating ${tagKeys.length} tags from LLM`);
+
+    const validTags: string[] = [];
+    const invalidTags: string[] = [];
+    const warnings: string[] = [];
+
+    // Get custom tags from config repository
+    const customTags = await this.configRepository.getCustomTags();
+
+    // Build a set of all defined tag keys
+    const hardcodedTagKeys = new Set(Object.keys(HARDCODED_TAGS));
+    const customTagKeys = new Set(customTags.map((tag) => tag.key));
+
+    for (const tagKey of tagKeys) {
+      if (hardcodedTagKeys.has(tagKey)) {
+        // Tag is in HARDCODED_TAGS
+        validTags.push(tagKey);
+      } else if (customTagKeys.has(tagKey)) {
+        // Tag is in Custom Tags
+        validTags.push(tagKey);
+      } else {
+        // Tag is not defined
+        invalidTags.push(tagKey);
+        warnings.push(
+          `[DEBUG-TagValidation] Invalid tag '${tagKey}' - not defined in HARDCODED_TAGS or custom tags`
+        );
+      }
+    }
+
+    this.logger.debug(
+      `[DEBUG-TagValidation] Found ${validTags.length} valid, ${invalidTags.length} invalid tags`
+    );
+
+    if (invalidTags.length > 0) {
+      this.logger.debug(`[DEBUG-TagValidation] Invalid tags: ${invalidTags.join(', ')}`);
+      this.logger.warn(`[WARN-TagValidation] Skipping ${invalidTags.length} undefined tags`);
+    }
+
+    return { validTags, invalidTags, warnings };
+  }
 
   /**
    * Applies tags to a message.

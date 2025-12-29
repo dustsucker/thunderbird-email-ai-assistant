@@ -31,4 +31,7 @@ export interface AnalysisData {
   parts?: EmailPart[];
 }
 
-export type PromptBuilderResult = string;
+export interface PromptBuilderResult {
+  prompt: string;
+  allTagsDescription: string;
+}

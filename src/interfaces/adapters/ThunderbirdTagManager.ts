@@ -5,10 +5,15 @@ import {
   TagUpdateOptions,
 } from '../../infrastructure/interfaces/ITagManager';
 import { ILogger } from '../../infrastructure/interfaces/ILogger';
+import { HARDCODED_TAGS, TAG_KEY_PREFIX } from '../../../core/config';
 
 // ============================================================================
 // Thunderbird WebExtension API Types
 // ============================================================================
+
+interface MessageProperties {
+  tags?: string[];
+}
 
 declare const messenger: {
   messages: {
@@ -20,7 +25,7 @@ declare const messenger: {
     };
     addTags(ids: number[], tags: string[]): Promise<void>;
     removeTags(ids: number[], tags: string[]): Promise<void>;
-    setTags(ids: number[], tags: string[]): Promise<void>;
+    update(id: number, properties: MessageProperties): Promise<MessageProperties>;
   };
 };
 
@@ -59,6 +64,23 @@ function isThunderbirdTagArray(value: unknown): value is ThunderbirdTag[] {
 
   return value.every(isThunderbirdTag);
 }
+
+// ============================================================================
+// Tag Key Mapping (Internal Keys with _ma_ Prefix)
+// ============================================================================
+
+/**
+ * Map from defined tag keys to internal Thunderbird tag keys (with _ma_ prefix)
+ * Thunderbird internally prefixes all tag keys with "_ma_", so we need to map
+ * our defined keys to the internal keys for all operations.
+ */
+const TAG_KEY_MAP: Record<string, string> = {
+  is_scam: TAG_KEY_PREFIX + HARDCODED_TAGS.is_scam.key,
+  spf_fail: TAG_KEY_PREFIX + HARDCODED_TAGS.spf_fail.key,
+  dkim_fail: TAG_KEY_PREFIX + HARDCODED_TAGS.dkim_fail.key,
+  tagged: TAG_KEY_PREFIX + HARDCODED_TAGS.tagged.key,
+  email_ai_analyzed: TAG_KEY_PREFIX + HARDCODED_TAGS.email_ai_analyzed.key,
+};
 
 // ============================================================================
 // ThunderbirdTagManager Implementation
@@ -181,29 +203,51 @@ export class ThunderbirdTagManager implements ITagManager {
     }
 
     // Generate key from name if not provided
-    const key = sortKey || name.toLowerCase().replace(/\s+/g, '_');
+    const baseKey = sortKey || name.toLowerCase().replace(/\s+/g, '_');
+    // Use internal key with _ma_ prefix for Thunderbird API
+    const internalKey = TAG_KEY_PREFIX + baseKey;
+    this.logger.debug('[TAG-CREATE] Creating tag with parameters', {
+      baseKey,
+      internalKey,
+      name,
+      color,
+      sortKey,
+    });
 
     try {
       // Check if tag already exists to avoid duplicates
-      const existingTag = await this.getTag(key);
+      const existingTag = await this.getTag(internalKey);
       if (existingTag) {
-        this.logger.warn('Tag already exists, returning existing', { key, name: existingTag.tag });
+        this.logger.warn('Tag already exists, returning existing', {
+          internalKey,
+          name: existingTag.tag,
+        });
         return existingTag;
       }
 
       // Create tag with default color if not provided
       const tagColor = color || '#9E9E9E';
-      const createdTag = await messenger.messages.tags.create(key, name, tagColor);
+      const createdTag = await messenger.messages.tags.create(internalKey, name, tagColor);
+      this.logger.debug('[TAG-CREATE] Tag created from Thunderbird API', {
+        returnedKey: createdTag.key,
+        returnedName: createdTag.tag,
+        returnedColor: createdTag.color,
+      });
 
       if (!isThunderbirdTag(createdTag)) {
         throw new Error('Invalid tag object returned from Thunderbird API');
       }
 
-      this.logger.info('Tag created successfully', { key, name, color: tagColor });
+      this.logger.info('Tag created successfully', {
+        baseKey,
+        internalKey: createdTag.key,
+        name,
+        color: tagColor,
+      });
       return createdTag;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to create tag', { name, key, error: errorMessage });
+      this.logger.error('Failed to create tag', { name, baseKey, error: errorMessage });
       throw new Error(`Failed to create tag '${name}': ${errorMessage}`);
     }
   }
@@ -287,14 +331,17 @@ export class ThunderbirdTagManager implements ITagManager {
     this.logger.debug('Adding tag to message', { messageId, tagKey });
 
     try {
+      // Convert defined key to internal key (with _ma_ prefix)
+      const internalKey = TAG_KEY_MAP[tagKey] || tagKey;
+
       // Verify tag exists
-      const tagExists = await this.tagExists(tagKey);
+      const tagExists = await this.tagExists(internalKey);
       if (!tagExists) {
         throw new Error(`Tag '${tagKey}' does not exist`);
       }
 
-      await messenger.messages.addTags([messageId], [tagKey]);
-      this.logger.debug('Tag added to message', { messageId, tagKey });
+      await messenger.messages.addTags([messageId], [internalKey]);
+      this.logger.debug('Tag added to message', { messageId, internalKey });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to add tag to message', { messageId, tagKey, error: errorMessage });
@@ -309,8 +356,11 @@ export class ThunderbirdTagManager implements ITagManager {
     this.logger.debug('Removing tag from message', { messageId, tagKey });
 
     try {
-      await messenger.messages.removeTags([messageId], [tagKey]);
-      this.logger.debug('Tag removed from message', { messageId, tagKey });
+      // Convert defined key to internal key (with _ma_ prefix)
+      const internalKey = TAG_KEY_MAP[tagKey] || tagKey;
+
+      await messenger.messages.removeTags([messageId], [internalKey]);
+      this.logger.debug('Tag removed from message', { messageId, internalKey });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to remove tag from message', {
@@ -331,17 +381,35 @@ export class ThunderbirdTagManager implements ITagManager {
     this.logger.debug('Setting tags on message', { messageId, tagKeys });
 
     try {
+      // Convert defined keys to internal keys (with _ma_ prefix)
+      const internalTagKeys = tagKeys.map((key) => TAG_KEY_MAP[key] || key);
+
+      this.logger.debug('[TAG-SET] Converting to internal keys', {
+        originalKeys: tagKeys,
+        internalKeys: internalTagKeys,
+      });
+
       // Validate all tags exist
       const allTags = await this.getAllTags();
       const existingKeys = new Set(allTags.map((t) => t.key));
-      const invalidTags = tagKeys.filter((k) => !existingKeys.has(k));
+      const invalidTags = internalTagKeys.filter((k) => !existingKeys.has(k));
+
+      this.logger.debug('[TAG-SET] Existing tags', {
+        count: allTags.length,
+        keys: allTags.map((t) => t.key).join(', '),
+      });
+      this.logger.debug('[TAG-SET] Tags to set', {
+        tagKeys: internalTagKeys,
+        count: internalTagKeys.length,
+      });
+      this.logger.debug('[TAG-SET] Invalid tags', { invalidTags, count: invalidTags.length });
 
       if (invalidTags.length > 0) {
         throw new Error(`Tags do not exist: ${invalidTags.join(', ')}`);
       }
 
-      await messenger.messages.setTags([messageId], tagKeys);
-      this.logger.debug('Tags set on message', { messageId, tagKeys });
+      await messenger.messages.update(messageId, { tags: internalTagKeys });
+      this.logger.debug('Tags set on message', { messageId, tagKeys: internalTagKeys });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to set tags on message', {
@@ -360,7 +428,7 @@ export class ThunderbirdTagManager implements ITagManager {
     this.logger.debug('Clearing tags from message', { messageId });
 
     try {
-      await messenger.messages.setTags([messageId], []);
+      await messenger.messages.update(messageId, { tags: [] });
       this.logger.debug('Tags cleared from message', { messageId });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -395,18 +463,31 @@ export class ThunderbirdTagManager implements ITagManager {
    * @inheritdoc
    */
   async ensureTagExists(key: string, name: string, color?: string): Promise<ThunderbirdTag> {
-    this.logger.debug('Ensuring tag exists', { key, name, color });
+    this.logger.debug('[TAG-CREATE] Looking for tag', { key, name, color });
 
     try {
+      // Convert defined key to internal key (with _ma_ prefix) for checking
+      const internalKey = TAG_KEY_MAP[key] || key;
+
       // Check if tag already exists
-      const existingTag = await this.getTag(key);
+      const existingTag = await this.getTag(internalKey);
       if (existingTag) {
-        this.logger.debug('Tag already exists, returning existing', { key, name: existingTag.tag });
+        this.logger.debug('[TAG-CREATE] Tag already exists', {
+          key,
+          internalKey,
+          existingKey: existingTag.key,
+          existingName: existingTag.tag,
+        });
         return existingTag;
       }
 
       // Create the tag
+      this.logger.debug('[TAG-CREATE] Tag not found, creating new tag', { key, name, color });
       const newTag = await this.createTag(name, color, key);
+      this.logger.debug('[TAG-CREATE] Tag created result', {
+        newKey: newTag.key,
+        newName: newTag.tag,
+      });
       this.logger.info('Tag ensured (created)', { key, name, color });
       return newTag;
     } catch (error) {
@@ -432,14 +513,17 @@ export class ThunderbirdTagManager implements ITagManager {
     }
 
     try {
+      // Convert defined key to internal key (with _ma_ prefix)
+      const internalKey = TAG_KEY_MAP[tagKey] || tagKey;
+
       // Verify tag exists
-      const tagExists = await this.tagExists(tagKey);
+      const tagExists = await this.tagExists(internalKey);
       if (!tagExists) {
         throw new Error(`Tag '${tagKey}' does not exist`);
       }
 
-      await messenger.messages.addTags(messageIds, [tagKey]);
-      this.logger.debug('Tag added to messages', { count: messageIds.length, tagKey });
+      await messenger.messages.addTags(messageIds, [internalKey]);
+      this.logger.debug('Tag added to messages', { count: messageIds.length, internalKey });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to add tag to messages', {
@@ -457,36 +541,28 @@ export class ThunderbirdTagManager implements ITagManager {
    * @inheritdoc
    */
   async setTagsOnMessages(messageIds: number[], tagKeys: string[]): Promise<void> {
-    this.logger.debug('Setting tags on multiple messages', {
-      messageIds: messageIds.length,
-      tagKeys,
+    this.logger.debug('Setting tags on messages', { messageIds, tagKeys });
+
+    // Convert defined keys to internal keys (with _ma_ prefix)
+    const internalTagKeys = tagKeys.map((key) => TAG_KEY_MAP[key] || key);
+
+    // Validate all tags exist
+    const allTags = await this.getAllTags();
+    const existingKeys = new Set(allTags.map((t) => t.key));
+    const invalidTags = internalTagKeys.filter((k) => !existingKeys.has(k));
+
+    if (invalidTags.length > 0) {
+      throw new Error(`Tags do not exist: ${invalidTags.join(', ')}`);
+    }
+
+    // Use update() instead of setTags() for each message
+    for (const messageId of messageIds) {
+      await messenger.messages.update(messageId, { tags: internalTagKeys });
+    }
+    this.logger.debug('Tags set on messages', {
+      messageIds,
+      tagKeys: internalTagKeys,
+      count: messageIds.length,
     });
-
-    if (messageIds.length === 0) {
-      this.logger.debug('No message IDs provided, skipping');
-      return;
-    }
-
-    try {
-      // Validate all tags exist
-      const allTags = await this.getAllTags();
-      const existingKeys = new Set(allTags.map((t) => t.key));
-      const invalidTags = tagKeys.filter((k) => !existingKeys.has(k));
-
-      if (invalidTags.length > 0) {
-        throw new Error(`Tags do not exist: ${invalidTags.join(', ')}`);
-      }
-
-      await messenger.messages.setTags(messageIds, tagKeys);
-      this.logger.debug('Tags set on messages', { count: messageIds.length, tagKeys });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to set tags on messages', {
-        count: messageIds.length,
-        tagKeys,
-        error: errorMessage,
-      });
-      throw new Error(`Failed to set tags on ${messageIds.length} messages: ${errorMessage}`);
-    }
   }
 }

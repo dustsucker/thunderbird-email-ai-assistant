@@ -463,11 +463,23 @@ export function extractJson(text: unknown): string {
     } else if (text[i] === '}') {
       braceCount--;
       if (braceCount === 0 && firstBrace !== -1) {
-        return text.substring(firstBrace, i + 1);
+        const extracted = text.substring(firstBrace, i + 1);
+        logger.info('[LLM-EXTRACT-JSON] Extracted JSON:', {
+          startIdx: firstBrace,
+          endIdx: i + 1,
+          length: extracted.length,
+          preview: extracted.substring(0, 200),
+        });
+        return extracted;
       }
     }
   }
 
+  logger.info('[LLM-EXTRACT-JSON] No JSON found in text', {
+    textLength: text.length,
+    hasBrace: text.includes('{'),
+    preview: text.substring(0, 200),
+  });
   throw new Error('Could not find a valid JSON object in the response.');
 }
 
@@ -703,6 +715,18 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
  * // Returns { tags: [], confidence: 0.5, reasoning: "" }
  */
 export function validateLLMResponse(response: unknown): TagResponse {
+  // Log raw response for debugging
+  logger.info('[LLM-RAW-RESPONSE] Raw LLM response:', {
+    type: typeof response,
+    preview:
+      typeof response === 'string'
+        ? response.substring(0, 500)
+        : JSON.stringify(response).substring(0, 500),
+    isNull: response === null,
+    isUndefined: response === undefined,
+    isEmpty: typeof response === 'string' && response.trim().length === 0,
+  });
+
   let parsed: Record<string, unknown>;
 
   // Parse JSON if response is a string
@@ -711,10 +735,24 @@ export function validateLLMResponse(response: unknown): TagResponse {
       // First try to extract JSON if it's embedded in text
       const jsonText = extractJson(response);
       parsed = JSON.parse(jsonText) as Record<string, unknown>;
+      logger.info('[LLM-PARSED-JSON] Parsed JSON (extracted):', {
+        keys: Object.keys(parsed),
+        hasTags: 'tags' in parsed,
+        hasConfidence: 'confidence' in parsed,
+        tagsValue: parsed.tags,
+        confidenceValue: parsed.confidence,
+      });
     } catch (error) {
       // Fallback: try parsing the whole string as JSON
       try {
         parsed = JSON.parse(response) as Record<string, unknown>;
+        logger.info('[LLM-PARSED-JSON] Parsed JSON (fallback):', {
+          keys: Object.keys(parsed),
+          hasTags: 'tags' in parsed,
+          hasConfidence: 'confidence' in parsed,
+          tagsValue: parsed.tags,
+          confidenceValue: parsed.confidence,
+        });
       } catch (parseError) {
         const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
         logError('Failed to parse JSON response', {
@@ -731,6 +769,13 @@ export function validateLLMResponse(response: unknown): TagResponse {
     }
   } else if (isJsonObject(response)) {
     parsed = response;
+    logger.info('[LLM-PARSED-JSON] Parsed JSON (object input):', {
+      keys: Object.keys(parsed),
+      hasTags: 'tags' in parsed,
+      hasConfidence: 'confidence' in parsed,
+      tagsValue: parsed.tags,
+      confidenceValue: parsed.confidence,
+    });
   } else {
     logError('Invalid response type', { type: typeof response });
     return {

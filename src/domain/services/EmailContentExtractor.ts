@@ -66,7 +66,10 @@ export class EmailContentExtractor {
       .replace('{body}', structuredData.body)
       .replace('{attachments}', attachmentsJSON);
 
-    return finalPrompt;
+    return {
+      prompt: finalPrompt,
+      allTagsDescription: customInstructions,
+    };
   }
 
   truncateText(text: string, maxLength: number): string {
