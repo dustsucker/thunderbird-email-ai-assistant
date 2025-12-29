@@ -33,10 +33,8 @@ interface GeneralSettingsElements {
   deepseekApiKey: HTMLInputElement | null;
   zaiPaasApiKey: HTMLInputElement | null;
   zaiPaasModel: HTMLSelectElement | null;
-  zaiPaasBaseUrl: HTMLInputElement | null;
   zaiCodingApiKey: HTMLInputElement | null;
   zaiCodingModel: HTMLSelectElement | null;
-  zaiCodingBaseUrl: HTMLInputElement | null;
 }
 
 // ============================================================================
@@ -57,10 +55,8 @@ type PartialProviderConfig = {
   deepseekApiKey?: string;
   zaiPaasApiKey?: string;
   zaiPaasModel?: string;
-  zaiPaasBaseUrl?: string;
   zaiCodingApiKey?: string;
   zaiCodingModel?: string;
-  zaiCodingBaseUrl?: string;
 };
 
 /**
@@ -77,10 +73,8 @@ interface GeneralSettingsStorage {
   deepseekApiKey?: string;
   zaiPaasApiKey?: string;
   zaiPaasModel?: string;
-  zaiPaasBaseUrl?: string;
   zaiCodingApiKey?: string;
   zaiCodingModel?: string;
-  zaiCodingBaseUrl?: string;
 }
 
 /**
@@ -268,9 +262,6 @@ export class SettingsForm {
               if (this.elements.zaiPaasModel) {
                 this.elements.zaiPaasModel.value = settings.model ?? 'glm-4.5';
               }
-              if (this.elements.zaiPaasBaseUrl) {
-                this.elements.zaiPaasBaseUrl.value = settings.apiUrl ?? '';
-              }
               break;
 
             case 'zai-coding':
@@ -279,9 +270,6 @@ export class SettingsForm {
               }
               if (this.elements.zaiCodingModel) {
                 this.elements.zaiCodingModel.value = settings.model ?? 'glm-4.7';
-              }
-              if (this.elements.zaiCodingBaseUrl) {
-                this.elements.zaiCodingBaseUrl.value = settings.apiUrl ?? '';
               }
               break;
           }
@@ -425,10 +413,8 @@ export class SettingsForm {
     const deepseekApiKey = document.getElementById('deepseek-api-key') as HTMLInputElement;
     const zaiPaasApiKey = document.getElementById('zai-paas-api-key') as HTMLInputElement;
     const zaiPaasModel = document.getElementById('zai-paas-model') as HTMLSelectElement;
-    const zaiPaasBaseUrl = document.getElementById('zai-paas-base-url') as HTMLInputElement;
     const zaiCodingApiKey = document.getElementById('zai-coding-api-key') as HTMLInputElement;
     const zaiCodingModel = document.getElementById('zai-coding-model') as HTMLSelectElement;
-    const zaiCodingBaseUrl = document.getElementById('zai-coding-base-url') as HTMLInputElement;
 
     if (!providerSelect || !generalForm || !generalStatusMessage) {
       throw new Error('Required general settings elements not found');
@@ -447,10 +433,8 @@ export class SettingsForm {
       deepseekApiKey,
       zaiPaasApiKey,
       zaiPaasModel,
-      zaiPaasBaseUrl,
       zaiCodingApiKey,
       zaiCodingModel,
-      zaiCodingBaseUrl,
     };
   }
 
@@ -548,7 +532,6 @@ export class SettingsForm {
           ...baseSettings,
           zaiPaasApiKey: this.elements.zaiPaasApiKey.value.trim(),
           zaiPaasModel: this.elements.zaiPaasModel.value,
-          zaiPaasBaseUrl: this.elements.zaiPaasBaseUrl?.value.trim() ?? '',
         };
 
       case 'zai-coding':
@@ -559,7 +542,6 @@ export class SettingsForm {
           ...baseSettings,
           zaiCodingApiKey: this.elements.zaiCodingApiKey.value.trim(),
           zaiCodingModel: this.elements.zaiCodingModel.value,
-          zaiCodingBaseUrl: this.elements.zaiCodingBaseUrl?.value.trim() ?? '',
         };
 
       default:
@@ -730,18 +712,14 @@ export class SettingsForm {
         if (this.elements?.zaiPaasApiKey?.value) {
           settings.apiKey = this.elements.zaiPaasApiKey.value.trim();
         }
-        if (this.elements?.zaiPaasBaseUrl?.value) {
-          settings.apiUrl = this.elements.zaiPaasBaseUrl.value.trim();
-        }
+        settings.apiUrl = 'https://api.z.ai/v1';
         break;
 
       case 'zai-coding':
         if (this.elements?.zaiCodingApiKey?.value) {
           settings.apiKey = this.elements.zaiCodingApiKey.value.trim();
         }
-        if (this.elements?.zaiCodingBaseUrl?.value) {
-          settings.apiUrl = this.elements.zaiCodingBaseUrl.value.trim();
-        }
+        settings.apiUrl = 'https://api.z.ai/v1';
         break;
     }
 
@@ -860,13 +838,13 @@ export class SettingsForm {
       case 'zai-paas':
         settings.apiKey = partial.zaiPaasApiKey ?? '';
         settings.model = partial.zaiPaasModel ?? 'glm-4.5';
-        settings.apiUrl = partial.zaiPaasBaseUrl;
+        settings.apiUrl = 'https://api.z.ai/v1';
         break;
 
       case 'zai-coding':
         settings.apiKey = partial.zaiCodingApiKey ?? '';
         settings.model = partial.zaiCodingModel ?? 'glm-4.7';
-        settings.apiUrl = partial.zaiCodingBaseUrl;
+        settings.apiUrl = 'https://api.z.ai/v1';
         break;
 
       default:

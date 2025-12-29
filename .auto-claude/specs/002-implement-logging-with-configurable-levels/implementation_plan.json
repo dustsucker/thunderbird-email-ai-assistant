@@ -1,0 +1,8 @@
+{
+  "feature": "Implement logging with configurable levels",
+  "description": "Bitte Verbessere mit das Logging, so das ich das logg level einstellen kann und möglichst alles gelogged wird, um besser heraus finden zu können warum sachen nicht funktionieren.",
+  "created_at": "2025-12-28T17:38:29.571Z",
+  "updated_at": "2025-12-28T17:38:29.571Z",
+  "status": "pending",
+  "phases": []
+}

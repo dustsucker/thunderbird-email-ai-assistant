@@ -1,0 +1,620 @@
+{
+  "id": "roadmap-1735413600000",
+  "project_name": "Thunderbird Email AI Assistant",
+  "version": "1.0",
+  "vision": "AI-powered, multi-provider mail tagging and classification engine for Thunderbird",
+  "target_audience": {
+    "primary": "Privacy-conscious email power users who want automated intelligent email organization without manual filtering rules",
+    "secondary": [
+      "IT professionals managing high email volumes",
+      "Small business owners needing automatic email categorization",
+      "Privacy-focused users preferring local AI (Ollama) over cloud services",
+      "Developers and technical users comfortable with LLM configuration"
+    ]
+  },
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Foundation & MVP Polish",
+      "description": "Complete the MVP with essential missing features, improve stability, and address critical user experience gaps. Focus on making the extension production-ready.",
+      "order": 1,
+      "status": "planned",
+      "features": [
+        "feature-1",
+        "feature-2",
+        "feature-3",
+        "feature-4",
+        "feature-5"
+      ],
+      "milestones": [
+        {
+          "id": "milestone-1-1",
+          "title": "Manual Analysis Complete",
+          "description": "Users can manually trigger AI analysis on selected emails with visual feedback",
+          "features": ["feature-1", "feature-3"],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-1-2",
+          "title": "Classification Transparency",
+          "description": "Users can see confidence scores and preview tag suggestions before applying",
+          "features": ["feature-2", "feature-4"],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-1-3",
+          "title": "Production Stability",
+          "description": "Extension is stable with clear error feedback and undo capability",
+          "features": ["feature-5"],
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "User Experience Enhancement",
+      "description": "Improve daily workflow with advanced features, bulk operations, and better configuration options. Make power users more productive.",
+      "order": 2,
+      "status": "planned",
+      "features": [
+        "feature-6",
+        "feature-7",
+        "feature-8",
+        "feature-9",
+        "feature-10"
+      ],
+      "milestones": [
+        {
+          "id": "milestone-2-1",
+          "title": "Bulk Operations Ready",
+          "description": "Users can re-analyze multiple emails and manage tags in bulk",
+          "features": ["feature-6", "feature-7"],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-2-2",
+          "title": "Configuration Flexibility",
+          "description": "Users can configure AI models, export settings, and customize behavior",
+          "features": ["feature-8", "feature-9", "feature-10"],
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Intelligence & Analytics",
+      "description": "Add advanced AI features, learning capabilities, and analytics to provide deeper insights and continuous improvement.",
+      "order": 3,
+      "status": "planned",
+      "features": [
+        "feature-11",
+        "feature-12",
+        "feature-13",
+        "feature-14"
+      ],
+      "milestones": [
+        {
+          "id": "milestone-3-1",
+          "title": "Learning System Active",
+          "description": "Extension learns from user corrections and provides smart suggestions",
+          "features": ["feature-11", "feature-12"],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-3-2",
+          "title": "Analytics Dashboard Live",
+          "description": "Users can view classification statistics, costs, and performance metrics",
+          "features": ["feature-13", "feature-14"],
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Scale & Ecosystem",
+      "description": "Expand the extension's reach with internationalization, platform updates, and community features. Position for broader adoption.",
+      "order": 4,
+      "status": "planned",
+      "features": [
+        "feature-15",
+        "feature-16",
+        "feature-17",
+        "feature-18"
+      ],
+      "milestones": [
+        {
+          "id": "milestone-4-1",
+          "title": "Global Ready",
+          "description": "Extension supports multiple languages and is prepared for international users",
+          "features": ["feature-15"],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-4-2",
+          "title": "Future Proof",
+          "description": "Extension migrated to Manifest V3 and has extensible provider architecture",
+          "features": ["feature-16", "feature-17"],
+          "status": "planned"
+        },
+        {
+          "id": "milestone-4-3",
+          "title": "Community Ecosystem",
+          "description": "Users can share and discover tag configurations from the community",
+          "features": ["feature-18"],
+          "status": "planned"
+        }
+      ]
+    }
+  ],
+  "features": [
+    {
+      "id": "feature-1",
+      "title": "Manual Analysis Trigger from Message Context",
+      "description": "Add a right-click context menu option and keyboard shortcut to manually trigger AI analysis on selected email(s). Users can analyze specific messages on-demand without waiting for automatic processing.",
+      "rationale": "Users need control over when analysis happens. Addresses the gap where users can't analyze emails that arrived before extension installation or re-analyze with updated prompts. Competitors like manual Thunderbird filters require tedious rule creation (pain-4-1) - this provides an intelligent alternative.",
+      "priority": "must",
+      "complexity": "medium",
+      "impact": "high",
+      "phase_id": "phase-1",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Right-click context menu shows 'Analyze with AI' option on selected messages",
+        "Keyboard shortcut (configurable) triggers analysis on selected messages",
+        "Multiple message selection is supported for batch manual analysis",
+        "Progress indicator shows analysis status",
+        "Results are applied immediately after analysis completes"
+      ],
+      "user_stories": [
+        "As an email power user, I want to manually trigger AI analysis on specific emails so that I can organize messages that arrived before I configured my tags",
+        "As a privacy-conscious user, I want to analyze only selected emails so that I control exactly which messages are processed by AI"
+      ],
+      "competitor_insight_ids": ["pain-4-1", "pain-4-2"]
+    },
+    {
+      "id": "feature-2",
+      "title": "Confidence Score Display and Threshold Configuration",
+      "description": "Display confidence scores for AI classifications and allow users to configure minimum confidence thresholds. Tags are only applied when confidence exceeds the threshold.",
+      "rationale": "Addresses market gap-5: lack of transparency in AI decisions. Gmail and SaneBox don't explain why emails are categorized (pain-3-3). Users need to understand AI certainty and control when tags are applied to avoid incorrect classifications.",
+      "priority": "must",
+      "complexity": "medium",
+      "impact": "high",
+      "phase_id": "phase-1",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Confidence score (0-100%) is displayed alongside each tag suggestion",
+        "Global confidence threshold setting in options (default: 70%)",
+        "Per-tag confidence threshold override option",
+        "Low-confidence classifications are flagged for manual review",
+        "Confidence scores are stored with analysis history"
+      ],
+      "user_stories": [
+        "As a cautious user, I want to see confidence scores so that I can understand how certain the AI is about its classifications",
+        "As a power user, I want to set minimum confidence thresholds so that only high-confidence tags are applied automatically"
+      ],
+      "competitor_insight_ids": ["pain-3-3", "gap-5"]
+    },
+    {
+      "id": "feature-3",
+      "title": "Enhanced Error Feedback and Notifications",
+      "description": "Provide clear, actionable error messages in the UI when API calls fail, models are unavailable, or configuration issues occur. Include notification system for analysis results and errors.",
+      "rationale": "Current limited error feedback leaves users confused when things go wrong. Clear error messages reduce support requests and help users self-diagnose issues with their API keys, rate limits, or network connectivity.",
+      "priority": "must",
+      "complexity": "low",
+      "impact": "high",
+      "phase_id": "phase-1",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "API errors show specific, actionable error messages (not just 'Error')",
+        "Rate limit errors suggest waiting time or switching providers",
+        "Invalid API key errors guide users to configuration",
+        "Network errors distinguish between connectivity and service issues",
+        "Optional desktop notifications for analysis completion/failure",
+        "Error history log accessible in options page"
+      ],
+      "user_stories": [
+        "As a new user, I want clear error messages so that I can fix configuration problems without searching documentation",
+        "As a power user, I want to be notified when batch analysis completes so that I don't have to manually check"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-4",
+      "title": "Tag Suggestion Preview Before Application",
+      "description": "Show proposed tags to users before applying them, with option to approve, reject, or modify. Supports both individual email preview and batch preview mode.",
+      "rationale": "Users want control over what tags are applied. Preview mode builds trust in the AI system and prevents unwanted tagging. This is especially important for new users learning how their prompts work.",
+      "priority": "must",
+      "complexity": "medium",
+      "impact": "high",
+      "phase_id": "phase-1",
+      "dependencies": ["feature-2"],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Preview mode toggle in settings (preview all / auto-apply above threshold)",
+        "Preview UI shows email subject, proposed tags, and confidence scores",
+        "Users can approve, reject, or modify suggested tags",
+        "Batch preview shows list of emails with proposed tags",
+        "Quick approve/reject all buttons for batch operations",
+        "User modifications inform learning system (if enabled)"
+      ],
+      "user_stories": [
+        "As a new user, I want to preview tag suggestions so that I can verify my prompts are working correctly before auto-applying",
+        "As a careful user, I want to approve tags before they're applied so that I maintain control over my email organization"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-5",
+      "title": "Undo Mechanism and Analysis History",
+      "description": "Allow users to undo recent tag applications and view a history/audit log of all AI classifications. History includes timestamp, email subject, applied tags, confidence scores, and provider used.",
+      "rationale": "Addresses known gap for undo mechanism and audit log. Users need to correct AI mistakes easily and review past classifications. This builds trust and enables users to refine their prompts based on historical performance.",
+      "priority": "must",
+      "complexity": "medium",
+      "impact": "high",
+      "phase_id": "phase-1",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Undo button in notification after tags are applied",
+        "Undo option in message context menu for recently tagged messages",
+        "Analysis history page showing last 1000 classifications",
+        "History entries include: timestamp, email subject, tags, confidence, provider",
+        "Filter history by date range, tag, or confidence level",
+        "Export history as CSV for analysis",
+        "History stored locally with configurable retention period"
+      ],
+      "user_stories": [
+        "As a user, I want to undo incorrect tag applications so that I can easily correct AI mistakes",
+        "As a power user, I want to review analysis history so that I can evaluate how well my prompts are working"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-6",
+      "title": "Bulk Re-Analysis Capability",
+      "description": "Allow users to re-analyze multiple emails with updated tag prompts or different AI providers. Supports filtering by folder, date range, or existing tags.",
+      "rationale": "When users refine their prompts, they need to re-process existing emails. Currently there's no way to bulk re-analyze, forcing manual one-by-one processing. This is essential for iterating on classification quality.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-2",
+      "dependencies": ["feature-1"],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Re-analyze button for selected emails in folder view",
+        "Filter options: by folder, date range, existing tags, or no tags",
+        "Option to clear existing AI-applied tags before re-analysis",
+        "Progress tracking for bulk re-analysis operations",
+        "Pause/cancel capability for long-running operations",
+        "Summary report showing changes after re-analysis"
+      ],
+      "user_stories": [
+        "As a user who refined my prompts, I want to re-analyze old emails so that they get updated tags based on my improved classification criteria",
+        "As a power user, I want to re-analyze emails with a different AI provider so that I can compare classification quality"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-7",
+      "title": "Enhanced Tag Management Interface",
+      "description": "Improved UI for creating, editing, and organizing tags. Support for tag groups, drag-and-drop reordering, prompt templates, and tag statistics.",
+      "rationale": "Unlimited custom tags with natural language prompts is a key differentiator (gap-2, pain-1-3). The tag management UI should make this power accessible and easy to use. Good UX here drives adoption.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-2",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Tag groups for organizing related tags",
+        "Drag-and-drop reordering of tags",
+        "Prompt templates library with common classification patterns",
+        "Copy/duplicate existing tags as starting point",
+        "Tag usage statistics (email count, last used, avg confidence)",
+        "Test prompt feature to validate against sample emails",
+        "Search/filter tags by name or prompt content"
+      ],
+      "user_stories": [
+        "As a user with many tags, I want to organize them into groups so that I can manage my classification system efficiently",
+        "As a new user, I want prompt templates so that I can quickly set up effective classification criteria"
+      ],
+      "competitor_insight_ids": ["pain-1-3", "pain-3-2", "gap-2"]
+    },
+    {
+      "id": "feature-8",
+      "title": "Configurable AI Models for Cloud Providers",
+      "description": "Allow users to select specific AI models within each provider (e.g., GPT-4 vs GPT-3.5, Claude 3 Opus vs Sonnet). Show model capabilities and pricing estimates.",
+      "rationale": "Currently models are hardcoded. Users want to choose models based on cost, speed, or quality tradeoffs. This enables cost-conscious users to use cheaper models while power users can opt for premium ones. Addresses market gap-4 on multi-provider flexibility.",
+      "priority": "should",
+      "complexity": "low",
+      "impact": "medium",
+      "phase_id": "phase-2",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Model dropdown selector for each cloud provider",
+        "API call to fetch available models (where supported)",
+        "Manual model input for providers without model list API",
+        "Model descriptions showing capabilities and relative cost",
+        "Different models can be configured for different tag classifications",
+        "Settings persist and sync across sessions"
+      ],
+      "user_stories": [
+        "As a cost-conscious user, I want to use GPT-3.5 instead of GPT-4 so that I can save money on API costs",
+        "As a power user, I want to use Claude 3 Opus for complex classifications so that I get higher accuracy"
+      ],
+      "competitor_insight_ids": ["gap-4"]
+    },
+    {
+      "id": "feature-9",
+      "title": "Configuration Export/Import",
+      "description": "Export all extension settings (tags, prompts, provider configs, preferences) to a JSON file. Import settings to restore configuration or share with others.",
+      "rationale": "Users need to backup their carefully crafted tag configurations, migrate between computers, or share setups with team members. This is a common feature request and low-effort high-value addition.",
+      "priority": "should",
+      "complexity": "low",
+      "impact": "medium",
+      "phase_id": "phase-2",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Export button generates downloadable JSON file",
+        "Export includes: tags, prompts, provider settings, preferences",
+        "API keys are optionally excluded from export for security",
+        "Import validates file structure before applying",
+        "Merge or replace options when importing",
+        "Version compatibility check in import",
+        "Confirmation dialog before overwriting existing settings"
+      ],
+      "user_stories": [
+        "As a user setting up a new computer, I want to import my configuration so that I don't have to recreate all my tags and prompts",
+        "As a team lead, I want to export my tag configuration so that I can share it with team members for consistency"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-10",
+      "title": "Performance Optimization for Large Emails",
+      "description": "Implement intelligent email truncation and token budgeting. Configure maximum content length, skip attachments option, and smart excerpt extraction for large emails.",
+      "rationale": "Large emails with attachments consume many tokens, increasing costs and response time. Smart truncation extracts the most relevant content while staying within token budgets. Essential for cost control.",
+      "priority": "should",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-2",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Configurable maximum token/character limit per email",
+        "Toggle to skip attachment content analysis",
+        "Smart truncation preserving email headers and key content",
+        "Estimated token count shown before analysis",
+        "Warning when email exceeds token budget",
+        "Priority order: sender, subject, first N paragraphs, last paragraph"
+      ],
+      "user_stories": [
+        "As a cost-conscious user, I want to limit email content length so that I don't spend too many tokens on long emails",
+        "As a user receiving large attachments, I want to skip attachment analysis so that classification focuses on the message itself"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-11",
+      "title": "Learning from User Corrections",
+      "description": "Track when users modify or reject AI-suggested tags. Use this feedback to improve prompt suggestions and highlight patterns where classifications frequently need correction.",
+      "rationale": "Competitors like Gmail Smart Categories learn from corrections (strength). Our system should too. This addresses pain-4-4 where Thunderbird filters don't learn. Feedback loop improves classification quality over time.",
+      "priority": "could",
+      "complexity": "high",
+      "impact": "high",
+      "phase_id": "phase-3",
+      "dependencies": ["feature-4", "feature-5"],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Track all user modifications to AI-applied tags",
+        "Analyze correction patterns to identify weak prompts",
+        "Suggest prompt improvements based on correction patterns",
+        "Dashboard showing per-tag correction rates",
+        "Option to include correction context in future prompts",
+        "Privacy-respecting: all learning data stays local"
+      ],
+      "user_stories": [
+        "As a user, I want the system to learn from my corrections so that classification accuracy improves over time",
+        "As a power user, I want to see which tags have high correction rates so that I can improve those prompts"
+      ],
+      "competitor_insight_ids": ["pain-4-4"]
+    },
+    {
+      "id": "feature-12",
+      "title": "Classification Reasoning Display",
+      "description": "Show the AI's reasoning for why specific tags were suggested. Optionally include reasoning request in prompts to get explanations from the LLM.",
+      "rationale": "Directly addresses gap-5 and pain-3-3: lack of transparency in AI decisions. Understanding 'why' helps users refine prompts and builds trust in the system. Differentiates from opaque competitors.",
+      "priority": "could",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-3",
+      "dependencies": ["feature-2"],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Optional 'explain reasoning' toggle in settings",
+        "Reasoning displayed alongside tag suggestions in preview",
+        "Reasoning stored in analysis history",
+        "Concise explanation format (1-2 sentences)",
+        "Reasoning helps identify prompt weaknesses",
+        "Minimal impact on API costs (reasoning adds few tokens)"
+      ],
+      "user_stories": [
+        "As a curious user, I want to see why emails are classified a certain way so that I can understand the AI's decision-making",
+        "As a power user refining prompts, I want classification reasoning so that I can identify what triggers incorrect classifications"
+      ],
+      "competitor_insight_ids": ["pain-3-3", "gap-5"]
+    },
+    {
+      "id": "feature-13",
+      "title": "Analytics Dashboard",
+      "description": "Visual dashboard showing classification statistics, API usage, costs, response times, and trends over time. Helps users understand and optimize their email AI usage.",
+      "rationale": "Addresses known gap for performance monitoring. Users want to see how well the extension is working and how much it's costing them. Analytics build confidence and enable optimization.",
+      "priority": "could",
+      "complexity": "high",
+      "impact": "medium",
+      "phase_id": "phase-3",
+      "dependencies": ["feature-5"],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Dashboard page in options with visual charts",
+        "Metrics: emails analyzed, tags applied, confidence distribution",
+        "API usage: calls per provider, tokens consumed, estimated costs",
+        "Performance: average response time, success/failure rates",
+        "Time-based views: daily, weekly, monthly trends",
+        "Per-tag statistics: usage frequency, avg confidence",
+        "Export analytics data as CSV"
+      ],
+      "user_stories": [
+        "As a cost-conscious user, I want to see my API usage and costs so that I can budget my email AI spending",
+        "As a power user, I want to see classification trends so that I can understand how well my system is working"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-14",
+      "title": "Email Summary Generation",
+      "description": "Option to generate brief AI summaries of emails alongside classification. Useful for quickly understanding email content without reading the full message.",
+      "rationale": "Value-add feature leveraging the same AI infrastructure. When AI is analyzing email content, it can easily generate a summary. This adds utility beyond just tagging and differentiates from competitors.",
+      "priority": "could",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-3",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Toggle to enable email summarization",
+        "Summary length option: one-line / short paragraph",
+        "Summary displayed in custom header or note",
+        "Summaries stored with analysis results",
+        "Option to summarize only emails over certain length",
+        "Summary respects email privacy (no external storage)"
+      ],
+      "user_stories": [
+        "As a busy professional, I want email summaries so that I can quickly understand message content without reading everything",
+        "As a user with many newsletters, I want summaries so that I can decide which ones are worth reading in full"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-15",
+      "title": "Internationalization (i18n) Support",
+      "description": "Translate the extension UI to multiple languages. Support for RTL languages, locale-aware date/time formatting, and community-contributed translations.",
+      "rationale": "Known gap: no localization support. Thunderbird has global users. i18n is essential for broader adoption and AMO (addons.mozilla.org) distribution. Low effort per locale once infrastructure is in place.",
+      "priority": "could",
+      "complexity": "medium",
+      "impact": "medium",
+      "phase_id": "phase-4",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "WebExtension i18n API integration",
+        "All UI strings externalized to messages.json",
+        "Initial languages: English, German, Spanish, French",
+        "Language auto-detection from Thunderbird settings",
+        "Manual language override option",
+        "RTL support for Arabic, Hebrew",
+        "Contribution guide for community translators"
+      ],
+      "user_stories": [
+        "As a German speaker, I want the extension UI in German so that I can use it comfortably in my native language",
+        "As a translator, I want clear contribution guidelines so that I can help translate the extension to my language"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-16",
+      "title": "Manifest V3 Migration",
+      "description": "Migrate from Manifest V2 to V3 to ensure future Thunderbird compatibility. Update background scripts to service workers, revise permissions, and adapt to new CSP requirements.",
+      "rationale": "Critical technical debt: Thunderbird will require Manifest V3 in future versions. Extension will stop working without this migration. High complexity but essential for longevity.",
+      "priority": "could",
+      "complexity": "high",
+      "impact": "high",
+      "phase_id": "phase-4",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Manifest updated to version 3",
+        "Background script converted to service worker",
+        "Permissions updated to declarativeNetRequest where needed",
+        "CSP adjustments for stricter V3 requirements",
+        "All existing functionality preserved",
+        "Tested on Thunderbird beta with V3 support",
+        "Fallback for older Thunderbird versions during transition"
+      ],
+      "user_stories": [
+        "As a Thunderbird user, I want the extension to work with future Thunderbird versions so that I don't lose my email AI assistant",
+        "As a developer, I want modern Manifest V3 architecture so that the extension follows current best practices"
+      ],
+      "competitor_insight_ids": []
+    },
+    {
+      "id": "feature-17",
+      "title": "Extensible Provider Architecture",
+      "description": "Refactor provider system to support dynamic registration and community-contributed providers. Plugin-like architecture for adding new AI providers without code changes.",
+      "rationale": "Currently new providers require code changes. An extensible architecture enables community contributions and faster adoption of new AI services. Reduces maintenance burden.",
+      "priority": "could",
+      "complexity": "high",
+      "impact": "medium",
+      "phase_id": "phase-4",
+      "dependencies": [],
+      "status": "idea",
+      "acceptance_criteria": [
+        "Provider interface/contract clearly defined",
+        "Providers registered via configuration, not code",
+        "Custom provider endpoint configuration option",
+        "Provider validation on registration",
+        "Documentation for adding custom providers",
+        "Example provider template for community",
+        "Graceful handling of provider errors/unavailability"
+      ],
+      "user_stories": [
+        "As a developer, I want to add custom AI providers so that I can use my company's internal LLM",
+        "As a user, I want provider flexibility so that I can quickly adopt new AI services as they become available"
+      ],
+      "competitor_insight_ids": ["gap-4"]
+    },
+    {
+      "id": "feature-18",
+      "title": "Community Tag Library",
+      "description": "Platform for sharing and discovering tag configurations. Users can publish their tag setups and import configurations shared by others. Curated categories for common use cases.",
+      "rationale": "Leverages network effects for growth. New users can quickly set up effective classifications by importing community templates. Power users gain recognition for contributions.",
+      "priority": "wont",
+      "complexity": "high",
+      "impact": "medium",
+      "phase_id": "phase-4",
+      "dependencies": ["feature-9"],
+      "status": "idea",
+      "acceptance_criteria": [
+        "In-app browser for community tag configurations",
+        "One-click import of community tags",
+        "Categories: work email, newsletters, personal, dev/github",
+        "Rating/voting system for quality control",
+        "Privacy: no email content shared, only tag definitions",
+        "Moderation to prevent spam/malicious content",
+        "Attribution and credit for contributors"
+      ],
+      "user_stories": [
+        "As a new user, I want to browse community tags so that I can quickly set up effective email organization",
+        "As a power user, I want to share my tag configurations so that others can benefit from my setup"
+      ],
+      "competitor_insight_ids": []
+    }
+  ],
+  "metadata": {
+    "created_at": "2025-12-28T18:40:00Z",
+    "updated_at": "2025-12-28T18:40:00Z",
+    "generated_by": "roadmap_features agent",
+    "prioritization_framework": "MoSCoW",
+    "competitor_analysis_used": true,
+    "sources": [
+      "roadmap_discovery.json",
+      "project_index.json",
+      "competitor_analysis.json",
+      "TODO.md"
+    ]
+  }
+}

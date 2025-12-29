@@ -6,7 +6,6 @@
  */
 
 import { injectable, container, inject, InjectionToken } from 'tsyringe';
-import { ConsoleLogger } from '../logger/ConsoleLogger';
 import { BaseProviderAdapter } from './BaseProviderAdapter';
 import type { IProvider } from '../interfaces/IProvider';
 import type { ILogger } from '../interfaces/ILogger';

@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 import {
   DEFAULTS,
   Provider,
@@ -5,6 +7,7 @@ import {
   CustomTags,
   Tag,
   isValidProvider,
+  ModelConcurrencyConfig,
 } from './core/config';
 import {
   ErrorSeverity,
@@ -34,6 +37,8 @@ declare const messenger: {
         keys: Partial<ProviderConfig> | { customTags?: CustomTags }
       ): Promise<Partial<ProviderConfig> & { customTags?: CustomTags }>;
       set(items: Partial<ProviderConfig> & { customTags?: CustomTags }): Promise<void>;
+      get(keys: unknown): Promise<Record<string, unknown>>;
+      set(items: Record<string, unknown>): Promise<void>;
     };
   };
   runtime: {
@@ -43,6 +48,24 @@ declare const messenger: {
     request(permissions: { permissions?: string[]; origins?: string[] }): Promise<boolean>;
   };
 };
+
+interface StorageProviderSettings {
+  [providerId: string]: {
+    apiKey: string;
+    model: string;
+    apiUrl?: string;
+  };
+}
+
+interface AppSettingsStorage {
+  appConfig?: {
+    defaultProvider?: string;
+    enableNotifications?: boolean;
+    enableLogging?: boolean;
+  };
+  providerSettings?: StorageProviderSettings;
+  customTags?: CustomTags;
+}
 
 interface BrowserRuntime {
   sendMessage<T = unknown>(message: unknown, callback?: (response: T) => void): void;
@@ -87,9 +110,10 @@ interface GeneralSettingsElements {
   claudeApiKey: HTMLInputElement | null;
   mistralApiKey: HTMLInputElement | null;
   deepseekApiKey: HTMLInputElement | null;
-  zaiApiKey: HTMLInputElement | null;
-  zaiModel: HTMLSelectElement | null;
-  zaiVariant: HTMLSelectElement | null;
+  zaiPaasApiKey: HTMLInputElement | null;
+  zaiPaasModel: HTMLSelectElement | null;
+  zaiCodingApiKey: HTMLInputElement | null;
+  zaiCodingModel: HTMLSelectElement | null;
 }
 
 /**
@@ -118,18 +142,6 @@ interface TabElements {
 }
 
 /**
- * Batch Analysis DOM Elements
- */
-interface BatchAnalysisElements {
-  analyzeAllBtn: HTMLButtonElement;
-  cancelAnalysisBtn: HTMLButtonElement;
-  killQueueBtn: HTMLButtonElement;
-  analyzeProgress: HTMLProgressElement;
-  analyzeProgressText: HTMLSpanElement;
-  analyzeStatusMessage: HTMLSpanElement;
-}
-
-/**
  * Cache Management DOM Elements
  */
 interface CacheManagementElements {
@@ -142,11 +154,7 @@ interface CacheManagementElements {
  * All DOM Elements
  */
 interface DOMElements
-  extends
-    GeneralSettingsElements,
-    TagManagementElements,
-    BatchAnalysisElements,
-    CacheManagementElements {
+  extends GeneralSettingsElements, TagManagementElements, CacheManagementElements {
   tabs: TabElements['tabButtons'];
   tabContents: TabElements['tabContents'];
 }
@@ -211,10 +219,8 @@ type PartialProviderConfig = {
   deepseekApiKey?: string;
   zaiPaasApiKey?: string;
   zaiPaasModel?: string;
-  zaiPaasBaseUrl?: string;
   zaiCodingApiKey?: string;
   zaiCodingModel?: string;
-  zaiCodingBaseUrl?: string;
 };
 
 // ============================================================================
@@ -235,10 +241,8 @@ interface GeneralSettingsStorage {
   deepseekApiKey?: string;
   zaiPaasApiKey?: string;
   zaiPaasModel?: string;
-  zaiPaasBaseUrl?: string;
   zaiCodingApiKey?: string;
   zaiCodingModel?: string;
-  zaiCodingBaseUrl?: string;
 }
 
 /**
@@ -427,9 +431,9 @@ function getElementById<T extends HTMLElement>(id: string): T | null {
  */
 function getGeneralSettingsElements(): GeneralSettingsElements {
   const providerSelect = getElementById<HTMLSelectElement>('provider');
-  const generalForm = getElementById<HTMLFormElement>('general-options-form');
-  const generalStatusMessage = getElementById<HTMLSpanElement>('general-status-message');
-  const statusMessage = getElementById<HTMLSpanElement>('general-status-message');
+  const generalForm = getElementById<HTMLFormElement>('provider-options-form');
+  const generalStatusMessage = getElementById<HTMLSpanElement>('provider-status-message');
+  const statusMessage = getElementById<HTMLSpanElement>('provider-status-message');
   const ollamaApiUrl = getElementById<HTMLInputElement>('ollama-api-url');
   const ollamaModel = getElementById<HTMLInputElement>('ollama-model');
   const openaiApiKey = getElementById<HTMLInputElement>('openai-api-key');
@@ -437,9 +441,10 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
   const claudeApiKey = getElementById<HTMLInputElement>('claude-api-key');
   const mistralApiKey = getElementById<HTMLInputElement>('mistral-api-key');
   const deepseekApiKey = getElementById<HTMLInputElement>('deepseek-api-key');
-  const zaiApiKey = getElementById<HTMLInputElement>('zai-api-key');
-  const zaiModel = getElementById<HTMLSelectElement>('zai-model');
-  const zaiVariant = getElementById<HTMLSelectElement>('zai-variant');
+  const zaiPaasApiKey = getElementById<HTMLInputElement>('zaiPaasApiKey');
+  const zaiPaasModel = getElementById<HTMLSelectElement>('zaiPaasModel');
+  const zaiCodingApiKey = getElementById<HTMLInputElement>('zaiCodingApiKey');
+  const zaiCodingModel = getElementById<HTMLSelectElement>('zaiCodingModel');
 
   if (!providerSelect || !generalForm || !generalStatusMessage || !statusMessage) {
     throw new Error('Required general settings elements not found');
@@ -457,9 +462,10 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
     claudeApiKey,
     mistralApiKey,
     deepseekApiKey,
-    zaiApiKey,
-    zaiModel,
-    zaiVariant,
+    zaiPaasApiKey,
+    zaiPaasModel,
+    zaiCodingApiKey,
+    zaiCodingModel,
   };
 }
 
@@ -517,24 +523,6 @@ function getAllDOMElements(): DOMElements {
   const general = getGeneralSettingsElements();
   const tag = getTagManagementElements();
 
-  const analyzeAllBtn = getElementById<HTMLButtonElement>('analyze-all-btn');
-  const cancelAnalysisBtn = getElementById<HTMLButtonElement>('cancel-analysis-btn');
-  const killQueueBtn = getElementById<HTMLButtonElement>('kill-queue-btn');
-  const analyzeProgress = getElementById<HTMLProgressElement>('analyze-progress');
-  const analyzeProgressText = getElementById<HTMLSpanElement>('analyze-progress-text');
-  const analyzeStatusMessage = getElementById<HTMLSpanElement>('analyze-status-message');
-
-  if (
-    !analyzeAllBtn ||
-    !cancelAnalysisBtn ||
-    !killQueueBtn ||
-    !analyzeProgress ||
-    !analyzeProgressText ||
-    !analyzeStatusMessage
-  ) {
-    throw new Error('Required batch analysis elements not found');
-  }
-
   const clearCacheBtn = getElementById<HTMLButtonElement>('clear-cache-btn');
   const cacheStatusMessage = getElementById<HTMLSpanElement>('cache-status-message');
   const cacheStats = getElementById<HTMLSpanElement>('cache-stats');
@@ -546,12 +534,6 @@ function getAllDOMElements(): DOMElements {
   return {
     ...general,
     ...tag,
-    analyzeAllBtn,
-    cancelAnalysisBtn,
-    killQueueBtn,
-    analyzeProgress,
-    analyzeProgressText,
-    analyzeStatusMessage,
     clearCacheBtn,
     cacheStatusMessage,
     cacheStats,
@@ -616,11 +598,21 @@ function initializeTabs(
 function showRelevantSettings(provider: string): void {
   document.querySelectorAll<HTMLElement>('.provider-settings').forEach((div) => {
     div.style.display = 'none';
+    div
+      .querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[required], select[required]')
+      .forEach((field) => {
+        field.removeAttribute('required');
+      });
   });
 
   const settingsToShow = document.getElementById(`${provider}-settings`);
   if (settingsToShow && isProviderSettingsElement(settingsToShow)) {
     settingsToShow.style.display = 'block';
+    settingsToShow
+      .querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')
+      .forEach((field) => {
+        field.setAttribute('required', '');
+      });
   }
 }
 
@@ -629,42 +621,61 @@ function showRelevantSettings(provider: string): void {
  */
 async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<void> {
   try {
-    const settings = (await messenger.storage.local.get(DEFAULTS)) as GeneralSettingsStorage;
+    const data = (await messenger.storage.local.get({
+      appConfig: { defaultProvider: DEFAULTS.provider },
+      providerSettings: {},
+    })) as AppSettingsStorage;
 
-    elements.providerSelect.value = settings.provider || DEFAULTS.provider;
+    const appConfig = data.appConfig || {};
+    const providerSettings = data.providerSettings || {};
 
-    if (elements.ollamaApiUrl) {
-      elements.ollamaApiUrl.value = settings.ollamaApiUrl || '';
-    }
-    if (elements.ollamaModel) {
-      elements.ollamaModel.value = settings.ollamaModel || '';
-    }
-    if (elements.openaiApiKey) {
-      elements.openaiApiKey.value = settings.openaiApiKey || '';
-    }
-    if (elements.geminiApiKey) {
-      elements.geminiApiKey.value = settings.geminiApiKey || '';
-    }
-    if (elements.claudeApiKey) {
-      elements.claudeApiKey.value = settings.claudeApiKey || '';
-    }
-    if (elements.mistralApiKey) {
-      elements.mistralApiKey.value = settings.mistralApiKey || '';
-    }
-    if (elements.deepseekApiKey) {
-      elements.deepseekApiKey.value = settings.deepseekApiKey || '';
-    }
-    if (elements.zaiApiKey)
-      elements.zaiApiKey.value = settings.zaiPaasApiKey || settings.zaiCodingApiKey || '';
-    if (elements.zaiModel)
-      elements.zaiModel.value = settings.zaiPaasModel || settings.zaiCodingModel || 'glm-4.5';
+    elements.providerSelect.value = appConfig.defaultProvider || DEFAULTS.provider;
 
-    showRelevantSettings(settings.provider || DEFAULTS.provider);
+    if (elements.ollamaApiUrl && providerSettings.ollama) {
+      elements.ollamaApiUrl.value = providerSettings.ollama.apiUrl || '';
+    }
+    if (elements.ollamaModel && providerSettings.ollama) {
+      elements.ollamaModel.value = providerSettings.ollama.model || '';
+    }
+    if (elements.openaiApiKey && providerSettings.openai) {
+      elements.openaiApiKey.value = providerSettings.openai.apiKey || '';
+    }
+    if (elements.geminiApiKey && providerSettings.gemini) {
+      elements.geminiApiKey.value = providerSettings.gemini.apiKey || '';
+    }
+    if (elements.claudeApiKey && providerSettings.claude) {
+      elements.claudeApiKey.value = providerSettings.claude.apiKey || '';
+    }
+    if (elements.mistralApiKey && providerSettings.mistral) {
+      elements.mistralApiKey.value = providerSettings.mistral.apiKey || '';
+    }
+    if (elements.deepseekApiKey && providerSettings.deepseek) {
+      elements.deepseekApiKey.value = providerSettings.deepseek.apiKey || '';
+    }
+    if (elements.zaiPaasApiKey && providerSettings['zai-paas']) {
+      elements.zaiPaasApiKey.value = providerSettings['zai-paas'].apiKey || '';
+    }
+    if (elements.zaiPaasModel && providerSettings['zai-paas']) {
+      elements.zaiPaasModel.value = providerSettings['zai-paas'].model || '';
+    }
+    if (elements.zaiCodingApiKey && providerSettings['zai-coding']) {
+      elements.zaiCodingApiKey.value = providerSettings['zai-coding'].apiKey || '';
+    }
+    if (elements.zaiCodingModel && providerSettings['zai-coding']) {
+      elements.zaiCodingModel.value = providerSettings['zai-coding'].model || '';
+    }
+
+    showRelevantSettings(appConfig.defaultProvider || DEFAULTS.provider);
 
     // Populate z.ai models if API key is present
-    if (elements.zaiApiKey && elements.zaiApiKey.value) {
-      populateZaiModels().catch((error) => {
-        logger.error('Failed to populate z.ai models on load', { error });
+    if (elements.zaiPaasApiKey && elements.zaiPaasApiKey.value) {
+      populateZaiModels('zaiPaas').catch((error) => {
+        logger.error('Failed to populate z.ai PaaS models on load', { error });
+      });
+    }
+    if (elements.zaiCodingApiKey && elements.zaiCodingApiKey.value) {
+      populateZaiModels('zaiCoding').catch((error) => {
+        logger.error('Failed to populate z.ai Coding models on load', { error });
       });
     }
   } catch (error) {
@@ -739,23 +750,23 @@ function gatherProviderSettings(
       };
 
     case Provider.ZAI_PAAS:
-      if (!elements.zaiApiKey || !elements.zaiModel) {
+      if (!elements.zaiPaasApiKey || !elements.zaiPaasModel) {
         throw new Error('Zai PaaS settings element not found');
       }
       return {
         ...baseSettings,
-        zaiPaasApiKey: elements.zaiApiKey.value.trim(),
-        zaiPaasModel: elements.zaiModel.value,
+        zaiPaasApiKey: elements.zaiPaasApiKey.value.trim(),
+        zaiPaasModel: elements.zaiPaasModel.value,
       };
 
     case Provider.ZAI_CODING:
-      if (!elements.zaiApiKey || !elements.zaiModel) {
+      if (!elements.zaiCodingApiKey || !elements.zaiCodingModel) {
         throw new Error('Zai Coding settings element not found');
       }
       return {
         ...baseSettings,
-        zaiCodingApiKey: elements.zaiApiKey.value.trim(),
-        zaiCodingModel: elements.zaiModel.value,
+        zaiCodingApiKey: elements.zaiCodingApiKey.value.trim(),
+        zaiCodingModel: elements.zaiCodingModel.value,
       };
 
     default:
@@ -801,7 +812,27 @@ async function handleGeneralSettingsSubmit(
     }
 
     if (permissionGranted) {
-      await messenger.storage.local.set(settingsToSave);
+      const data = (await messenger.storage.local.get({
+        appConfig: {
+          enableNotifications: DEFAULTS.enableNotifications,
+          enableLogging: DEFAULTS.enableLogging,
+          modelConcurrencyLimits: DEFAULTS.modelConcurrencyLimits,
+        },
+        providerSettings: {},
+      })) as AppSettingsStorage;
+
+      const providerSettings = data.providerSettings || {};
+      const existingAppConfig = data.appConfig || {};
+
+      const convertedSettings = convertToProviderSettings(settingsToSave);
+      providerSettings[provider] = convertedSettings;
+
+      existingAppConfig.defaultProvider = provider as Provider;
+
+      await messenger.storage.local.set({
+        appConfig: existingAppConfig,
+        providerSettings,
+      });
       return {
         success: true,
         message: 'Settings saved!',
@@ -822,6 +853,64 @@ async function handleGeneralSettingsSubmit(
   }
 }
 
+function convertToProviderSettings(settings: PartialProviderConfig) {
+  switch (settings.provider) {
+    case Provider.OLLAMA:
+      return {
+        apiKey: '',
+        model: settings.ollamaModel || '',
+        apiUrl: settings.ollamaApiUrl || '',
+      };
+
+    case Provider.OPENAI:
+      return {
+        apiKey: settings.openaiApiKey || '',
+        model: 'gpt-4o-mini',
+      };
+
+    case Provider.GEMINI:
+      return {
+        apiKey: settings.geminiApiKey || '',
+        model: 'gemini-2.0-flash-exp',
+      };
+
+    case Provider.CLAUDE:
+      return {
+        apiKey: settings.claudeApiKey || '',
+        model: 'claude-3-5-sonnet-20241022',
+      };
+
+    case Provider.MISTRAL:
+      return {
+        apiKey: settings.mistralApiKey || '',
+        model: 'mistral-large-latest',
+      };
+
+    case Provider.DEEPSEEK:
+      return {
+        apiKey: settings.deepseekApiKey || '',
+        model: 'deepseek-chat',
+      };
+
+    case Provider.ZAI_PAAS:
+      return {
+        apiKey: settings.zaiPaasApiKey || '',
+        model: settings.zaiPaasModel || 'glm-4.5',
+        apiUrl: 'https://api.z.ai/v1',
+      };
+
+    case Provider.ZAI_CODING:
+      return {
+        apiKey: settings.zaiCodingApiKey || '',
+        model: settings.zaiCodingModel || 'glm-4.7',
+        apiUrl: 'https://api.z.ai/v1',
+      };
+
+    default:
+      throw new Error(`Unknown provider: ${settings.provider}`);
+  }
+}
+
 /**
  * Sets a status message and clears it after a delay
  */
@@ -835,9 +924,9 @@ function setStatusMessage(element: HTMLSpanElement, message: string, delay: numb
 /**
  * Populates the z.ai model dropdown with available models from the API
  */
-async function populateZaiModels(): Promise<void> {
-  const zaiKeyInput = document.getElementById('zai-api-key') as HTMLInputElement;
-  const zaiModelSelect = document.getElementById('zai-model') as HTMLSelectElement;
+async function populateZaiModels(provider: 'zaiPaas' | 'zaiCoding'): Promise<void> {
+  const zaiKeyInput = document.getElementById(`${provider}ApiKey`) as HTMLInputElement;
+  const zaiModelSelect = document.getElementById(`${provider}Model`) as HTMLSelectElement;
 
   if (!zaiKeyInput?.value) {
     return; // Kein API-Key, nichts zu tun
@@ -857,7 +946,8 @@ async function populateZaiModels(): Promise<void> {
       zaiModelSelect.appendChild(option);
     });
   } catch (error) {
-    console.error('Failed to populate z.ai models:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to populate ${provider} models`, { error: errorMessage });
   }
 }
 
@@ -891,143 +981,10 @@ function renderTagList(container: HTMLDivElement, customTags: CustomTags): void 
 }
 
 /**
- * Batch analysis polling interval reference
- */
-let progressPollingInterval: number | null = null;
-
-/**
- * Updates batch analysis UI based on progress
- */
-function updateBatchUI(
-  elements: BatchAnalysisElements,
-  progress: BatchProgress,
-  isProviderConfigured: boolean
-): void {
-  // Update button states
-  if (progress.status === 'running') {
-    elements.analyzeAllBtn.disabled = true;
-    elements.analyzeAllBtn.textContent = 'Analysiere...';
-    elements.cancelAnalysisBtn.style.display = 'inline-block';
-    elements.cancelAnalysisBtn.disabled = false;
-  } else {
-    elements.analyzeAllBtn.disabled = !isProviderConfigured;
-    elements.analyzeAllBtn.textContent =
-      progress.status === 'cancelled' ? 'Analysiere alle E-Mails' : 'Analysiere alle E-Mails';
-    elements.cancelAnalysisBtn.style.display = 'none';
-    elements.cancelAnalysisBtn.disabled = true;
-  }
-
-  // Update progress bar
-  if (progress.total > 0) {
-    elements.analyzeProgress.style.display = 'block';
-    const percentage = Math.min(100, Math.round((progress.processed / progress.total) * 100));
-    elements.analyzeProgress.value = percentage;
-    elements.analyzeProgressText.textContent = `${progress.processed}/${progress.total} (${percentage}%)`;
-  } else {
-    elements.analyzeProgress.style.display = 'none';
-    elements.analyzeProgressText.textContent = '';
-  }
-
-  // Update status message
-  let statusMessage = '';
-  switch (progress.status) {
-    case 'idle':
-      statusMessage = isProviderConfigured
-        ? 'Bereit zur Analyse aller E-Mails'
-        : 'Bitte konfigurieren Sie zuerst einen LLM-Provider';
-      break;
-    case 'running':
-      statusMessage = `Analysiere E-Mails... (${progress.processed}/${progress.total})`;
-      break;
-    case 'completed':
-      statusMessage = `Analyse abgeschlossen: ${progress.successful}/${progress.total} erfolgreich, ${progress.failed} fehlgeschlagen`;
-      break;
-    case 'cancelled':
-      statusMessage = `Analyse abgebrochen: ${progress.processed}/${progress.total} E-Mails verarbeitet`;
-      break;
-    case 'error':
-      statusMessage = `Fehler: ${progress.errorMessage || 'Unbekannter Fehler'}`;
-      break;
-  }
-  elements.analyzeStatusMessage.textContent = statusMessage;
-}
-
-/**
- * Starts polling for batch analysis progress updates
- */
-function startProgressPolling(
-  elements: BatchAnalysisElements,
-  isProviderConfigured: boolean
-): void {
-  // Clear any existing interval
-  stopProgressPolling();
-
-  // Poll every 500ms
-  progressPollingInterval = window.setInterval(async () => {
-    try {
-      const progress = await sendMessage<BatchProgress>({ action: 'getBatchProgress' });
-      updateBatchUI(elements, progress, isProviderConfigured);
-
-      // Stop polling when not running
-      if (progress.status !== 'running') {
-        stopProgressPolling();
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to get batch progress', { error: errorMessage });
-      stopProgressPolling();
-    }
-  }, 500);
-}
-
-/**
- * Stops polling for batch analysis progress updates
- */
-function stopProgressPolling(): void {
-  if (progressPollingInterval !== null) {
-    clearInterval(progressPollingInterval);
-    progressPollingInterval = null;
-  }
-}
-
-/**
- * Handles batch completion
- */
-function handleBatchComplete(elements: BatchAnalysisElements, statistics: BatchStatistics): void {
-  const progress: BatchProgress = {
-    status: 'completed',
-    total: statistics.total,
-    processed: statistics.total,
-    successful: statistics.successful,
-    failed: statistics.failed,
-    startTime: Date.now(),
-    endTime: Date.now(),
-  };
-  updateBatchUI(elements, progress, true);
-}
-
-/**
- * Handles batch error
- */
-function handleBatchError(elements: BatchAnalysisElements, error: string): void {
-  const progress: BatchProgress = {
-    status: 'error',
-    total: 0,
-    processed: 0,
-    successful: 0,
-    failed: 0,
-    startTime: Date.now(),
-    endTime: Date.now(),
-    errorMessage: error,
-  };
-  updateBatchUI(elements, progress, true);
-}
-
-/**
  * Cleans up resources when the page is unloaded
  */
 function cleanupResources(): void {
-  stopProgressPolling();
+  // No resources to clean up
 }
 
 // ============================================================================
@@ -1217,76 +1174,28 @@ function setupRuntimeMessageListener(): void {
 }
 
 /**
- * Handles analyze all button click
- */
-async function handleAnalyzeAllClick(
-  elements: BatchAnalysisElements,
-  isProviderConfigured: boolean
-): Promise<void> {
-  if (!isProviderConfigured) {
-    elements.analyzeStatusMessage.textContent =
-      'Bitte konfigurieren Sie zuerst einen LLM-Provider.';
-    return;
-  }
-
-  try {
-    elements.analyzeAllBtn.disabled = true;
-    elements.analyzeStatusMessage.textContent = 'Starte Batch-Analyse...';
-
-    const response = await sendMessage<BatchAnalysisResponse>({ action: 'startBatchAnalysis' });
-
-    if (!response.success) {
-      handleBatchError(elements, response.error || 'Unbekannter Fehler');
-      return;
-    }
-
-    // Start polling for progress updates
-    startProgressPolling(elements, isProviderConfigured);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Failed to start batch analysis', { error: errorMessage });
-    handleBatchError(elements, errorMessage);
-  }
-}
-
-/**
- * Handles cancel analysis button click
- */
-async function handleCancelAnalysisClick(elements: BatchAnalysisElements): Promise<void> {
-  try {
-    const response = await sendMessage<BatchCancelResponse>({ action: 'cancelBatchAnalysis' });
-
-    if (response.success) {
-      elements.analyzeStatusMessage.textContent = response.message;
-    } else {
-      elements.analyzeStatusMessage.textContent = response.message;
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Failed to cancel batch analysis', { error: errorMessage });
-    elements.analyzeStatusMessage.textContent = `Fehler beim Abbrechen: ${errorMessage}`;
-  }
-}
-
-/**
  * Handles kill queue button click
  */
-async function handleKillQueueClick(elements: BatchAnalysisElements): Promise<void> {
+async function handleKillQueueClick(killQueueBtn: HTMLButtonElement): Promise<void> {
   try {
+    killQueueBtn.disabled = true;
+
     const response = await sendMessage<{ success: boolean; message: string }>({
       action: 'clearQueue',
       cancelRunning: true,
     });
 
     if (response.success) {
-      elements.analyzeStatusMessage.textContent = response.message;
+      setStatusMessage(killQueueBtn.nextElementSibling as HTMLSpanElement, response.message);
     } else {
-      elements.analyzeStatusMessage.textContent = response.message;
+      setStatusMessage(killQueueBtn.nextElementSibling as HTMLSpanElement, response.message);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to clear queue', { error: errorMessage });
-    elements.analyzeStatusMessage.textContent = `Fehler beim Leeren der Queue: ${errorMessage}`;
+    setStatusMessage(killQueueBtn.nextElementSibling as HTMLSpanElement, `Fehler: ${errorMessage}`);
+  } finally {
+    killQueueBtn.disabled = false;
   }
 }
 
@@ -1379,53 +1288,10 @@ async function checkProviderConfigured(): Promise<boolean> {
         return false;
     }
   } catch (error) {
-    logger.error('Failed to check provider configuration', { error });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to check provider configuration', { error: errorMessage });
     return false;
   }
-}
-
-/**
- * Initializes batch analysis UI
- */
-async function initializeBatchAnalysis(elements: BatchAnalysisElements): Promise<void> {
-  const isConfigured = await checkProviderConfigured();
-
-  // Set initial UI state
-  const progress: BatchProgress = {
-    status: 'idle',
-    total: 0,
-    processed: 0,
-    successful: 0,
-    failed: 0,
-    startTime: 0,
-  };
-  updateBatchUI(elements, progress, isConfigured);
-
-  // Check for ongoing batch analysis
-  try {
-    const currentProgress = await sendMessage<BatchProgress>({ action: 'getBatchProgress' });
-    if (currentProgress.status === 'running') {
-      updateBatchUI(elements, currentProgress, isConfigured);
-      startProgressPolling(elements, isConfigured);
-    }
-  } catch (error) {
-    logger.warn('Failed to check for ongoing batch analysis', { error });
-  }
-
-  // Add event listeners
-  elements.analyzeAllBtn.addEventListener('click', () => {
-    checkProviderConfigured().then((configured) => {
-      handleAnalyzeAllClick(elements, configured);
-    });
-  });
-
-  elements.cancelAnalysisBtn.addEventListener('click', () => {
-    handleCancelAnalysisClick(elements);
-  });
-
-  elements.killQueueBtn.addEventListener('click', () => {
-    handleKillQueueClick(elements);
-  });
 }
 
 /**
@@ -1545,34 +1411,34 @@ async function handleTagFormSubmit(
 
   // Validate inputs
   if (!name) {
-    alert('Error: Tag name is required.');
+    alert('Fehler: Tag-Name ist erforderlich.');
     return;
   }
 
   if (!key) {
-    alert('Error: Tag key is required.');
+    alert('Fehler: Tag-Schlüssel ist erforderlich.');
     return;
   }
 
   if (!isValidTagKey(key)) {
-    alert('Error: Tag key must contain only lowercase letters, numbers, and underscores.');
+    alert('Fehler: Tag-Schlüssel darf nur Kleinbuchstaben, Zahlen und Unterstriche enthalten.');
     return;
   }
 
   if (!isValidHexColor(color)) {
-    alert('Error: Tag color must be a valid hex color (e.g., #FF5722).');
+    alert('Fehler: Tag-Farbe muss ein gültiger Hex-Farbwert sein (z.B. #FF5722).');
     return;
   }
 
   if (!prompt) {
-    alert('Error: Tag prompt is required.');
+    alert('Fehler: Tag-Prompt ist erforderlich.');
     return;
   }
 
   // Check for duplicate keys (excluding current index for edits)
   const isDuplicate = customTags.some((tag, i) => tag.key === key && i !== index);
   if (isDuplicate) {
-    alert('Error: Tag key must be unique.');
+    alert('Fehler: Tag-Schlüssel muss eindeutig sein.');
     return;
   }
 
@@ -1591,7 +1457,7 @@ async function handleTagFormSubmit(
     renderTagList(elements.tagListContainer, customTags);
     closeModal(elements);
   } catch (error) {
-    alert('Error: Failed to save tag. Please try again.');
+    alert('Fehler: Tag konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.');
   }
 }
 
@@ -1631,11 +1497,6 @@ function initializeOptionsPage(): void {
       } else {
         setStatusMessage(elements.statusMessage, result.message);
       }
-
-      // Re-check provider configuration after settings save
-      initializeBatchAnalysis(elements).catch((error) => {
-        logger.error('Failed to re-initialize batch analysis after settings save', { error });
-      });
     });
 
     // Provider change handler
@@ -1645,19 +1506,22 @@ function initializeOptionsPage(): void {
     });
 
     // z.ai API key change handler - fetch models when key changes
-    if (elements.zaiApiKey) {
-      const debouncedPopulateZaiModels = debounce(populateZaiModels, 500);
-      elements.zaiApiKey.addEventListener('input', () => {
-        if (elements.zaiApiKey?.value) {
-          debouncedPopulateZaiModels();
+    if (elements.zaiPaasApiKey) {
+      const debouncedPopulateZaiPaasModels = debounce(() => populateZaiModels('zaiPaas'), 500);
+      elements.zaiPaasApiKey.addEventListener('input', () => {
+        if (elements.zaiPaasApiKey?.value) {
+          debouncedPopulateZaiPaasModels();
         }
       });
     }
-
-    // Initialize batch analysis
-    initializeBatchAnalysis(elements).catch((error) => {
-      logger.error('Failed to initialize batch analysis', { error });
-    });
+    if (elements.zaiCodingApiKey) {
+      const debouncedPopulateZaiCodingModels = debounce(() => populateZaiModels('zaiCoding'), 500);
+      elements.zaiCodingApiKey.addEventListener('input', () => {
+        if (elements.zaiCodingApiKey?.value) {
+          debouncedPopulateZaiCodingModels();
+        }
+      });
+    }
 
     // Initialize cache management
     updateCacheStats(elements).catch((error) => {
@@ -1668,6 +1532,16 @@ function initializeOptionsPage(): void {
     elements.clearCacheBtn.addEventListener('click', () => {
       handleClearCacheClick(elements);
     });
+
+    // Kill queue button event listener
+    const killQueueBtn = document.getElementById('kill-queue-btn');
+    if (killQueueBtn) {
+      killQueueBtn.addEventListener('click', () => {
+        handleKillQueueClick(killQueueBtn as HTMLButtonElement).catch((error) => {
+          logger.error('Failed to handle kill queue click', { error });
+        });
+      });
+    }
 
     // Load and initialize custom tags
     loadCustomTags()

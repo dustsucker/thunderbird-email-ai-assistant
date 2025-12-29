@@ -1,0 +1,26 @@
+{
+  "files": [
+    ".auto-claude-status",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/build-progress.txt",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/complexity_assessment.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/context.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/implementation_plan.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/memory/attempt_history.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/memory/build_commits.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/memory/codebase_map.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/memory/session_insights/session_002.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/memory/session_insights/session_003.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/memory/session_insights/session_004.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/memory/session_insights/session_005.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/project_index.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/requirements.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/spec.md",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/task_logs.json",
+    ".auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/task_metadata.json",
+    ".claude_settings.json",
+    "background-bundle.js.map",
+    "options-bundle.js.map",
+    "options.html"
+  ],
+  "last_updated": "2025-12-28T18:45:01.543331"
+}

@@ -1,0 +1,93 @@
+{
+  "code_improvements": [
+    {
+      "id": "ci-001",
+      "type": "code_improvements",
+      "title": "Add listModels() to All Provider Implementations",
+      "description": "Extend the listModels() capability from OpenAIProvider to all other provider implementations (Claude, Mistral, Gemini, Deepseek) that support model listing APIs. This enables dynamic model discovery in the settings UI across all providers.",
+      "rationale": "The pattern already exists in OpenAIProvider.listModels() which fetches available models from the API. The IProvider interface already has this as an optional method. The SettingsForm.populateModelsForProvider() infrastructure is ready to consume this data, but currently only works for providers that implement it.",
+      "builds_upon": ["OpenAIProvider.listModels() implementation", "IProvider interface with optional listModels", "SettingsForm.populateModelsForProvider()"],
+      "estimated_effort": "small",
+      "affected_files": [
+        "src/infrastructure/providers/impl/ClaudeProvider.ts",
+        "src/infrastructure/providers/impl/MistralProvider.ts",
+        "src/infrastructure/providers/impl/GeminiProvider.ts",
+        "src/infrastructure/providers/impl/DeepseekProvider.ts"
+      ],
+      "existing_patterns": ["OpenAIProvider.listModels() - fetch models list, return array of model IDs"],
+      "implementation_approach": "Follow OpenAIProvider.listModels() pattern: 1) Check for API key, 2) Call provider's models API endpoint (Claude: /v1/models, Mistral: /v1/models, etc.), 3) Parse response and return model ID array. Each provider has documented model listing endpoints that can be used.",
+      "status": "draft",
+      "created_at": "2025-12-28T18:15:00.000Z"
+    },
+    {
+      "id": "ci-002",
+      "type": "code_improvements",
+      "title": "Add Cache Statistics Event",
+      "description": "Add a new domain event CacheStatsEvent that is published when cache operations occur, enabling monitoring of cache hit rate and performance. This builds on the existing event system to provide observability into caching behavior.",
+      "rationale": "The DomainEventBus pattern is established with create*Event factory functions (createEmailAnalyzedEvent, createProviderErrorEvent). The MemoryCache already tracks hitCount/missCount and has getStats(). Publishing events on cache hit/miss allows for analytics and debugging cache effectiveness.",
+      "builds_upon": ["DomainEventBus event system", "MemoryCache.getStats() with hitRate tracking", "createEmailAnalyzedEvent pattern"],
+      "estimated_effort": "trivial",
+      "affected_files": [
+        "src/domain/events/CacheStatsEvent.ts",
+        "src/domain/events/index.ts",
+        "src/application/use-cases/AnalyzeEmail.ts"
+      ],
+      "existing_patterns": ["createEmailAnalyzedEvent() factory function pattern", "DomainEvent interface with eventType, occurredAt, aggregateId"],
+      "implementation_approach": "1) Create CacheStatsEvent.ts following EmailAnalyzedEvent pattern with cacheKey, isHit, and optional stats fields, 2) Export from events/index.ts, 3) Publish in AnalyzeEmail.checkCache() when cache hit/miss occurs, 4) Optionally subscribe in MessageHandler for logging/monitoring.",
+      "status": "draft",
+      "created_at": "2025-12-28T18:15:00.000Z"
+    },
+    {
+      "id": "ci-003",
+      "type": "code_improvements",
+      "title": "Add Configurable Retry Settings Per Provider",
+      "description": "Extend the provider configuration to allow customizable retry settings (maxRetries, baseDelay, factor) per provider through IConfigRepository, instead of using hardcoded DEFAULT_RETRY_CONFIG in BaseProvider.",
+      "rationale": "BaseProvider has a retryConfig object that is currently hardcoded. Different providers may have different rate limits and reliability characteristics. IConfigRepository.IProviderSettings already has additionalConfig field for provider-specific settings. The pattern of loading configuration from ConfigRepository exists in AnalyzeBatchEmails.",
+      "builds_upon": ["BaseProvider.retryConfig pattern", "IProviderSettings.additionalConfig field", "IConfigRepository configuration loading pattern"],
+      "estimated_effort": "small",
+      "affected_files": [
+        "src/infrastructure/providers/BaseProvider.ts",
+        "src/infrastructure/interfaces/IConfigRepository.ts",
+        "src/infrastructure/interfaces/IProvider.ts"
+      ],
+      "existing_patterns": ["IProviderSettings.additionalConfig for provider-specific settings", "AnalyzeBatchEmails.loadAppConfig() pattern for loading config"],
+      "implementation_approach": "1) Add optional retryConfig to IProviderSettings.additionalConfig, 2) Modify BaseProvider constructor to accept optional retryConfig, 3) In provider analyze(), merge default config with settings.additionalConfig.retryConfig if provided, 4) Add UI fields to SettingsForm for advanced retry configuration.",
+      "status": "draft",
+      "created_at": "2025-12-28T18:15:00.000Z"
+    },
+    {
+      "id": "ci-004",
+      "type": "code_improvements",
+      "title": "Add Log Level Filtering to ConsoleLogger",
+      "description": "Enhance ConsoleLogger to support configurable log level filtering (debug, info, warn, error) via IAppConfig, allowing users to control verbosity of logging output.",
+      "rationale": "ConsoleLogger implements all log levels but always outputs everything. The IAppConfig.enableLogging boolean exists but is not used. Adding log level filtering follows the existing pattern of configurable behavior through IConfigRepository. This is valuable for debugging vs production use.",
+      "builds_upon": ["ConsoleLogger with debug/info/warn/error methods", "IAppConfig.enableLogging setting", "IConfigRepository configuration pattern"],
+      "estimated_effort": "small",
+      "affected_files": [
+        "src/infrastructure/logger/ConsoleLogger.ts",
+        "src/infrastructure/interfaces/ILogger.ts",
+        "src/infrastructure/interfaces/IConfigRepository.ts"
+      ],
+      "existing_patterns": ["ConsoleLogger.formatMessage() pattern", "IAppConfig configuration pattern"],
+      "implementation_approach": "1) Add logLevel field to IAppConfig (enum: 'debug'|'info'|'warn'|'error'), 2) Inject IConfigRepository into ConsoleLogger (or pass level at construction), 3) Add level check before each log method outputs, 4) Add log level selector to options UI following existing form patterns.",
+      "status": "draft",
+      "created_at": "2025-12-28T18:15:00.000Z"
+    },
+    {
+      "id": "ci-005",
+      "type": "code_improvements",
+      "title": "Add Batch Analysis Cache Stats to Progress",
+      "description": "Extend BatchProgress interface to include cache statistics (cache hits, cache misses, hit rate) during batch analysis, providing visibility into how effective caching is for batch operations.",
+      "rationale": "AnalyzeBatchEmails already tracks progress with BatchProgress interface. AnalyzeEmail tracks cache hits via fromCache flag in EmailAnalyzedEvent. The cache infrastructure (MemoryCache.getStats()) exists. Combining these provides valuable metrics for batch operations.",
+      "builds_upon": ["BatchProgress interface in AnalyzeBatchEmails", "AnalyzeEmailResult.fromCache tracking", "MemoryCache.getStats() pattern"],
+      "estimated_effort": "trivial",
+      "affected_files": [
+        "src/application/use-cases/AnalyzeBatchEmails.ts"
+      ],
+      "existing_patterns": ["BatchProgress interface with processed/failed/percentage", "EmailAnalyzedEvent with fromCache metadata"],
+      "implementation_approach": "1) Add cacheHits and cacheMisses counters to AnalyzeBatchEmails private fields, 2) Extend BatchProgress interface with cacheHits, cacheMisses, and cacheHitRate, 3) In processQueueItem(), check if analysis was from cache and increment appropriate counter, 4) Return cache stats in getProgress().",
+      "status": "draft",
+      "created_at": "2025-12-28T18:15:00.000Z"
+    }
+  ]
+}

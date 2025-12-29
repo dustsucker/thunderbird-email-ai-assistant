@@ -1,0 +1,127 @@
+{
+  "project_name": "Thunderbird Email AI Assistant",
+  "project_type": "desktop-app",
+  "tech_stack": {
+    "primary_language": "TypeScript",
+    "frameworks": [
+      "Thunderbird WebExtension API",
+      "TSyringe (Dependency Injection)"
+    ],
+    "key_dependencies": [
+      "html-to-text",
+      "reflect-metadata",
+      "tsyringe",
+      "webpack",
+      "vitest"
+    ]
+  },
+  "target_audience": {
+    "primary_persona": "Privacy-conscious email power users who want automated intelligent email organization without manual filtering rules",
+    "secondary_personas": [
+      "IT professionals managing high email volumes",
+      "Small business owners needing automatic email categorization",
+      "Privacy-focused users preferring local AI (Ollama) over cloud services",
+      "Developers and technical users comfortable with LLM configuration"
+    ],
+    "pain_points": [
+      "Email overload and difficulty keeping inbox organized",
+      "Manual email filtering rules are tedious to create and maintain",
+      "Traditional spam filters miss context-dependent classifications",
+      "Need for intelligent categorization beyond simple keyword matching",
+      "Privacy concerns with cloud-based email analysis services"
+    ],
+    "goals": [
+      "Automatically classify and tag incoming emails using AI",
+      "Reduce time spent manually organizing email",
+      "Create customizable tag categories for personal workflows",
+      "Maintain privacy with option for local LLM processing",
+      "Integrate AI classification with Thunderbird's native filtering system"
+    ],
+    "usage_context": "Daily email management within Thunderbird desktop client, triggered automatically on incoming mail or manually via browser action button. Users configure providers and custom tags via options page, then rely on automatic processing."
+  },
+  "product_vision": {
+    "one_liner": "AI-powered, multi-provider mail tagging and classification engine for Thunderbird",
+    "problem_statement": "Email users are overwhelmed by message volume and spend excessive time manually organizing their inbox. Traditional rule-based filters require constant maintenance and cannot understand context or intent. Cloud-based AI solutions raise privacy concerns for sensitive email content.",
+    "value_proposition": "Provides intelligent, context-aware email classification using user's choice of local or cloud AI providers, fully integrated with Thunderbird's native tagging and filtering system. Users define custom categories with natural language prompts, enabling sophisticated organization without complex rule syntax.",
+    "success_metrics": [
+      "Accurate tag classification (high confidence scores)",
+      "Time saved on email organization",
+      "User adoption and retention (install count, daily active users)",
+      "Low error rate in AI provider interactions",
+      "Support for diverse LLM providers"
+    ]
+  },
+  "current_state": {
+    "maturity": "mvp",
+    "existing_features": [
+      "Multi-provider LLM support (OpenAI, Claude, Gemini, Mistral, Ollama, DeepSeek, Z.ai)",
+      "Dynamic email content extraction (headers, body, attachments)",
+      "Custom tag management with colors and AI prompts",
+      "Automatic incoming email processing",
+      "Results caching with SHA-256 based cache keys",
+      "Comprehensive options UI for provider configuration",
+      "Rate limiting for API calls",
+      "Batch email analysis capability",
+      "Event-driven architecture with domain events",
+      "Dependency injection container (TSyringe)",
+      "Integration with Thunderbird's native tag system"
+    ],
+    "known_gaps": [
+      "No manual analysis trigger from message context",
+      "No analysis history or audit log",
+      "No confidence threshold configuration",
+      "Limited error feedback to users in UI",
+      "No bulk re-analysis capability",
+      "No tag suggestion preview before application",
+      "Missing automated testing for all providers",
+      "No localization/internationalization support"
+    ],
+    "technical_debt": [
+      "Some providers marked for removal (Claude, Deepseek, Gemini implementations present but may be deprecated)",
+      "Legacy logger exists alongside new ConsoleLogger",
+      "BaseProvider/BaseProviderAdapter pattern could be simplified",
+      "Provider factory uses lazy instantiation with null casting"
+    ]
+  },
+  "competitive_context": {
+    "alternatives": [
+      "Manual Thunderbird message filters",
+      "Gmail Smart Categories (Gmail-specific)",
+      "SaneBox (third-party email organization)",
+      "Clean Email (third-party email cleaner)",
+      "Built-in spam filters"
+    ],
+    "differentiators": [
+      "Works with Thunderbird desktop (most alternatives target webmail)",
+      "User-defined custom tags with natural language prompts",
+      "Privacy-first with local Ollama support",
+      "Multi-provider flexibility - users choose their LLM",
+      "Open source and transparent",
+      "No data leaves user's control when using local AI"
+    ],
+    "market_position": "Niche product targeting Thunderbird users who want AI-powered email organization with privacy control. Fills gap between simple rule-based filters and full cloud email services. Appeals to technical users comfortable configuring LLM providers.",
+    "competitor_pain_points": [],
+    "competitor_analysis_available": false
+  },
+  "constraints": {
+    "technical": [
+      "Limited by Thunderbird WebExtension API capabilities",
+      "Must work within browser extension sandbox",
+      "LLM response parsing is provider-dependent",
+      "Rate limits on cloud API providers",
+      "Local Ollama requires user setup"
+    ],
+    "resources": [
+      "Small team (2 contributors visible in git history)",
+      "Depends on third-party LLM providers",
+      "Must maintain compatibility with Thunderbird updates"
+    ],
+    "dependencies": [
+      "Thunderbird MailExtension APIs (messagesRead, messagesUpdate, messagesTags)",
+      "External LLM provider APIs (OpenAI, Anthropic, Google, Mistral, DeepSeek)",
+      "Local Ollama server (optional)",
+      "Z.ai API for coding/PaaS variants"
+    ]
+  },
+  "created_at": "2025-12-28T18:20:00Z"
+}

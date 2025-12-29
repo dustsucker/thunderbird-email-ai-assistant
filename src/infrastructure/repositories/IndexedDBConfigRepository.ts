@@ -18,13 +18,14 @@ import type {
   IAppConfig,
   IProviderSettings,
   ICustomTag,
-  IModelConcurrencyConfig,
 } from '../interfaces/IConfigRepository';
 
 // === Type Definitions ===
 
 interface StorageLocal {
-  get: (keys: string | string[] | Record<string, unknown> | null) => Promise<Record<string, unknown>>;
+  get: (
+    keys: string | string[] | Record<string, unknown> | null
+  ) => Promise<Record<string, unknown>>;
   set: (items: Record<string, unknown>) => Promise<void>;
   clear: () => Promise<void>;
 }
@@ -46,18 +47,12 @@ function hasBrowserStorage(obj: unknown): obj is BrowserStorage {
   }
 
   const maybeStorage = obj as Record<string, unknown>;
-  if (
-    typeof maybeStorage.storage !== 'object' ||
-    maybeStorage.storage === null
-  ) {
+  if (typeof maybeStorage.storage !== 'object' || maybeStorage.storage === null) {
     return false;
   }
 
   const storage = maybeStorage.storage as Record<string, unknown>;
-  if (
-    typeof storage.local !== 'object' ||
-    storage.local === null
-  ) {
+  if (typeof storage.local !== 'object' || storage.local === null) {
     return false;
   }
 
@@ -82,15 +77,21 @@ const STORAGE_KEYS = {
 @injectable()
 export class IndexedDBConfigRepository implements IConfigRepository {
   private readonly storage: {
-    get: (keys: string | string[] | Record<string, unknown> | null) => Promise<Record<string, unknown>>;
+    get: (
+      keys: string | string[] | Record<string, unknown> | null
+    ) => Promise<Record<string, unknown>>;
     set: (items: Record<string, unknown>) => Promise<void>;
     clear: () => Promise<void>;
   };
 
   constructor(@inject('ILogger') private readonly logger: ILogger) {
     // Use browser.storage.local if available (Thunderbird extension environment)
-    const browserApi = (globalThis as unknown as Record<string, unknown>).browser as BrowserStorage | undefined;
-    const chromeApi = (globalThis as unknown as Record<string, unknown>).chrome as BrowserStorage | undefined;
+    const browserApi = (globalThis as unknown as Record<string, unknown>).browser as
+      | BrowserStorage
+      | undefined;
+    const chromeApi = (globalThis as unknown as Record<string, unknown>).chrome as
+      | BrowserStorage
+      | undefined;
 
     if (browserApi && hasBrowserStorage(browserApi)) {
       this.storage = {
@@ -118,7 +119,9 @@ export class IndexedDBConfigRepository implements IConfigRepository {
   async getProviderSettings(providerId: string): Promise<IProviderSettings> {
     try {
       const data = await this.storage.get(STORAGE_KEYS.PROVIDER_SETTINGS);
-      const providerSettings = data[STORAGE_KEYS.PROVIDER_SETTINGS] as Record<string, IProviderSettings> | undefined;
+      const providerSettings = data[STORAGE_KEYS.PROVIDER_SETTINGS] as
+        | Record<string, IProviderSettings>
+        | undefined;
 
       if (!providerSettings || !(providerId in providerSettings)) {
         throw new Error(`Provider settings not found for provider: ${providerId}`);
@@ -142,13 +145,11 @@ export class IndexedDBConfigRepository implements IConfigRepository {
     }
   }
 
-  async setProviderSettings(
-    providerId: string,
-    settings: IProviderSettings
-  ): Promise<void> {
+  async setProviderSettings(providerId: string, settings: IProviderSettings): Promise<void> {
     try {
       const data = await this.storage.get(STORAGE_KEYS.PROVIDER_SETTINGS);
-      const providerSettings = (data[STORAGE_KEYS.PROVIDER_SETTINGS] as Record<string, IProviderSettings>) || {};
+      const providerSettings =
+        (data[STORAGE_KEYS.PROVIDER_SETTINGS] as Record<string, IProviderSettings>) || {};
 
       providerSettings[providerId] = settings;
 
@@ -172,7 +173,8 @@ export class IndexedDBConfigRepository implements IConfigRepository {
   async getAllProviderSettings(): Promise<Record<string, IProviderSettings>> {
     try {
       const data = await this.storage.get(STORAGE_KEYS.PROVIDER_SETTINGS);
-      const providerSettings = (data[STORAGE_KEYS.PROVIDER_SETTINGS] as Record<string, IProviderSettings>) || {};
+      const providerSettings =
+        (data[STORAGE_KEYS.PROVIDER_SETTINGS] as Record<string, IProviderSettings>) || {};
 
       this.logger.debug(`Retrieved settings for ${Object.keys(providerSettings).length} providers`);
 

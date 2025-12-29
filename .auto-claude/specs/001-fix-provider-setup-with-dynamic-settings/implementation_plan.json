@@ -1,0 +1,173 @@
+{
+  "feature": "Fix provider setup with dynamic settings",
+  "description": "Fix broken provider settings UI by correcting HTML element ID mismatches between options.html and SettingsForm.ts, and removing orphan HTML elements that are outside provider settings divs. This ensures each provider's settings are correctly displayed and saved when the user selects that provider.",
+  "specFile": "./.auto-claude/specs/001-fix-provider-setup-with-dynamic-settings/spec.md",
+  "created_at": "2025-12-28T16:53:16.964Z",
+  "updated_at": "2025-12-28T17:45:00.752Z",
+  "status": "in_progress",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Fix HTML Element ID Mismatches",
+      "description": "Update options.html to use kebab-case IDs that match SettingsForm.ts getDOMElements() lookups",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "1.1",
+          "title": "Fix Zai PaaS Settings Element IDs",
+          "description": "Update Zai PaaS settings in options.html to use kebab-case IDs: change zaiPaasApiKey to zai-paas-api-key, zaiPaasModel to zai-paas-model, zaiPaasBaseUrl to zai-paas-base-url. Also update label 'for' attributes.",
+          "status": "completed",
+          "file": "options.html",
+          "lines": "161-178",
+          "changes": [
+            "Line 164: Change label 'for' from 'zaiPaasApiKey' to 'zai-paas-api-key'",
+            "Line 165: Change input id/name from 'zaiPaasApiKey' to 'zai-paas-api-key'",
+            "Line 168: Change label 'for' from 'zaiPaasModel' to 'zai-paas-model'",
+            "Line 169: Change select id/name from 'zaiPaasModel' to 'zai-paas-model'",
+            "Line 172: Change label 'for' from 'zaiPaasBaseUrl' to 'zai-paas-base-url'",
+            "Line 173: Change input id/name from 'zaiPaasBaseUrl' to 'zai-paas-base-url'"
+          ],
+          "acceptance": "SettingsForm.ts getDOMElements() can successfully find zai-paas-api-key, zai-paas-model, zai-paas-base-url elements",
+          "notes": "Updated Zai PaaS settings in options.html to use kebab-case IDs matching SettingsForm.ts: zaiPaasApiKey → zai-paas-api-key, zaiPaasModel → zai-paas-model, zaiPaasBaseUrl → zai-paas-base-url. Also updated label 'for' attributes. Committed as f6cf33f.",
+          "updated_at": "2025-12-28T17:20:53.008503+00:00"
+        },
+        {
+          "id": "1.2",
+          "title": "Fix Zai Coding Settings Element IDs",
+          "description": "Update Zai Coding settings in options.html to use kebab-case IDs: change zaiCodingApiKey to zai-coding-api-key, zaiCodingModel to zai-coding-model, zaiCodingBaseUrl to zai-coding-base-url. Also update label 'for' attributes.",
+          "status": "completed",
+          "file": "options.html",
+          "lines": "181-198",
+          "changes": [
+            "Line 184: Change label 'for' from 'zaiCodingApiKey' to 'zai-coding-api-key'",
+            "Line 185: Change input id/name from 'zaiCodingApiKey' to 'zai-coding-api-key'",
+            "Line 188: Change label 'for' from 'zaiCodingModel' to 'zai-coding-model'",
+            "Line 189: Change select id/name from 'zaiCodingModel' to 'zai-coding-model'",
+            "Line 192: Change label 'for' from 'zaiCodingBaseUrl' to 'zai-coding-base-url'",
+            "Line 193: Change input id/name from 'zaiCodingBaseUrl' to 'zai-coding-base-url'"
+          ],
+          "acceptance": "SettingsForm.ts getDOMElements() can successfully find zai-coding-api-key, zai-coding-model, zai-coding-base-url elements",
+          "notes": "Updated Zai Coding settings in options.html to use kebab-case IDs matching SettingsForm.ts: zaiCodingApiKey → zai-coding-api-key, zaiCodingModel → zai-coding-model, zaiCodingBaseUrl → zai-coding-base-url. Also updated label 'for' attributes. Build verified successful. Committed as ee64663.",
+          "updated_at": "2025-12-28T17:22:44.351614+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Remove Orphan HTML Elements",
+      "description": "Remove orphan elements that are outside any provider-settings div - leftover from older unified Zai provider implementation",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "2.1",
+          "title": "Remove Orphan Zai Elements",
+          "description": "Remove orphan HTML elements on lines 199-219: the zai-model form-group, zai-variant form-group, and the associated help-section with privacy notice. These elements are outside any provider-settings div and are leftover from an older unified Zai provider implementation before it was split into zai-paas and zai-coding.",
+          "status": "completed",
+          "file": "options.html",
+          "lines": "199-219",
+          "changes": [
+            "Remove <div class='form-group'> containing zai-model select (lines 199-204)",
+            "Remove <div class='form-group'> containing zai-variant select (lines 205-211)",
+            "Remove <div class='help-section'> containing orphan privacy notice (lines 212-218)",
+            "Remove extra closing </div> tag (line 219)"
+          ],
+          "acceptance": "No form elements exist outside provider-settings divs; HTML structure is valid with matching open/close tags",
+          "notes": "Removed orphan HTML elements on lines 199-219: zai-model form-group, zai-variant form-group, and orphan help-section with privacy notice. These elements were outside any provider-settings div and were leftover from older unified Zai provider implementation. Build verified successful. Committed as d0219b8.",
+          "updated_at": "2025-12-28T17:25:07.039199+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Verification and Testing",
+      "description": "Verify the changes work correctly and don't introduce regressions",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "3.1",
+          "title": "Build Project",
+          "description": "Run npm run build to ensure the project compiles without errors. The TypeScript code in SettingsForm.ts doesn't need changes - only the HTML needs to be fixed to match the expected element IDs.",
+          "status": "completed",
+          "command": "npm run build",
+          "acceptance": "Build completes successfully with no errors",
+          "notes": "npm run build completed successfully. webpack 5.99.9 compiled successfully in 7584 ms. No TypeScript errors - HTML element IDs now match the expected IDs in SettingsForm.ts. No code changes needed for this verification step.",
+          "updated_at": "2025-12-28T17:26:07.092949+00:00"
+        },
+        {
+          "id": "3.2",
+          "title": "Run Existing Tests",
+          "description": "Run npm test to ensure no regressions in existing functionality. This verifies ConfigRepository, rate limiting, and other core features still work.",
+          "status": "completed",
+          "command": "npm test",
+          "acceptance": "All existing tests pass",
+          "notes": "All 166 unit and integration tests pass. 6 tests in e2e-real-provider.test.ts are expected failures - they require ZAI_API_KEY environment variable for real API integration testing. Core functionality verified: ConfigRepository, rate limiting, caching, tags, concurrency, and mock e2e tests all pass without regressions.",
+          "updated_at": "2025-12-28T17:27:06.245678+00:00"
+        },
+        {
+          "id": "3.3",
+          "title": "Verify Provider Settings Structure",
+          "description": "Manually verify the HTML structure is correct after changes.",
+          "status": "pending",
+          "verification": [
+            "Count provider-settings divs (should be 8: ollama, mistral, openai, gemini, claude, deepseek, zai-paas, zai-coding)",
+            "Verify zai-paas-settings contains inputs with IDs: zai-paas-api-key, zai-paas-model, zai-paas-base-url",
+            "Verify zai-coding-settings contains inputs with IDs: zai-coding-api-key, zai-coding-model, zai-coding-base-url",
+            "Verify no orphan form-group elements between zai-coding-settings closing tag and the Save button",
+            "Verify HTML is well-formed with matching open/close tags"
+          ],
+          "acceptance": "All verification checks pass; HTML validates correctly"
+        }
+      ]
+    }
+  ],
+  "qaSignoff": {
+    "status": "pending",
+    "tests_passed": "",
+    "issues": ""
+  },
+  "notes": [
+    "The TypeScript code (SettingsForm.ts) already expects kebab-case element IDs - no TS changes needed",
+    "SettingsForm.ts getDOMElements() lines 426-431 expect: zai-paas-api-key, zai-paas-model, zai-paas-base-url, zai-coding-api-key, zai-coding-model, zai-coding-base-url",
+    "The orphan elements (zai-model, zai-variant) are leftovers from before zai was split into zai-paas and zai-coding",
+    "Default provider is 'openai' per SettingsForm.ts line 89",
+    "Test files exist but none specifically test SettingsForm UI - verification will be manual",
+    "All provider settings divs should have style='display: none' except ollama (the first one)"
+  ],
+  "issueAnalysis": {
+    "issue1": {
+      "name": "Zai PaaS Element ID Mismatch",
+      "currentHTML": {
+        "apiKey": "zaiPaasApiKey",
+        "model": "zaiPaasModel",
+        "baseUrl": "zaiPaasBaseUrl"
+      },
+      "expectedByTS": {
+        "apiKey": "zai-paas-api-key",
+        "model": "zai-paas-model",
+        "baseUrl": "zai-paas-base-url"
+      }
+    },
+    "issue2": {
+      "name": "Zai Coding Element ID Mismatch",
+      "currentHTML": {
+        "apiKey": "zaiCodingApiKey",
+        "model": "zaiCodingModel",
+        "baseUrl": "zaiCodingBaseUrl"
+      },
+      "expectedByTS": {
+        "apiKey": "zai-coding-api-key",
+        "model": "zai-coding-model",
+        "baseUrl": "zai-coding-base-url"
+      }
+    },
+    "issue3": {
+      "name": "Orphan HTML Elements",
+      "location": "options.html lines 199-219",
+      "description": "Elements outside provider-settings divs: zai-model select, zai-variant select, help-section",
+      "action": "Remove these orphan elements entirely"
+    }
+  },
+  "last_updated": "2025-12-28T17:27:06.245687+00:00",
+  "planStatus": "in_progress",
+  "recoveryNote": "Task recovered from stuck state at 2025-12-28T17:45:00.752Z"
+}

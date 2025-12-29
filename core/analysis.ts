@@ -1,5 +1,5 @@
 import { htmlToText } from 'html-to-text';
-import { PROMPT_BASE, CONTEXT_CHAR_LIMIT, CustomTags } from './config';
+import { PROMPT_BASE, CustomTags } from './config';
 import { logger } from '../src/infrastructure/providers/ProviderUtils';
 
 // ============================================================================
@@ -160,51 +160,19 @@ export function buildPrompt(
   structuredData: StructuredEmailData,
   customTags: CustomTags
 ): PromptBuilderResult {
-  // Serialize headers and attachments to JSON
   const headersJSON: string = JSON.stringify(structuredData.headers, null, 2);
   const attachmentsJSON: string = JSON.stringify(structuredData.attachments, null, 2);
 
-  // Build custom instructions from tags
   const customInstructions: string = customTags
     .map((tag) => `- ${tag.key}: (boolean) ${tag.prompt}`)
     .join('\n');
 
-  // Combine base prompt with custom instructions
   const fullInstructions: string = `${PROMPT_BASE}\n${customInstructions}`;
 
-  // Calculate frame size (prompt without email body)
-  const frameSize: number = fullInstructions
-    .replace('{headers}', headersJSON)
-    .replace('{body}', '')
-    .replace('{attachments}', attachmentsJSON).length;
-
-  // Calculate remaining space for email body
-  const maxBodyLength: number = CONTEXT_CHAR_LIMIT - frameSize;
-  let emailBody: string = structuredData.body;
-
-  // Truncate body if it exceeds available space
-  if (emailBody.length > maxBodyLength) {
-    logger.warn('Body length exceeds remaining space, truncating', {
-      bodyLength: emailBody.length,
-      maxBodyLength,
-    });
-    emailBody = truncateText(emailBody, maxBodyLength);
-  }
-
-  // Build final prompt with truncated body
   const finalPrompt: string = fullInstructions
     .replace('{headers}', headersJSON)
-    .replace('{body}', emailBody)
+    .replace('{body}', structuredData.body)
     .replace('{attachments}', attachmentsJSON);
-
-  // Hard cut if prompt still exceeds limit (should not happen with proper truncation)
-  if (finalPrompt.length > CONTEXT_CHAR_LIMIT) {
-    logger.error('Final prompt still too long, hard cutting', {
-      promptLength: finalPrompt.length,
-      limit: CONTEXT_CHAR_LIMIT,
-    });
-    return finalPrompt.substring(0, CONTEXT_CHAR_LIMIT);
-  }
 
   return finalPrompt;
 }
@@ -221,4 +189,3 @@ export function truncateText(text: string, maxLength: number): string {
   }
   return text.substring(0, maxLength);
 }
-

@@ -5,6 +5,7 @@
 
 import type { AppConfig, CustomTags } from '@/shared/types/ProviderTypes';
 import type { RequestBody } from './BaseProvider';
+import { Provider, DEFAULT_CUSTOM_TAGS } from '../../../core/config';
 
 // ============================================================================
 // TYPE DEFINITIONS AND INTERFACES
@@ -122,7 +123,7 @@ export interface HttpResponse {
 /**
  * Configuration options for retry with backoff
  */
-export interface RetryConfig<T = unknown> {
+export interface RetryConfig {
   /** Maximum number of retry attempts */
   maxRetries?: number;
   /** Base delay in milliseconds */
@@ -540,7 +541,7 @@ function hasStatus(obj: unknown): obj is { status: number } {
  */
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  options: RetryConfig<T> = {}
+  options: RetryConfig = {}
 ): Promise<T> {
   const { maxRetries = 3, baseDelay = 1000, factor = 2, jitter = 0.5 } = options;
 
@@ -788,9 +789,8 @@ export function validateAppConfig(result: Record<string, unknown>): Partial<AppC
 
   // Validate provider (string, must be valid provider)
   if (typeof result.provider === 'string') {
-    const { Provider } = require('../../../core/config');
-    if (Object.values(Provider).includes(result.provider as any)) {
-      validated.provider = result.provider as any;
+    if (Object.values(Provider).includes(result.provider as Provider)) {
+      validated.provider = result.provider as Provider;
     }
   }
 
@@ -831,14 +831,8 @@ export function validateAppConfig(result: Record<string, unknown>): Partial<AppC
   if (typeof result.ollamaModel === 'string') {
     validated.ollamaModel = result.ollamaModel;
   }
-  if (typeof result.zaiPaasBaseUrl === 'string') {
-    validated.zaiPaasBaseUrl = result.zaiPaasBaseUrl;
-  }
   if (typeof result.zaiPaasModel === 'string') {
     validated.zaiPaasModel = result.zaiPaasModel;
-  }
-  if (typeof result.zaiCodingBaseUrl === 'string') {
-    validated.zaiCodingBaseUrl = result.zaiCodingBaseUrl;
   }
   if (typeof result.zaiCodingModel === 'string') {
     validated.zaiCodingModel = result.zaiCodingModel;
@@ -864,7 +858,6 @@ export function validateCustomTagsResult(result: Record<string, unknown>): {
     return { customTags: result.customTags };
   }
 
-  const { DEFAULT_CUSTOM_TAGS } = require('../../../core/config');
   return { customTags: DEFAULT_CUSTOM_TAGS };
 }
 

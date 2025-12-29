@@ -1,0 +1,79 @@
+{
+  "ui_ux_improvements": [
+    {
+      "id": "uiux-001",
+      "type": "ui_ux_improvements",
+      "title": "Add focus states for keyboard navigation",
+      "description": "Add visible focus indicators to all interactive elements (buttons, inputs, selects, tabs) for better keyboard navigation support",
+      "rationale": "The current CSS has no :focus styles defined at all, making keyboard navigation nearly impossible for users who rely on it. This is a critical accessibility issue that affects users with motor disabilities or those who prefer keyboard navigation.",
+      "category": "accessibility",
+      "affected_components": ["options.css", "options.html"],
+      "screenshots": [],
+      "current_state": "No focus indicators are visible when tabbing through interactive elements. Users cannot tell which element is currently focused when using keyboard navigation.",
+      "proposed_change": "Add focus ring styles to options.css:\n\nbutton:focus,\ninput:focus,\nselect:focus,\ntextarea:focus,\n.tab-button:focus {\n  outline: 2px solid #007bff;\n  outline-offset: 2px;\n}\n\nbutton:focus:not(:focus-visible) {\n  outline: none;\n}\n\nbutton:focus-visible,\ninput:focus-visible,\nselect:focus-visible {\n  outline: 2px solid #007bff;\n  outline-offset: 2px;\n  box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.25);\n}",
+      "user_benefit": "Users who navigate with keyboard can clearly see which element is focused, making the interface fully accessible for keyboard-only navigation",
+      "status": "draft",
+      "created_at": "2025-12-28T18:12:00.000Z"
+    },
+    {
+      "id": "uiux-002",
+      "type": "ui_ux_improvements",
+      "title": "Standardize UI language to English",
+      "description": "Replace all German UI text with English equivalents for consistent international user experience",
+      "rationale": "The interface mixes German and English text inconsistently (e.g., 'Analysiere alle E-Mails' vs 'Save General Settings', 'Fortschritt' vs 'Progress'). This creates confusion and reduces usability for international users.",
+      "category": "usability",
+      "affected_components": ["options.html", "src/interfaces/options/BatchAnalysisUI.ts", "src/interfaces/options/OptionsScript.ts"],
+      "screenshots": [],
+      "current_state": "Mixed language UI:\n- Button: 'Analysiere alle E-Mails' (German)\n- Button: 'Save General Settings' (English)\n- Label: 'Fortschritt:' (German)\n- Status: 'Starte Batch-Analyse...' (German)\n- Help text: 'LLM-Antworten werden für 24 Stunden zwischengespeichert' (German)",
+      "proposed_change": "Standardize all UI text to English:\n1. In options.html:\n   - 'Analysiere alle E-Mails' -> 'Analyze All Emails'\n   - 'Abbrechen' -> 'Cancel'\n   - 'Queue leeren' -> 'Clear Queue'\n   - 'Cache leeren' -> 'Clear Cache'\n   - 'Fortschritt:' -> 'Progress:'\n   - German help text -> English equivalents\n2. In BatchAnalysisUI.ts:\n   - Update all German status messages to English\n3. In OptionsScript.ts:\n   - Update German cache messages to English",
+      "user_benefit": "Consistent English interface makes the extension accessible to international users and provides a more professional appearance",
+      "status": "draft",
+      "created_at": "2025-12-28T18:12:00.000Z"
+    },
+    {
+      "id": "uiux-003",
+      "type": "ui_ux_improvements",
+      "title": "Fix mismatched form element IDs",
+      "description": "Align HTML element IDs with the DOM selectors used in SettingsForm.ts to ensure form elements are found correctly",
+      "rationale": "The HTML uses camelCase IDs (e.g., 'zaiPaasApiKey') while SettingsForm.ts tries to find kebab-case IDs (e.g., 'zai-paas-api-key'). This mismatch causes provider settings elements to not be found, breaking the save/load functionality for Zai providers.",
+      "category": "usability",
+      "affected_components": ["options.html", "src/interfaces/options/SettingsForm.ts"],
+      "screenshots": [],
+      "current_state": "HTML has:\n- id='zaiPaasApiKey'\n- id='zaiPaasModel'\n- id='zaiPaasBaseUrl'\n- id='zaiCodingApiKey'\n- id='zaiCodingModel'\n- id='zaiCodingBaseUrl'\n\nSettingsForm.ts looks for:\n- 'zai-paas-api-key'\n- 'zai-paas-model'\n- 'zai-paas-base-url'\n- 'zai-coding-api-key'\n- 'zai-coding-model'\n- 'zai-coding-base-url'",
+      "proposed_change": "Update options.html to use consistent kebab-case IDs matching SettingsForm.ts expectations:\n\n<!-- Zai PaaS Settings -->\n<input type='password' id='zai-paas-api-key' name='zai-paas-api-key'>\n<select id='zai-paas-model' name='zai-paas-model'></select>\n<input type='text' id='zai-paas-base-url' name='zai-paas-base-url'>\n\n<!-- Zai Coding Settings -->\n<input type='password' id='zai-coding-api-key' name='zai-coding-api-key'>\n<select id='zai-coding-model' name='zai-coding-model'></select>\n<input type='text' id='zai-coding-base-url' name='zai-coding-base-url'>",
+      "user_benefit": "Zai provider configuration will work correctly - users can save and load their API keys and settings without errors",
+      "status": "draft",
+      "created_at": "2025-12-28T18:12:00.000Z"
+    },
+    {
+      "id": "uiux-004",
+      "type": "ui_ux_improvements",
+      "title": "Add loading state to Save Settings button",
+      "description": "Show visual loading feedback on the Save button during settings persistence to indicate the operation is in progress",
+      "rationale": "When users click 'Save General Settings', there's no immediate visual feedback that the operation is processing. Users may click multiple times or think the extension is unresponsive. Adding a loading state improves perceived responsiveness.",
+      "category": "performance",
+      "affected_components": ["options.css", "src/interfaces/options/SettingsForm.ts"],
+      "screenshots": [],
+      "current_state": "The Save button has no visual change during the save operation. Only after completion does a status message appear briefly. Users have no indication that saving is in progress.",
+      "proposed_change": "1. Add CSS for loading state in options.css:\n\nbutton.loading {\n  position: relative;\n  color: transparent;\n  pointer-events: none;\n}\n\nbutton.loading::after {\n  content: '';\n  position: absolute;\n  width: 16px;\n  height: 16px;\n  top: 50%;\n  left: 50%;\n  margin-left: -8px;\n  margin-top: -8px;\n  border: 2px solid #ffffff;\n  border-radius: 50%;\n  border-top-color: transparent;\n  animation: spin 0.8s linear infinite;\n}\n\n@keyframes spin {\n  to { transform: rotate(360deg); }\n}\n\n2. Update SettingsForm.ts saveSettings():\n- Add 'loading' class to submit button before save\n- Remove 'loading' class after save completes",
+      "user_benefit": "Users get immediate visual feedback that their settings are being saved, reducing uncertainty and preventing multiple clicks",
+      "status": "draft",
+      "created_at": "2025-12-28T18:12:00.000Z"
+    },
+    {
+      "id": "uiux-005",
+      "type": "ui_ux_improvements",
+      "title": "Add visual required field indicators",
+      "description": "Add asterisks and styling to indicate which form fields are required before submission",
+      "rationale": "Required fields (API keys, model names) are not visually distinguished from optional fields. Users only discover requirements through validation errors after attempting to save, creating a frustrating trial-and-error experience.",
+      "category": "usability",
+      "affected_components": ["options.html", "options.css"],
+      "screenshots": [],
+      "current_state": "All form labels look identical. Users cannot tell which fields are mandatory (API keys) vs optional (base URLs). The 'required' attribute exists on some inputs but has no visual indicator.",
+      "proposed_change": "1. Add CSS for required field indicators:\n\nlabel.required::after {\n  content: ' *';\n  color: #dc3545;\n  font-weight: bold;\n}\n\n.required-note {\n  font-size: 12px;\n  color: #666;\n  margin-bottom: 15px;\n}\n\n2. Update options.html:\n- Add class='required' to labels for mandatory fields\n- Add note at form top: '<p class=\"required-note\">* Required fields</p>'\n\nExample:\n<label for='openai-api-key' class='required'>OpenAI API Key:</label>",
+      "user_benefit": "Users can immediately identify which fields must be filled out, reducing form submission errors and improving task completion efficiency",
+      "status": "draft",
+      "created_at": "2025-12-28T18:12:00.000Z"
+    }
+  ]
+}

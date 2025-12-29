@@ -63,10 +63,8 @@ export interface ProviderConfig {
   mistralApiKey: string;
   deepseekApiKey: string;
   zaiPaasApiKey: string;
-  zaiPaasBaseUrl?: string;
   zaiPaasModel: string;
   zaiCodingApiKey: string;
-  zaiCodingBaseUrl?: string;
   zaiCodingModel: string;
   model?: string;
 }
@@ -79,8 +77,6 @@ export interface ProviderConfig {
  * Analysis context limits
  */
 export interface AnalysisLimits {
-  contextTokenLimit: number;
-  charsPerTokenEstimate: number;
   contextCharLimit: number;
 }
 
@@ -213,10 +209,8 @@ export const DEFAULTS: Readonly<DefaultConfig> = {
   mistralApiKey: '',
   deepseekApiKey: '',
   zaiPaasApiKey: '',
-  zaiPaasBaseUrl: undefined,
   zaiPaasModel: 'glm-4.5',
   zaiCodingApiKey: '',
-  zaiCodingBaseUrl: undefined,
   zaiCodingModel: 'glm-4.7',
   customTags: DEFAULT_CUSTOM_TAGS,
   enableNotifications: true,
@@ -255,14 +249,6 @@ const PROMPT_INSTRUCTIONS: ReadonlyArray<string> = [
 ] as const;
 
 export const PROMPT_BASE: string = PROMPT_INSTRUCTIONS.join('\n');
-
-// ============================================================================
-// Analysis Limits
-// ============================================================================
-
-export const CONTEXT_TOKEN_LIMIT: number = 128000 as const;
-export const CHARS_PER_TOKEN_ESTIMATE: number = 4 as const;
-export const CONTEXT_CHAR_LIMIT: number = CONTEXT_TOKEN_LIMIT * CHARS_PER_TOKEN_ESTIMATE;
 
 // ============================================================================
 // Type Guards

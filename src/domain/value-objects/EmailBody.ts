@@ -57,7 +57,7 @@ export class EmailBody {
 
 	/** Extracts all URLs from body */
 	extractUrls(): string[] {
-		const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
+		const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[]]+/g;
 		return this.value.match(urlRegex) || [];
 	}
 

@@ -1,0 +1,142 @@
+{
+  "code_quality": [
+    {
+      "id": "cq-001",
+      "type": "code_quality",
+      "title": "Split ProviderUtils.ts into focused utility modules",
+      "description": "The file src/infrastructure/providers/ProviderUtils.ts has grown to 956 lines and handles multiple unrelated concerns: logging utilities, error handling, JSON extraction, retry logic, validation schemas, type guards, and config validation. This monolithic utility file violates the Single Responsibility Principle.",
+      "rationale": "Large utility files increase cognitive load, make testing harder, and lead to tight coupling. When one utility changes, the entire file must be re-tested. Splitting into focused modules improves maintainability, testability, and allows for better tree-shaking.",
+      "category": "large_files",
+      "severity": "major",
+      "affectedFiles": ["src/infrastructure/providers/ProviderUtils.ts"],
+      "currentState": "Single 956-line file handling: Logger implementation (~80 lines), error display helpers (~120 lines), JSON extraction (~50 lines), retry with backoff (~150 lines), validation schema and utilities (~200 lines), app config validation (~100 lines), debounce (~25 lines), and type guards (~50 lines)",
+      "proposedChange": "Split into focused modules:\n- src/infrastructure/utils/logger.ts (logger implementation)\n- src/infrastructure/utils/errorHandler.ts (error display helpers)\n- src/infrastructure/utils/jsonUtils.ts (JSON extraction)\n- src/infrastructure/utils/retryUtils.ts (retry with backoff)\n- src/infrastructure/utils/validation.ts (validation schema utilities)\n- src/infrastructure/utils/typeGuards.ts (common type guards)\n\nMaintain a barrel export in ProviderUtils.ts for backwards compatibility.",
+      "codeExample": "// Current (all in ProviderUtils.ts):\nexport function maskApiKey() { ... }\nexport const logger: Logger = { ... }\nexport function logAndDisplayError() { ... }\nexport function extractJson() { ... }\nexport async function retryWithBackoff() { ... }\nexport function validateLLMResponse() { ... }\n\n// Proposed structure:\n// logger.ts\nexport const logger: Logger = { ... };\n\n// retryUtils.ts\nexport async function retryWithBackoff<T>() { ... };\n\n// index.ts (barrel)\nexport * from './logger';\nexport * from './retryUtils';",
+      "bestPractice": "Single Responsibility Principle - each module should have one well-defined purpose",
+      "metrics": {
+        "lineCount": 956,
+        "complexity": null,
+        "duplicateLines": null,
+        "testCoverage": null
+      },
+      "estimatedEffort": "medium",
+      "breakingChange": false,
+      "prerequisites": ["Add unit tests for each utility function before refactoring"]
+    },
+    {
+      "id": "cq-002",
+      "type": "code_quality",
+      "title": "Extract shared listModels logic from provider implementations",
+      "description": "The listModels method is nearly identical across OpenAIProvider, ClaudeProvider, GeminiProvider, and other provider implementations. Each provider has 40-50 lines of duplicated logic for fetching models, handling errors, and parsing responses with only minor variations in URL and headers.",
+      "rationale": "Code duplication leads to inconsistent bug fixes and increased maintenance burden. When the model fetching logic needs to change, it must be updated in 8+ places. A shared abstraction would centralize this logic.",
+      "category": "duplication",
+      "severity": "minor",
+      "affectedFiles": [
+        "src/infrastructure/providers/impl/OpenAIProvider.ts",
+        "src/infrastructure/providers/impl/ClaudeProvider.ts",
+        "src/infrastructure/providers/impl/GeminiProvider.ts",
+        "src/infrastructure/providers/impl/MistralProvider.ts",
+        "src/infrastructure/providers/impl/DeepseekProvider.ts",
+        "src/infrastructure/providers/impl/OllamaProvider.ts",
+        "src/infrastructure/providers/impl/ZaiPaaSProvider.ts",
+        "src/infrastructure/providers/impl/ZaiCodingProvider.ts"
+      ],
+      "currentState": "Each provider implements listModels with:\n1. API key validation\n2. Fetch request with provider-specific URL and headers\n3. Response status check\n4. JSON parsing\n5. Data extraction with type guards\n6. Error logging",
+      "proposedChange": "Add a shared fetchModels utility to BaseProvider or create a ModelsFetcher utility class:\n\n1. Define a ModelListConfig interface for provider-specific configuration\n2. Implement fetchModels in BaseProvider that accepts config\n3. Each provider only needs to provide the config (URL builder, headers, response parser)",
+      "codeExample": "// Current (repeated in each provider):\npublic async listModels(settings: BaseProviderSettings): Promise<string[]> {\n  try {\n    const apiKey = settings.apiKey;\n    if (!apiKey) {\n      this.logger.error('Provider listModels: API key is missing');\n      return [];\n    }\n    const response = await fetch(url, { headers: {...} });\n    // ... same pattern in each provider\n  }\n}\n\n// Proposed:\n// BaseProvider.ts\nprotected async fetchModels(\n  settings: BaseProviderSettings,\n  config: ModelFetchConfig\n): Promise<string[]> {\n  // Shared implementation\n}\n\n// OpenAIProvider.ts\npublic async listModels(settings: BaseProviderSettings): Promise<string[]> {\n  return this.fetchModels(settings, {\n    url: 'https://api.openai.com/v1/models',\n    headerBuilder: (key) => ({ Authorization: `Bearer ${key}` }),\n    responseParser: (data) => data.data.map(m => m.id)\n  });\n}",
+      "bestPractice": "DRY (Don't Repeat Yourself) - extract common logic into reusable abstractions",
+      "metrics": {
+        "lineCount": null,
+        "complexity": null,
+        "duplicateLines": 320,
+        "testCoverage": null
+      },
+      "estimatedEffort": "small",
+      "breakingChange": false,
+      "prerequisites": null
+    },
+    {
+      "id": "cq-003",
+      "type": "code_quality",
+      "title": "Refactor SettingsForm.ts repetitive switch cases into provider registry pattern",
+      "description": "SettingsForm.ts (895 lines) contains multiple switch statements that repeat the same provider cases: loadSettings, gatherProviderSettings, validateProviderSettings, getProviderSettings, hasRequiredCredentials, convertToProviderSettings, and getPermissionOrigin. Each switch has 8 cases with similar patterns.",
+      "rationale": "Repetitive switch statements are a code smell indicating the need for polymorphism or a registry pattern. Adding a new provider requires modifying 7+ switch statements, which is error-prone and violates the Open-Closed Principle.",
+      "category": "code_smells",
+      "severity": "major",
+      "affectedFiles": ["src/interfaces/options/SettingsForm.ts"],
+      "currentState": "7 switch statements, each with 8 provider cases:\n- loadSettings: populates form fields per provider\n- gatherProviderSettings: collects form values per provider\n- validateProviderSettings: validates required fields per provider\n- getProviderSettings: extracts settings from UI per provider\n- hasRequiredCredentials: checks credentials per provider\n- convertToProviderSettings: converts config per provider\n- getPermissionOrigin: returns API origin per provider",
+      "proposedChange": "Implement a ProviderFormConfig registry:\n\n1. Create ProviderFormConfig interface defining form field mappings\n2. Create a registry map: Record<ProviderId, ProviderFormConfig>\n3. Replace switch statements with registry lookups\n4. New providers only need to add one registry entry",
+      "codeExample": "// Current (repeated switch pattern):\nswitch (provider) {\n  case 'openai':\n    if (!this.elements.openaiApiKey) throw new Error(...);\n    return { ...baseSettings, openaiApiKey: this.elements.openaiApiKey.value.trim() };\n  case 'gemini':\n    if (!this.elements.geminiApiKey) throw new Error(...);\n    return { ...baseSettings, geminiApiKey: this.elements.geminiApiKey.value.trim() };\n  // ... 6 more cases\n}\n\n// Proposed registry pattern:\ninterface ProviderFormConfig {\n  elementIds: { apiKey?: string; apiUrl?: string; model?: string };\n  permissionOrigin: string;\n  defaultModel: string;\n  validate: (settings: PartialProviderConfig) => boolean;\n}\n\nconst PROVIDER_CONFIGS: Record<string, ProviderFormConfig> = {\n  openai: {\n    elementIds: { apiKey: 'openai-api-key' },\n    permissionOrigin: 'https://api.openai.com/',\n    defaultModel: 'gpt-4o-mini',\n    validate: (s) => !!s.openaiApiKey?.trim()\n  },\n  // ... other providers\n};\n\n// Usage:\nconst config = PROVIDER_CONFIGS[provider];\nif (!config) throw new Error(`Unknown provider: ${provider}`);\nreturn this.gatherFromConfig(config, baseSettings);",
+      "bestPractice": "Replace conditional logic with polymorphism or configuration objects to follow Open-Closed Principle",
+      "metrics": {
+        "lineCount": 895,
+        "complexity": null,
+        "duplicateLines": null,
+        "testCoverage": null
+      },
+      "estimatedEffort": "medium",
+      "breakingChange": false,
+      "prerequisites": ["Add unit tests for SettingsForm before refactoring"]
+    },
+    {
+      "id": "cq-004",
+      "type": "code_quality",
+      "title": "Add type declarations for Thunderbird WebExtension APIs",
+      "description": "The codebase has 19 @ts-expect-error comments primarily in MessageHandler.ts (10) and EmailEventListener.ts (7) to suppress TypeScript errors when accessing global browser/messenger WebExtension APIs. This reduces type safety and makes the code harder to maintain.",
+      "rationale": "Excessive @ts-expect-error comments indicate missing type definitions. Proper type declarations would enable IDE autocompletion, catch errors at compile time, and improve code documentation. The Thunderbird API surface is well-defined and could be typed.",
+      "category": "types",
+      "severity": "minor",
+      "affectedFiles": [
+        "src/interfaces/background/MessageHandler.ts",
+        "src/interfaces/background/EmailEventListener.ts",
+        "src/infrastructure/providers/ProviderUtils.ts"
+      ],
+      "currentState": "19 @ts-expect-error comments suppressing type errors for:\n- browser.runtime.onMessage\n- browser.runtime.sendMessage\n- messenger.runtime.onMessage\n- messenger.messages.list\n- messenger.storage.local\n\nEach usage requires a comment explaining why the error is suppressed.",
+      "proposedChange": "Create Thunderbird WebExtension API type declarations:\n\n1. Create src/types/thunderbird.d.ts with type definitions for messenger API\n2. Extend @types/webextension-polyfill for any Thunderbird-specific APIs\n3. Add global type declarations for browser and messenger objects\n4. Remove @ts-expect-error comments and use proper typing",
+      "codeExample": "// Current:\n// @ts-expect-error - browser is a global WebExtension API\nif (typeof browser !== 'undefined' && browser.runtime?.onMessage) {\n  // @ts-expect-error - browser.runtime.onMessage is a WebExtension API\n  browser.runtime.onMessage.addListener(this.handleMessageHandler);\n}\n\n// Proposed (src/types/thunderbird.d.ts):\ndeclare global {\n  const messenger: {\n    runtime: {\n      onMessage: WebExtensionEvent<MessageListener>;\n      sendMessage: (message: RuntimeMessage) => Promise<unknown>;\n    };\n    messages: {\n      list(folderId?: string): Promise<MessageList>;\n      getFull(messageId: number): Promise<MessagePart>;\n    };\n    storage: {\n      local: StorageArea;\n    };\n  };\n}\n\n// Usage (no @ts-expect-error needed):\nif (typeof messenger !== 'undefined' && messenger.runtime?.onMessage) {\n  messenger.runtime.onMessage.addListener(this.handleMessageHandler);\n}",
+      "bestPractice": "Use TypeScript declaration files (.d.ts) for external/global APIs instead of type suppression comments",
+      "metrics": {
+        "lineCount": null,
+        "complexity": null,
+        "duplicateLines": null,
+        "testCoverage": null
+      },
+      "estimatedEffort": "small",
+      "breakingChange": false,
+      "prerequisites": null
+    },
+    {
+      "id": "cq-005",
+      "type": "code_quality",
+      "title": "Extract MessageHandler type guards into shared utilities",
+      "description": "MessageHandler.ts contains 7 nearly identical type guard functions (isStartBatchAnalysisMessage, isGetBatchProgressMessage, isCancelBatchAnalysisMessage, etc.) that follow the exact same pattern. Each guard checks if value is an object with a specific 'action' string property.",
+      "rationale": "Repetitive type guards bloat the file and increase maintenance burden. A generic type guard factory would reduce code duplication, ensure consistency, and make adding new message types trivial.",
+      "category": "duplication",
+      "severity": "minor",
+      "affectedFiles": ["src/interfaces/background/MessageHandler.ts"],
+      "currentState": "7 type guard functions, each 7-8 lines with identical structure:\n```typescript\nfunction isXxxMessage(message: unknown): message is XxxMessage {\n  return (\n    typeof message === 'object' &&\n    message !== null &&\n    'action' in message &&\n    (message as Record<string, unknown>).action === 'xxx'\n  );\n}\n```",
+      "proposedChange": "Create a generic type guard factory function:\n\n1. Define createMessageTypeGuard<T>(action: string) utility\n2. Replace individual guards with factory calls\n3. Optionally add additional property checks via options parameter",
+      "codeExample": "// Current (repeated 7 times with different action values):\nfunction isStartBatchAnalysisMessage(message: unknown): message is StartBatchAnalysisMessage {\n  return (\n    typeof message === 'object' &&\n    message !== null &&\n    'action' in message &&\n    (message as Record<string, unknown>).action === 'startBatchAnalysis'\n  );\n}\n\nfunction isGetBatchProgressMessage(message: unknown): message is GetBatchProgressMessage {\n  return (\n    typeof message === 'object' &&\n    message !== null &&\n    'action' in message &&\n    (message as Record<string, unknown>).action === 'getBatchProgress'\n  );\n}\n\n// Proposed:\nfunction createMessageGuard<T extends { action: string }>(\n  actionName: T['action']\n): (message: unknown) => message is T {\n  return (message: unknown): message is T => \n    typeof message === 'object' &&\n    message !== null &&\n    'action' in message &&\n    (message as Record<string, unknown>).action === actionName;\n}\n\n// Usage:\nconst isStartBatchAnalysisMessage = createMessageGuard<StartBatchAnalysisMessage>('startBatchAnalysis');\nconst isGetBatchProgressMessage = createMessageGuard<GetBatchProgressMessage>('getBatchProgress');\nconst isCancelBatchAnalysisMessage = createMessageGuard<CancelBatchAnalysisMessage>('cancelBatchAnalysis');\n// ... etc.",
+      "bestPractice": "Use factory functions to eliminate repetitive boilerplate code",
+      "metrics": {
+        "lineCount": null,
+        "complexity": null,
+        "duplicateLines": 56,
+        "testCoverage": null
+      },
+      "estimatedEffort": "small",
+      "breakingChange": false,
+      "prerequisites": null
+    }
+  ],
+  "metadata": {
+    "filesAnalyzed": 68,
+    "largeFilesFound": 4,
+    "duplicateBlocksFound": 3,
+    "lintingConfigured": true,
+    "testsPresent": true,
+    "tsExpectErrorCount": 19,
+    "anyUsageCount": 18,
+    "generatedAt": "2024-12-28T18:15:00Z"
+  }
+}

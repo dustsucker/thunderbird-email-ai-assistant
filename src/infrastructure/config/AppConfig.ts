@@ -136,10 +136,8 @@ export class AppConfigService {
     mistralApiKey: '',
     deepseekApiKey: '',
     zaiPaasApiKey: '',
-    zaiPaasBaseUrl: undefined,
     zaiPaasModel: 'glm-4.5',
     zaiCodingApiKey: '',
-    zaiCodingBaseUrl: undefined,
     zaiCodingModel: 'glm-4.7',
     customTags: this.defaultCustomTags,
     enableNotifications: true,
@@ -204,8 +202,6 @@ export class AppConfigService {
         defaultProvider: this.defaults.provider,
         enableNotifications: this.defaults.enableNotifications,
         enableLogging: this.defaults.enableLogging,
-        contextTokenLimit: this.getContextTokenLimit(),
-        charsPerTokenEstimate: this.getCharsPerTokenEstimate(),
         modelConcurrencyLimits: this.defaults.modelConcurrencyLimits,
       };
     }
@@ -417,18 +413,6 @@ export class AppConfigService {
     return PROMPT_INSTRUCTIONS.join('\n');
   }
 
-  getContextTokenLimit(): number {
-    return 128000;
-  }
-
-  getCharsPerTokenEstimate(): number {
-    return 4;
-  }
-
-  getContextCharLimit(): number {
-    return this.getContextTokenLimit() * this.getCharsPerTokenEstimate();
-  }
-
   isValidProvider(provider: string): provider is Provider {
     return Object.values(Provider).includes(provider as Provider);
   }
@@ -594,12 +578,12 @@ export class AppConfigService {
       'zai-paas': {
         apiKey: this.defaults.zaiPaasApiKey,
         model: this.defaults.zaiPaasModel,
-        apiUrl: this.defaults.zaiPaasBaseUrl,
+        apiUrl: 'https://api.z.ai/v1',
       },
       'zai-coding': {
         apiKey: this.defaults.zaiCodingApiKey,
         model: this.defaults.zaiCodingModel,
-        apiUrl: this.defaults.zaiCodingBaseUrl,
+        apiUrl: 'https://api.z.ai/v1',
       },
       ollama: {
         apiKey: '',

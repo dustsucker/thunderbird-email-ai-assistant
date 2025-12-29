@@ -41,10 +41,6 @@ export interface IAppConfig {
   enableNotifications: boolean;
   /** Enable detailed logging */
   enableLogging: boolean;
-  /** Context token limit for analysis */
-  contextTokenLimit: number;
-  /** Estimated characters per token */
-  charsPerTokenEstimate: number;
   /** Model-specific concurrency limits */
   modelConcurrencyLimits?: IModelConcurrencyConfig[];
 }
@@ -86,10 +82,7 @@ export interface IConfigRepository {
    * @param settings - Provider settings to save
    * @throws Error if save operation fails
    */
-  setProviderSettings(
-    providerId: string,
-    settings: IProviderSettings
-  ): Promise<void>;
+  setProviderSettings(providerId: string, settings: IProviderSettings): Promise<void>;
 
   /**
    * Get settings for all configured providers.

@@ -1,0 +1,331 @@
+{
+  "project_context": {
+    "project_name": "Thunderbird Email AI Assistant",
+    "project_type": "desktop-app",
+    "target_audience": "Privacy-conscious email power users who want automated intelligent email organization without manual filtering rules"
+  },
+  "competitors": [
+    {
+      "id": "competitor-1",
+      "name": "SaneBox",
+      "url": "https://www.sanebox.com",
+      "description": "Cloud-based email management service that uses AI to filter, prioritize, and organize emails across multiple email clients and services. Requires forwarding emails through their servers.",
+      "relevance": "high",
+      "pain_points": [
+        {
+          "id": "pain-1-1",
+          "description": "Privacy concerns - all emails pass through SaneBox's cloud servers for processing",
+          "source": "Common user feedback in email privacy discussions, SaneBox's own architecture documentation",
+          "severity": "high",
+          "frequency": "Frequently mentioned by privacy-conscious users",
+          "opportunity": "Thunderbird AI Assistant processes emails locally with optional Ollama support, never sending email content to third parties"
+        },
+        {
+          "id": "pain-1-2",
+          "description": "Subscription cost - monthly/yearly subscription required for continued service",
+          "source": "Product pricing pages, user reviews on software comparison sites",
+          "severity": "medium",
+          "frequency": "Common concern for cost-conscious users",
+          "opportunity": "Open source, free extension with user's own API keys or free local Ollama"
+        },
+        {
+          "id": "pain-1-3",
+          "description": "Limited customization - predefined folders (SaneLater, SaneNews, etc.) with limited ability to create custom categories",
+          "source": "User feedback requesting more flexible categorization options",
+          "severity": "medium",
+          "frequency": "Moderate - power users often request more control",
+          "opportunity": "Fully customizable tags with natural language prompts for defining classification criteria"
+        },
+        {
+          "id": "pain-1-4",
+          "description": "Email client lock-in - optimized for webmail; desktop client integration can be complex",
+          "source": "User experiences with desktop email client setups",
+          "severity": "medium",
+          "frequency": "Moderate among desktop email users",
+          "opportunity": "Native Thunderbird integration - works seamlessly within the desktop client"
+        }
+      ],
+      "strengths": [
+        "Works across multiple email accounts and providers",
+        "Mature product with years of AI training",
+        "Zero configuration once set up",
+        "Snooze and reminder features",
+        "Training via simple drag-and-drop"
+      ],
+      "market_position": "Market leader in AI email organization for consumer/prosumer users. Premium-priced cloud service targeting professionals who value time savings."
+    },
+    {
+      "id": "competitor-2",
+      "name": "Clean Email",
+      "url": "https://clean.email",
+      "description": "Email management tool focused on bulk cleaning, unsubscribing, and organizing email. Uses AI for smart categorization and automation rules.",
+      "relevance": "high",
+      "pain_points": [
+        {
+          "id": "pain-2-1",
+          "description": "Cloud dependency - requires OAuth access to email accounts, processing happens on their servers",
+          "source": "Product architecture and privacy policy discussions",
+          "severity": "high",
+          "frequency": "Major concern for security-conscious users",
+          "opportunity": "Local processing option with Ollama - no cloud access to email content required"
+        },
+        {
+          "id": "pain-2-2",
+          "description": "Primarily focused on cleaning and unsubscribing rather than ongoing intelligent classification",
+          "source": "Product feature set analysis",
+          "severity": "medium",
+          "frequency": "Users seeking ongoing organization look elsewhere",
+          "opportunity": "Continuous AI-powered classification of incoming mail, not just one-time cleanup"
+        },
+        {
+          "id": "pain-2-3",
+          "description": "Limited integration with desktop email clients like Thunderbird",
+          "source": "Product compatibility documentation",
+          "severity": "high",
+          "frequency": "Common for desktop email users",
+          "opportunity": "Native Thunderbird extension with full integration into existing workflow"
+        },
+        {
+          "id": "pain-2-4",
+          "description": "Subscription pricing with limited free tier",
+          "source": "Pricing page and user reviews",
+          "severity": "medium",
+          "frequency": "Budget-conscious users seek alternatives",
+          "opportunity": "Free open-source solution with BYOK (bring your own key) model"
+        }
+      ],
+      "strengths": [
+        "Excellent bulk email cleanup features",
+        "Smart unsubscribe functionality",
+        "Auto-clean rules for recurring patterns",
+        "Works with major webmail providers",
+        "Mobile apps available"
+      ],
+      "market_position": "Popular tool for email inbox cleanup and management. Strong focus on reducing email clutter through mass actions and unsubscribe features."
+    },
+    {
+      "id": "competitor-3",
+      "name": "Gmail Smart Categories",
+      "url": "https://support.google.com/mail/answer/3094499",
+      "description": "Built-in Gmail feature that automatically sorts incoming mail into tabs: Primary, Social, Promotions, Updates, and Forums.",
+      "relevance": "medium",
+      "pain_points": [
+        {
+          "id": "pain-3-1",
+          "description": "Gmail-only - not available for other email services or clients like Thunderbird",
+          "source": "Gmail feature documentation, common knowledge",
+          "severity": "high",
+          "frequency": "Universal for non-Gmail users",
+          "opportunity": "Works with any email account configured in Thunderbird"
+        },
+        {
+          "id": "pain-3-2",
+          "description": "Fixed categories - only 5 predefined tabs with no ability to add custom categories",
+          "source": "Gmail documentation and user feedback forums",
+          "severity": "high",
+          "frequency": "Frequently requested feature by power users",
+          "opportunity": "Unlimited custom tags with user-defined classification prompts"
+        },
+        {
+          "id": "pain-3-3",
+          "description": "Limited transparency - users cannot see why emails were categorized a certain way",
+          "source": "User complaints about miscategorized emails",
+          "severity": "medium",
+          "frequency": "Moderate - users confused by categorization decisions",
+          "opportunity": "Could add confidence scores and reasoning explanations to classification results"
+        },
+        {
+          "id": "pain-3-4",
+          "description": "Privacy concerns - all email is processed by Google's AI",
+          "source": "Privacy advocacy discussions, GDPR concerns",
+          "severity": "high",
+          "frequency": "Major concern for privacy-focused users",
+          "opportunity": "Local Ollama processing keeps email content completely private"
+        }
+      ],
+      "strengths": [
+        "Zero setup - works automatically",
+        "Free with Gmail account",
+        "Backed by Google's massive AI infrastructure",
+        "Good at separating promotional/social emails",
+        "Learns from user corrections"
+      ],
+      "market_position": "Default option for Gmail users. Ubiquitous but basic. Sets baseline expectations for email organization."
+    },
+    {
+      "id": "competitor-4",
+      "name": "Thunderbird Built-in Message Filters",
+      "url": "https://support.mozilla.org/en-US/kb/organize-your-messages-using-filters",
+      "description": "Native Thunderbird feature for creating rule-based filters to organize, move, tag, or delete messages based on specific criteria.",
+      "relevance": "high",
+      "pain_points": [
+        {
+          "id": "pain-4-1",
+          "description": "Manual rule creation is tedious and time-consuming for complex filtering needs",
+          "source": "User forums, Thunderbird support discussions",
+          "severity": "high",
+          "frequency": "Very common complaint - primary pain point for power users",
+          "opportunity": "AI eliminates need for manual rules - natural language prompts instead"
+        },
+        {
+          "id": "pain-4-2",
+          "description": "Rules require exact matching - cannot understand context or intent",
+          "source": "Limitations of rule-based systems, user frustration posts",
+          "severity": "high",
+          "frequency": "Fundamental limitation of all rule-based systems",
+          "opportunity": "LLM-based classification understands context, nuance, and intent"
+        },
+        {
+          "id": "pain-4-3",
+          "description": "Rule maintenance burden - filters need constant updating as senders and patterns change",
+          "source": "User experience discussions, email management guides",
+          "severity": "medium",
+          "frequency": "Ongoing burden for users with many filters",
+          "opportunity": "AI adapts to new patterns without rule updates"
+        },
+        {
+          "id": "pain-4-4",
+          "description": "No learning capability - filters don't improve from user corrections",
+          "source": "Feature comparison with AI-based tools",
+          "severity": "medium",
+          "frequency": "Moderate - users wish for smarter filtering",
+          "opportunity": "Prompt refinement allows users to improve classification over time"
+        }
+      ],
+      "strengths": [
+        "Free and built-in",
+        "Complete privacy - all processing is local",
+        "Highly deterministic - predictable behavior",
+        "Deep integration with Thunderbird",
+        "No external dependencies"
+      ],
+      "market_position": "Default option for Thunderbird users. Reliable but primitive. Most Thunderbird users have some filters configured."
+    },
+    {
+      "id": "competitor-5",
+      "name": "Mailspring",
+      "url": "https://getmailspring.com",
+      "description": "Modern, open-source email client with some AI-powered features including read receipt tracking, link tracking, and limited smart filtering.",
+      "relevance": "medium",
+      "pain_points": [
+        {
+          "id": "pain-5-1",
+          "description": "Requires switching email clients entirely - not an extension for existing workflow",
+          "source": "Product architecture, user adoption discussions",
+          "severity": "high",
+          "frequency": "Major barrier for existing Thunderbird users",
+          "opportunity": "Extension approach - enhances existing Thunderbird workflow"
+        },
+        {
+          "id": "pain-5-2",
+          "description": "AI features require Pro subscription",
+          "source": "Mailspring pricing page",
+          "severity": "medium",
+          "frequency": "Common concern for users exploring alternatives",
+          "opportunity": "Free open-source with BYOK model"
+        },
+        {
+          "id": "pain-5-3",
+          "description": "Limited AI classification compared to dedicated AI email tools",
+          "source": "Feature comparison reviews",
+          "severity": "medium",
+          "frequency": "Moderate - AI is not the focus of Mailspring",
+          "opportunity": "Dedicated focus on AI classification with multiple LLM providers"
+        }
+      ],
+      "strengths": [
+        "Modern, attractive UI",
+        "Open source core",
+        "Cross-platform (Mac, Windows, Linux)",
+        "Built-in tracking features",
+        "Active development"
+      ],
+      "market_position": "Modern alternative email client. Appeals to users wanting a better-looking experience than Thunderbird but with open source values."
+    }
+  ],
+  "market_gaps": [
+    {
+      "id": "gap-1",
+      "description": "No privacy-first AI email organization for desktop clients - existing solutions require cloud processing",
+      "affected_competitors": ["competitor-1", "competitor-2", "competitor-3"],
+      "opportunity_size": "high",
+      "suggested_feature": "Local Ollama processing as primary option with clear privacy messaging"
+    },
+    {
+      "id": "gap-2",
+      "description": "Limited customization in AI email tools - most have fixed categories",
+      "affected_competitors": ["competitor-1", "competitor-3"],
+      "opportunity_size": "high",
+      "suggested_feature": "Fully customizable tags with natural language classification prompts"
+    },
+    {
+      "id": "gap-3",
+      "description": "No AI-powered classification extension for Thunderbird - must switch clients or use cloud services",
+      "affected_competitors": ["competitor-2", "competitor-5"],
+      "opportunity_size": "high",
+      "suggested_feature": "Native Thunderbird integration that enhances existing workflow"
+    },
+    {
+      "id": "gap-4",
+      "description": "No multi-provider AI flexibility - locked into vendor's AI or Google's",
+      "affected_competitors": ["competitor-1", "competitor-3"],
+      "opportunity_size": "medium",
+      "suggested_feature": "Choice of AI providers: OpenAI, Claude, Gemini, Mistral, Ollama, DeepSeek, Z.ai"
+    },
+    {
+      "id": "gap-5",
+      "description": "Lack of transparency in AI decisions - users don't know why emails are classified",
+      "affected_competitors": ["competitor-1", "competitor-3"],
+      "opportunity_size": "medium",
+      "suggested_feature": "Confidence scores and optional reasoning explanations for classifications"
+    },
+    {
+      "id": "gap-6",
+      "description": "No open-source AI email organization option with active development",
+      "affected_competitors": ["competitor-1", "competitor-2"],
+      "opportunity_size": "medium",
+      "suggested_feature": "Full open-source codebase with community contribution model"
+    }
+  ],
+  "insights_summary": {
+    "top_pain_points": [
+      "Privacy concerns with cloud-based email AI processing",
+      "High cost of subscription-based email organization tools",
+      "Limited customization - fixed categories that don't match user workflows",
+      "No AI options for Thunderbird/desktop email client users",
+      "Manual filter rules are tedious and don't understand context"
+    ],
+    "differentiator_opportunities": [
+      "Privacy-first with local Ollama as primary option",
+      "Native Thunderbird integration - enhance existing workflow",
+      "Unlimited custom tags with natural language prompts",
+      "Multi-provider AI flexibility - users choose their LLM",
+      "Open source and transparent - no hidden processing",
+      "BYOK model - no subscription, use your own API keys"
+    ],
+    "market_trends": [
+      "Increasing privacy awareness driving demand for local AI processing",
+      "LLM commoditization making AI email features more accessible",
+      "User demand for personalization over one-size-fits-all categories",
+      "Desktop email clients seeing renewed interest from privacy-focused users",
+      "Open source AI tools gaining traction as alternatives to cloud services"
+    ]
+  },
+  "research_metadata": {
+    "search_queries_used": [],
+    "sources_consulted": [
+      "roadmap_discovery.json project analysis",
+      "Known product features from SaneBox, Clean Email, Gmail",
+      "Thunderbird documentation and user community discussions",
+      "General industry knowledge of email organization tools"
+    ],
+    "limitations": [
+      "WebSearch tool not available - could not perform live research",
+      "Pain points based on known common complaints rather than recent user reviews",
+      "Could not verify current pricing or feature changes",
+      "Reddit/Twitter sentiment analysis not performed",
+      "App store review scraping not possible without WebSearch"
+    ]
+  },
+  "created_at": "2025-12-28T18:25:00Z"
+}

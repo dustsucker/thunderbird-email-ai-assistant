@@ -34,17 +34,13 @@ export interface ProviderConfig {
   mistralApiKey: string;
   deepseekApiKey: string;
   zaiPaasApiKey: string;
-  zaiPaasBaseUrl?: string;
   zaiPaasModel: string;
   zaiCodingApiKey: string;
-  zaiCodingBaseUrl?: string;
   zaiCodingModel: string;
   model?: string;
 }
 
 export interface AnalysisLimits {
-  contextTokenLimit: number;
-  charsPerTokenEstimate: number;
   contextCharLimit: number;
 }
 

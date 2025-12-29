@@ -93,13 +93,6 @@ interface ThunderbirdMessagePart {
 // Helper Functions
 // ============================================================================
 
-/**
- * Re-export type guard for backward compatibility
- */
-const _hasNestedParts = (part: IEmailPart): part is IEmailPart & { parts: IEmailPart[] } => {
-  return part.parts !== undefined && part.parts.length > 0;
-};
-
 // ============================================================================
 // ThunderbirdMailReader Implementation
 // ============================================================================
@@ -174,9 +167,7 @@ export class ThunderbirdMailReader implements IMailReader {
       };
 
       // Extract plain text body if available
-      const bodyPart = parts.find(
-        (p) => p.contentType === 'text/plain' && !p.isAttachment
-      );
+      const bodyPart = parts.find((p) => p.contentType === 'text/plain' && !p.isAttachment);
       if (bodyPart) {
         message.body = bodyPart.body;
       }
@@ -290,9 +281,7 @@ export class ThunderbirdMailReader implements IMailReader {
 
     // Otherwise, extract from parts
     const parts = message.parts || (await this.parseMessageParts(message));
-    const plainTextPart = parts.find(
-      (p) => p.contentType === 'text/plain' && !p.isAttachment
-    );
+    const plainTextPart = parts.find((p) => p.contentType === 'text/plain' && !p.isAttachment);
 
     if (!plainTextPart) {
       this.logger.warn('No plain text body found', { messageId: message.id });
@@ -330,7 +319,7 @@ export class ThunderbirdMailReader implements IMailReader {
   /**
    * @inheritdoc
    */
-   async getAttachments(message: IEmailMessage): Promise<IEmailAttachment[]> {
+  async getAttachments(message: IEmailMessage): Promise<IEmailAttachment[]> {
     this.logger.debug('Extracting attachments', { messageId: message.id });
 
     const parts = message.parts || (await this.parseMessageParts(message));
@@ -379,19 +368,14 @@ export class ThunderbirdMailReader implements IMailReader {
         name: attachment.name,
         error: errorMessage,
       });
-      throw new Error(
-        `Failed to retrieve attachment '${attachment.name}': ${errorMessage}`
-      );
+      throw new Error(`Failed to retrieve attachment '${attachment.name}': ${errorMessage}`);
     }
   }
 
   /**
    * @inheritdoc
    */
-  async getMessages(
-    folderId: string,
-    includeDeleted: boolean = false
-  ): Promise<IEmailHeaders[]> {
+  async getMessages(folderId: string, includeDeleted: boolean = false): Promise<IEmailHeaders[]> {
     this.logger.debug('Retrieving messages from folder', { folderId, includeDeleted });
 
     try {
@@ -465,9 +449,7 @@ export class ThunderbirdMailReader implements IMailReader {
 
       if (query.from) {
         const fromLower = query.from.toLowerCase();
-        filtered = filtered.filter(
-          (m) => m.from && m.from.toLowerCase().includes(fromLower)
-        );
+        filtered = filtered.filter((m) => m.from && m.from.toLowerCase().includes(fromLower));
       }
 
       if (query.dateAfter) {
@@ -563,11 +545,14 @@ export class ThunderbirdMailReader implements IMailReader {
    * @returns Converted email parts
    */
   private convertMessageParts(parts: ThunderbirdMessagePart[]): IEmailPart[] {
-    const result: IEmailPart[] = [];
-
     const convert = (part: ThunderbirdMessagePart): IEmailPart => {
       // Map contentDisposition to valid types
-      const validDisposition = part.contentDisposition === 'inline' ? 'inline' : (part.contentDisposition === 'attachment' ? 'attachment' : undefined);
+      const validDisposition =
+        part.contentDisposition === 'inline'
+          ? 'inline'
+          : part.contentDisposition === 'attachment'
+            ? 'attachment'
+            : undefined;
 
       const converted: IEmailPart = {
         contentType: part.contentType,

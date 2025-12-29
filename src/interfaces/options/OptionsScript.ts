@@ -64,14 +64,8 @@ import { BatchAnalysisUI } from './BatchAnalysisUI';
 // DOM Element Interfaces
 // ============================================================================
 
-/**
- * Tab elements
- */
-interface TabElements {
-  tabs: NodeListOf<HTMLButtonElement>;
-  tabContents: NodeListOf<HTMLDivElement>;
-}
-
+// ============================================================================
+// Browser API Declarations
 // ============================================================================
 // Browser API Declarations
 // ============================================================================
@@ -357,7 +351,6 @@ class OptionsScript {
     // Setup clear cache button
     const clearCacheBtn = document.getElementById('clear-cache-btn') as HTMLButtonElement;
     const cacheStatusMessage = document.getElementById('cache-status-message') as HTMLSpanElement;
-    const cacheStats = document.getElementById('cache-stats') as HTMLSpanElement;
 
     if (clearCacheBtn && cacheStatusMessage) {
       clearCacheBtn.addEventListener('click', async () => {
@@ -400,7 +393,11 @@ class OptionsScript {
     try {
       const response = await this.sendMessage<CacheStatsResponse>({ action: 'getCacheStats' });
 
-      if (response.success && response.totalEntries !== undefined && response.hitRate !== undefined) {
+      if (
+        response.success &&
+        response.totalEntries !== undefined &&
+        response.hitRate !== undefined
+      ) {
         cacheStats.textContent = `Cache-Einträge: ${response.totalEntries} | Hit-Rate: ${response.hitRate}%`;
       } else {
         cacheStats.textContent = response.message ?? 'Cache-Statistiken nicht verfügbar';
@@ -428,11 +425,7 @@ class OptionsScript {
       const browser = (window as any).browser;
       if (browser?.runtime?.onMessage) {
         browser.runtime.onMessage.addListener(
-          (
-            message: unknown,
-            _sender: unknown,
-            sendResponse: (response?: unknown) => void
-          ) => {
+          (message: unknown, _sender: unknown, sendResponse: (response?: unknown) => void) => {
             // Type guard for message with action
             if (typeof message === 'object' && message !== null && 'action' in message) {
               const typedMessage = message as Record<string, unknown>;
@@ -519,9 +512,7 @@ class OptionsScript {
     document.body.innerHTML = `
       <div style="color: red; padding: 20px;">
         <h2>Error initializing options page</h2>
-        <p>${
-          error instanceof Error ? error.message : String(error)
-        }</p>
+        <p>${error instanceof Error ? error.message : String(error)}</p>
         <p>Please check the browser console for more details.</p>
       </div>
     `;

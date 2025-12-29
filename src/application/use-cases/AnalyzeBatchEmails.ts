@@ -235,8 +235,7 @@ export class AnalyzeBatchEmails {
       this.failedMessageIds = [];
       this.analysisResults = [];
 
-      // Create a promise that will resolve when batch completes
-      const batchPromise = new Promise<BatchAnalysisResult>((resolve) => {
+      new Promise<BatchAnalysisResult>((resolve) => {
         this.resolvePromise = resolve;
       });
 

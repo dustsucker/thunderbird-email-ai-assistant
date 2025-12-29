@@ -1,0 +1,99 @@
+{
+  "performance_optimizations": [
+    {
+      "id": "perf-001",
+      "type": "performance_optimizations",
+      "title": "Replace SHA-256 cache key hashing with faster FNV-1a hash",
+      "description": "The MemoryCache implementation uses SHA-256 (cryptographic hash) via Web Crypto API for hashing cache keys on every get/set/has/delete operation. SHA-256 is designed for security, not speed. Additionally, AnalyzeEmail.ts generates a SHA-256 cache key, which is then hashed again by MemoryCache - doubling the cryptographic overhead.",
+      "rationale": "SHA-256 is ~100x slower than FNV-1a or djb2 string hashing. Every cache operation pays this cost. For cache keys, cryptographic security is unnecessary - we only need distribution. The double-hashing in AnalyzeEmail.ts + MemoryCache.ts means 2 SHA-256 operations per cache interaction.",
+      "category": "runtime",
+      "impact": "medium",
+      "affectedAreas": [
+        "src/infrastructure/cache/MemoryCache.ts",
+        "src/application/use-cases/AnalyzeEmail.ts"
+      ],
+      "currentMetric": "~1-2ms per cache operation due to async SHA-256, plus promise overhead",
+      "expectedImprovement": "~0.01ms per cache operation with synchronous FNV-1a hash, ~100x faster cache lookups",
+      "implementation": "1. Replace async hashKey() with sync FNV-1a/djb2 string hash\n2. Remove the redundant sha256() call in AnalyzeEmail.ts - pass raw key to cache\n3. Convert cache methods from async to sync (optional, removes Promise overhead)\n4. Alternatively, if async is needed for interface compatibility, use the original key string directly",
+      "tradeoffs": "FNV-1a has theoretically higher collision probability than SHA-256, but for cache keys with unique email content this is negligible. SHA-256 is overkill for non-security purposes.",
+      "estimatedEffort": "small"
+    },
+    {
+      "id": "perf-002",
+      "type": "performance_optimizations",
+      "title": "Replace array-sort PriorityQueue with binary heap implementation",
+      "description": "The PriorityQueue implementation in src/application/services/PriorityQueue.ts calls array.sort() after every enqueue operation. This is O(n log n) per insertion. For batch email analysis with potentially hundreds of emails, this creates O(n^2 log n) total complexity.",
+      "rationale": "A binary heap provides O(log n) insertion and O(log n) extraction. For a queue of 100 items, this is ~700 comparisons (heap) vs ~700 comparisons per insert = 70,000 total (array sort). The current implementation at line 79: `this.queue.sort((a, b) => b.priority - a.priority)` after every push is the bottleneck.",
+      "category": "runtime",
+      "impact": "medium",
+      "affectedAreas": [
+        "src/application/services/PriorityQueue.ts",
+        "src/application/use-cases/AnalyzeBatchEmails.ts"
+      ],
+      "currentMetric": "O(n log n) per enqueue, O(n^2 log n) for batch of n emails",
+      "expectedImprovement": "O(log n) per enqueue, O(n log n) for batch of n emails - ~100x faster for 100-email batches",
+      "implementation": "1. Implement binary min-heap (inverted for max priority)\n2. Replace push+sort with siftUp operation\n3. Replace shift with siftDown operation\n4. Alternatively use a well-tested heap library like 'heap-js' (~2KB gzipped)",
+      "tradeoffs": "Slightly more complex code. Binary heap is not stable (same-priority items may reorder), though this is unlikely to matter for email analysis.",
+      "estimatedEffort": "small"
+    },
+    {
+      "id": "perf-003",
+      "type": "performance_optimizations",
+      "title": "Replace RateLimiter polling with event-driven token availability",
+      "description": "The RateLimiterService uses a polling loop with 100ms intervals (line 603-604: `setTimeout(r, 100)`) to wait for token availability. This wastes CPU cycles and adds up to 100ms latency per request when tokens are depleted.",
+      "rationale": "The current implementation polls every 100ms: `while (!this.hasTokens(provider)) { await new Promise<void>((r) => setTimeout(r, 100)); }`. This is inefficient when many requests are queued. An event-driven approach using Promise resolution when tokens become available would eliminate polling overhead and reduce latency.",
+      "category": "runtime",
+      "impact": "medium",
+      "affectedAreas": [
+        "src/application/services/RateLimiterService.ts"
+      ],
+      "currentMetric": "Up to 100ms wasted latency per request, continuous CPU wake-ups during token depletion",
+      "expectedImprovement": "Zero polling overhead, instant token acquisition when available, reduced battery drain on laptops",
+      "implementation": "1. Maintain a waiting queue of Promise resolvers per provider\n2. When tokens are consumed, check if any requests are waiting\n3. When tokens are refilled (or request completes), resolve the next waiting Promise\n4. Replace polling loop with await on waiter Promise\n5. Similar to the existing semaphore implementation in acquireSemaphore()",
+      "tradeoffs": "Slightly more complex state management. Need to handle edge cases when queue is cleared or service is reset.",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "perf-004",
+      "type": "performance_optimizations",
+      "title": "Implement LRU eviction policy for unbounded MemoryCache",
+      "description": "The MemoryCache has no size limit - it only evicts entries when they expire (24-hour TTL). For long-running Thunderbird sessions with many email analyses, the cache can grow unbounded, consuming excessive memory.",
+      "rationale": "Each cached email analysis stores the full tag response. With thousands of emails over weeks of usage, memory usage can grow significantly. The cleanupExpired() method only removes expired entries but doesn't limit total cache size. An LRU policy would cap memory usage while keeping frequently accessed entries.",
+      "category": "memory",
+      "impact": "medium",
+      "affectedAreas": [
+        "src/infrastructure/cache/MemoryCache.ts",
+        "src/infrastructure/interfaces/ICache.ts"
+      ],
+      "currentMetric": "Unbounded memory growth proportional to number of analyzed emails",
+      "expectedImprovement": "Capped memory usage (e.g., 1000 entries max), automatic eviction of least-recently-used entries",
+      "implementation": "1. Add maxSize parameter to MemoryCache constructor\n2. Track access order using a doubly-linked list or move-to-front on access\n3. Evict LRU entries when maxSize is exceeded\n4. Consider using Map's insertion-order iteration for simple LRU approximation\n5. Add periodic cleanup timer instead of relying on manual cleanupExpired() calls",
+      "tradeoffs": "LRU tracking adds slight overhead per access. Need to choose appropriate maxSize for balance between hit rate and memory usage.",
+      "estimatedEffort": "medium"
+    },
+    {
+      "id": "perf-005",
+      "type": "performance_optimizations",
+      "title": "Cache html-to-text conversion results for repeated email access",
+      "description": "The EmailContentExtractor converts HTML to plain text synchronously using htmlToText() on every email access. For emails that are re-analyzed or accessed multiple times, this conversion is repeated unnecessarily.",
+      "rationale": "HTML-to-text conversion (src/domain/services/EmailContentExtractor.ts line 45, 121-123) is CPU-intensive for large HTML emails. The conversion result could be cached since email content doesn't change. This is especially beneficial for batch re-analysis scenarios.",
+      "category": "runtime",
+      "impact": "low",
+      "affectedAreas": [
+        "src/domain/services/EmailContentExtractor.ts"
+      ],
+      "currentMetric": "Full HTML parsing on every email content extraction",
+      "expectedImprovement": "Instant text retrieval for previously converted emails, reduced CPU usage during batch operations",
+      "implementation": "1. Add a content cache keyed by message ID or HTML content hash\n2. Check cache before calling htmlToText()\n3. Store converted text in cache with appropriate TTL\n4. Consider using WeakMap if message objects are available for automatic cleanup",
+      "tradeoffs": "Additional memory usage for cached text. Need to invalidate cache if email content could theoretically change (rare in email context).",
+      "estimatedEffort": "small"
+    }
+  ],
+  "metadata": {
+    "totalBundleSize": "~500KB estimated (webpack production build)",
+    "largestDependencies": ["html-to-text", "tsyringe", "reflect-metadata"],
+    "filesAnalyzed": 45,
+    "potentialSavings": "~200ms per batch analysis, significant memory reduction for long sessions",
+    "generatedAt": "2025-12-28T18:15:00Z"
+  }
+}

@@ -10,7 +10,6 @@ import type {
   IProviderSettings,
   ICustomTag,
   IAppConfig,
-  IModelConcurrencyConfig,
 } from '../src/infrastructure/interfaces/IConfigRepository';
 
 // === Mock Browser API ===
@@ -84,7 +83,9 @@ function createMockLogger(): ILogger {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-    maskApiKey: vi.fn((key?: string) => (key ? `${key.slice(0, 7)}...${key.slice(-3)}` : 'not set')),
+    maskApiKey: vi.fn((key?: string) =>
+      key ? `${key.slice(0, 7)}...${key.slice(-3)}` : 'not set'
+    ),
   };
 }
 
@@ -116,8 +117,6 @@ const sampleAppConfig: IAppConfig = {
   defaultProvider: 'openai',
   enableNotifications: true,
   enableLogging: true,
-  contextTokenLimit: 128000,
-  charsPerTokenEstimate: 4,
   modelConcurrencyLimits: [
     {
       provider: 'openai',
@@ -307,8 +306,6 @@ describe('IndexedDBConfigRepository', () => {
         defaultProvider: 'openai',
         enableNotifications: true,
         enableLogging: false,
-        contextTokenLimit: 100000,
-        charsPerTokenEstimate: 3,
       };
 
       await repository.setAppConfig(configWithoutLimits);
@@ -412,8 +409,6 @@ describe('IndexedDBConfigRepository', () => {
       expect(config.defaultProvider).toBeTypeOf('string');
       expect(config.enableNotifications).toBeTypeOf('boolean');
       expect(config.enableLogging).toBeTypeOf('boolean');
-      expect(config.contextTokenLimit).toBeTypeOf('number');
-      expect(config.charsPerTokenEstimate).toBeTypeOf('number');
       expect(config.modelConcurrencyLimits).toBeTypeOf('object');
     });
   });

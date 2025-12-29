@@ -1,5 +1,3 @@
-import { TagResponse } from './ProviderUtils';
-
 export interface ValidationResult {
   isValid: boolean;
   errors: string[];

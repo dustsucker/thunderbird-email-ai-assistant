@@ -50,8 +50,7 @@ export class EmailContentExtractor {
   buildPrompt(
     structuredData: StructuredEmailData,
     customTags: CustomTags,
-    promptTemplate: string,
-    contextCharLimit: number
+    promptTemplate: string
   ): PromptBuilderResult {
     const headersJSON: string = JSON.stringify(structuredData.headers, null, 2);
     const attachmentsJSON: string = JSON.stringify(structuredData.attachments, null, 2);
@@ -62,34 +61,10 @@ export class EmailContentExtractor {
 
     const fullInstructions: string = `${promptTemplate}\n${customInstructions}`;
 
-    const frameSize: number = fullInstructions
-      .replace('{headers}', headersJSON)
-      .replace('{body}', '')
-      .replace('{attachments}', attachmentsJSON).length;
-
-    const maxBodyLength: number = contextCharLimit - frameSize;
-    let emailBody: string = structuredData.body;
-
-    if (emailBody.length > maxBodyLength) {
-      this.logger.warn('Body length exceeds remaining space, truncating', {
-        bodyLength: emailBody.length,
-        maxBodyLength,
-      });
-      emailBody = this.truncateText(emailBody, maxBodyLength);
-    }
-
     const finalPrompt: string = fullInstructions
       .replace('{headers}', headersJSON)
-      .replace('{body}', emailBody)
+      .replace('{body}', structuredData.body)
       .replace('{attachments}', attachmentsJSON);
-
-    if (finalPrompt.length > contextCharLimit) {
-      this.logger.error('Final prompt still too long, hard cutting', {
-        promptLength: finalPrompt.length,
-        limit: contextCharLimit,
-      });
-      return finalPrompt.substring(0, contextCharLimit);
-    }
 
     return finalPrompt;
   }

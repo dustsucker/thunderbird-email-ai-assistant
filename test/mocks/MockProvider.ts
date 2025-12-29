@@ -23,7 +23,9 @@ export class MockProvider extends BaseProvider {
   private simulateTimeout: boolean = false;
   private simulateMalformedJson: boolean = false;
 
-  constructor(mockResponse: MockResponse = { tags: ['work'], confidence: 0.9, reasoning: 'Mock reasoning' }) {
+  constructor(
+    mockResponse: MockResponse = { tags: ['work'], confidence: 0.9, reasoning: 'Mock reasoning' }
+  ) {
     super();
     this.mockResponse = mockResponse;
     this.requestCount = 0;
@@ -33,26 +35,26 @@ export class MockProvider extends BaseProvider {
     return 'mock://api';
   }
 
-  public validateSettings(settings: BaseProviderSettings): boolean {
+  public validateSettings(_settings: BaseProviderSettings): boolean {
     return true;
   }
 
   protected buildRequestBody(
-    settings: BaseProviderSettings,
-    prompt: string,
-    structuredData: StructuredEmailData,
-    customTags: CustomTags
+    _settings: BaseProviderSettings,
+    _prompt: string,
+    _structuredData: StructuredEmailData,
+    _customTags: CustomTags
   ): RequestBody {
     return {};
   }
 
-  protected getHeaders(settings: BaseProviderSettings): HttpHeaders {
+  protected getHeaders(_settings: BaseProviderSettings): HttpHeaders {
     return {};
   }
 
   protected async executeRequest(
-    settings: BaseProviderSettings,
-    requestBody: RequestBody
+    _settings: BaseProviderSettings,
+    _requestBody: RequestBody
   ): Promise<Response> {
     this.requestCount++;
 
@@ -83,7 +85,7 @@ export class MockProvider extends BaseProvider {
     } as unknown as Response;
   }
 
-  protected parseResponse(response: unknown): TagResponse {
+  protected parseResponse(_response: unknown): TagResponse {
     return this.mockResponse;
   }
 

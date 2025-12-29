@@ -1,0 +1,28 @@
+{
+  "file_path": ".claude_settings.json",
+  "main_branch_history": [],
+  "task_views": {
+    "001-fix-provider-setup-with-dynamic-settings": {
+      "task_id": "001-fix-provider-setup-with-dynamic-settings",
+      "branch_point": {
+        "commit_hash": "d2cdf71ba7ec64ddd1b6cc75a9afeb67bee49e7d",
+        "content": "",
+        "timestamp": "2025-12-28T18:45:01.379116"
+      },
+      "worktree_state": {
+        "content": "{\n  \"sandbox\": {\n    \"enabled\": true,\n    \"autoAllowBashIfSandboxed\": true\n  },\n  \"permissions\": {\n    \"defaultMode\": \"acceptEdits\",\n    \"allow\": [\n      \"Read(./**)\",\n      \"Write(./**)\",\n      \"Edit(./**)\",\n      \"Glob(./**)\",\n      \"Grep(./**)\",\n      \"Bash(*)\",\n      \"mcp__context7__resolve-library-id\",\n      \"mcp__context7__get-library-docs\",\n      \"mcp__graphiti-memory__search_nodes\",\n      \"mcp__graphiti-memory__search_facts\",\n      \"mcp__graphiti-memory__add_episode\",\n      \"mcp__graphiti-memory__get_episodes\",\n      \"mcp__graphiti-memory__get_entity_edge\"\n    ]\n  }\n}",
+        "last_modified": "2025-12-28T18:45:01.494605"
+      },
+      "task_intent": {
+        "title": "001-fix-provider-setup-with-dynamic-settings",
+        "description": "Fix broken provider settings UI by correcting HTML element ID mismatches between options.html and SettingsForm.ts, and removing orphan HTML elements that are outside provider settings divs. This ensures each provider's settings are correctly displayed and saved when the user selects that provider.",
+        "from_plan": true
+      },
+      "commits_behind_main": 0,
+      "status": "active",
+      "merged_at": null
+    }
+  },
+  "created_at": "2025-12-28T18:38:44.189428",
+  "last_updated": "2025-12-28T18:45:01.452845"
+}

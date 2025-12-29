@@ -6,7 +6,6 @@ import {
   logger,
   maskApiKey,
   TagResponse as UtilsTagResponse,
-  validateRequestBody,
 } from './ProviderUtils';
 
 export type TagResponse = UtilsTagResponse;
@@ -216,7 +215,7 @@ export abstract class BaseProvider {
    * @param settings - Provider settings
    * @returns Additional headers object
    */
-  protected getAdditionalHeaders(settings: BaseProviderSettings): HttpHeaders {
+  protected getAdditionalHeaders(_settings: BaseProviderSettings): HttpHeaders {
     return {};
   }
 

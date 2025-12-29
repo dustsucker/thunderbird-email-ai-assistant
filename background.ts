@@ -119,6 +119,9 @@ declare const messenger: {
     };
   };
   runtime: {
+    onInstalled: {
+      addListener(callback: (details: { reason: string }) => void): void;
+    };
     onSuspend: {
       addListener(callback: () => void): void;
     };
@@ -244,7 +247,10 @@ class BackgroundScript {
       // Step 6: Register toolbar button
       this.registerToolbarButton();
 
-      // Step 7: Register shutdown handler
+      // Step 7: Register onInstalled handler
+      this.registerInstallHandler();
+
+      // Step 8: Register shutdown handler
       this.registerShutdownHandler();
 
       this.isInitialized = true;
@@ -545,6 +551,65 @@ class BackgroundScript {
     } else {
       this.logger?.warn('Browser action API not available for toolbar button');
     }
+  }
+
+  // ==========================================================================
+  // Private Methods - Install Handler
+  // ==========================================================================
+
+  /**
+   * Registers onInstalled handler for extension install/update.
+   */
+  private registerInstallHandler(): void {
+    this.logger?.info('Registering onInstalled handler...');
+
+    if (messenger.runtime && messenger.runtime.onInstalled) {
+      messenger.runtime.onInstalled.addListener(async (details) => {
+        if (details.reason === 'install') {
+          this.logger?.info('Extension installed, initializing default settings...');
+
+          try {
+            const configRepository = container.resolve<IConfigRepository>('IConfigRepository');
+
+            try {
+              await configRepository.getAppConfig();
+              this.logger?.info('App config already exists, skipping defaults');
+            } catch {
+              this.logger?.info('Setting default app config');
+              await configRepository.setAppConfig({
+                defaultProvider: 'ollama',
+                enableNotifications: true,
+                enableLogging: false,
+                modelConcurrencyLimits: undefined,
+              });
+            }
+
+            try {
+              await configRepository.getProviderSettings('ollama');
+              this.logger?.info('Ollama provider settings already exist, skipping defaults');
+            } catch {
+              this.logger?.info('Setting default ollama provider settings');
+              await configRepository.setProviderSettings('ollama', {
+                apiKey: '',
+                model: 'gemma3:27b',
+                apiUrl: 'http://localhost:11434/api/generate',
+              });
+            }
+
+            this.logger?.info('Default configuration initialized successfully');
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.logger?.error('Failed to initialize default configuration', {
+              error: errorMessage,
+            });
+          }
+        }
+      });
+    } else {
+      this.logger?.warn('Runtime onInstalled handler not available');
+    }
+
+    this.logger?.info('Install handler registered');
   }
 
   // ==========================================================================

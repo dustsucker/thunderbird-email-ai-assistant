@@ -15,11 +15,11 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
-import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
+import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { ApplyTagsToEmail } from '@/application/use-cases/ApplyTagsToEmail';
-import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
+import { AppConfigService } from '@/infrastructure/config/AppConfig';
 import { EventBus } from '@/domain/events/EventBus';
 import { createProviderErrorEvent } from '@/domain/events/ProviderErrorEvent';
 
@@ -276,6 +276,7 @@ export class MessageHandler {
   private readonly analyzeEmail: AnalyzeEmail;
   private readonly analyzeBatch: AnalyzeBatchEmails;
   private readonly logger: ILogger;
+  private readonly appConfigService: AppConfigService;
 
   private handlerState: HandlerState = {
     isRegistered: false,
@@ -309,7 +310,8 @@ export class MessageHandler {
    * @param analyzeBatch - Batch email analysis use case
    * @param _applyTags - Tag application use case (reserved for future use)
    * @param logger - Logger instance for logging operations
-   * @param configRepository - Config repository for loading provider settings
+   * @param eventBus - Event bus for publishing events
+   * @param appConfigService - App config service for loading provider settings
    */
   constructor(
     @inject(AnalyzeEmail) analyzeEmail: AnalyzeEmail,
@@ -317,11 +319,12 @@ export class MessageHandler {
     @inject(ApplyTagsToEmail) _applyTags: ApplyTagsToEmail,
     @inject('ILogger') logger: ILogger,
     @inject(EventBus) private readonly eventBus: EventBus,
-    @inject('IConfigRepository') private readonly configRepository: IConfigRepository
+    @inject(AppConfigService) appConfigService: AppConfigService
   ) {
     this.analyzeEmail = analyzeEmail;
     this.analyzeBatch = analyzeBatch;
     this.logger = logger;
+    this.appConfigService = appConfigService;
 
     this.logger.debug('MessageHandler service initialized');
   }
@@ -550,7 +553,13 @@ export class MessageHandler {
       }
 
       // Get provider settings
+      this.logger.info('Batch Step 1: Getting provider settings...');
       const providerSettings = await this.getProviderSettings();
+
+      this.logger.info('Batch Step 2: Provider settings retrieved', {
+        provider: providerSettings.provider,
+        hasApiKey: !!providerSettings.apiKey,
+      });
 
       if (!providerSettings.provider) {
         return {
@@ -687,7 +696,13 @@ export class MessageHandler {
     this.logger.info('Handling analyzeSingleMessage message', { messageId: message.messageId });
 
     try {
+      this.logger.info('Step 1: Getting provider settings...');
       const providerSettings = await this.getProviderSettings();
+
+      this.logger.info('Step 2: Provider settings retrieved', {
+        provider: providerSettings.provider,
+        hasApiKey: !!providerSettings.apiKey,
+      });
 
       if (!providerSettings.provider) {
         return {
@@ -696,6 +711,7 @@ export class MessageHandler {
         };
       }
 
+      this.logger.info('Step 3: Calling analyzeEmail.execute()...');
       const result = await this.analyzeEmail.execute(message.messageId, providerSettings);
 
       return {
@@ -705,9 +721,11 @@ export class MessageHandler {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error('Failed to analyze single message', {
         messageId: message.messageId,
         error: errorMessage,
+        stack: errorStack,
       });
       return {
         success: false,
@@ -776,10 +794,18 @@ export class MessageHandler {
    */
   private async getProviderSettings(): Promise<IProviderSettings> {
     try {
-      const appConfig = await this.configRepository.getAppConfig();
+      this.logger.info('Attempting to get app config...');
+      const appConfig = await this.appConfigService.getAppConfig();
       const defaultProvider = appConfig.defaultProvider;
 
-      const providerSettings = await this.configRepository.getProviderSettings(defaultProvider);
+      this.logger.info('App config retrieved', { defaultProvider });
+
+      this.logger.info(`Attempting to get provider settings for: ${defaultProvider}`);
+      const providerSettings = await this.appConfigService.getProviderSettings(defaultProvider);
+
+      this.logger.info('Provider settings retrieved', {
+        apiKey: providerSettings.apiKey ? '***' : 'missing',
+      });
 
       return {
         provider: defaultProvider,
@@ -789,9 +815,13 @@ export class MessageHandler {
         additionalConfig: providerSettings.additionalConfig,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error('Failed to get provider settings', {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
+        stack: errorStack,
       });
+      this.logger.error('Returning empty provider settings - THIS WILL CAUSE ANALYSIS TO FAIL');
       return { provider: '' };
     }
   }
