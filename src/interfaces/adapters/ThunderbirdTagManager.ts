@@ -1,5 +1,9 @@
 import { injectable, inject } from 'tsyringe';
-import { ITagManager, ThunderbirdTag, TagUpdateOptions } from '../../infrastructure/interfaces/ITagManager';
+import {
+  ITagManager,
+  ThunderbirdTag,
+  TagUpdateOptions,
+} from '../../infrastructure/interfaces/ITagManager';
 import { ILogger } from '../../infrastructure/interfaces/ILogger';
 
 // ============================================================================
@@ -7,13 +11,13 @@ import { ILogger } from '../../infrastructure/interfaces/ILogger';
 // ============================================================================
 
 declare const messenger: {
-  tags: {
-    list(): Promise<unknown[]>;
-    create(key: string, tag: string, color: string): Promise<ThunderbirdTag>;
-    update(key: string, updateData: { color?: string; tag?: string }): Promise<ThunderbirdTag>;
-    delete(key: string): Promise<void>;
-  };
   messages: {
+    listTags(): Promise<unknown[]>;
+    tags: {
+      create(key: string, tag: string, color: string): Promise<ThunderbirdTag>;
+      update(key: string, updateData: { color?: string; tag?: string }): Promise<ThunderbirdTag>;
+      delete(key: string): Promise<void>;
+    };
     addTags(ids: number[], tags: string[]): Promise<void>;
     removeTags(ids: number[], tags: string[]): Promise<void>;
     setTags(ids: number[], tags: string[]): Promise<void>;
@@ -94,7 +98,7 @@ export class ThunderbirdTagManager implements ITagManager {
     this.logger.debug('Fetching all tags from Thunderbird');
 
     try {
-      const tags = await messenger.tags.list();
+      const tags = await messenger.messages.listTags();
 
       if (!isThunderbirdTagArray(tags)) {
         this.logger.error('Invalid tag list received from Thunderbird', { tags });
@@ -189,7 +193,7 @@ export class ThunderbirdTagManager implements ITagManager {
 
       // Create tag with default color if not provided
       const tagColor = color || '#9E9E9E';
-      const createdTag = await messenger.tags.create(key, name, tagColor);
+      const createdTag = await messenger.messages.tags.create(key, name, tagColor);
 
       if (!isThunderbirdTag(createdTag)) {
         throw new Error('Invalid tag object returned from Thunderbird API');
@@ -221,7 +225,9 @@ export class ThunderbirdTagManager implements ITagManager {
       const updateData: { color?: string; tag?: string } = {};
       if (updates.color !== undefined) {
         if (!/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(updates.color)) {
-          throw new Error(`Invalid color format: ${updates.color}. Must be hex color (e.g., #FF0000)`);
+          throw new Error(
+            `Invalid color format: ${updates.color}. Must be hex color (e.g., #FF0000)`
+          );
         }
         updateData.color = updates.color;
       }
@@ -233,7 +239,7 @@ export class ThunderbirdTagManager implements ITagManager {
       }
 
       // Update the tag
-      const updatedTag = await messenger.tags.update(tag.key, updateData);
+      const updatedTag = await messenger.messages.tags.update(tag.key, updateData);
 
       if (!isThunderbirdTag(updatedTag)) {
         throw new Error('Invalid tag object returned from Thunderbird API');
@@ -261,7 +267,7 @@ export class ThunderbirdTagManager implements ITagManager {
         throw new Error(`Tag '${id}' not found`);
       }
 
-      await messenger.tags.delete(tag.key);
+      await messenger.messages.tags.delete(tag.key);
       this.logger.info('Tag deleted successfully', { key: tag.key, name: tag.tag });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -307,8 +313,14 @@ export class ThunderbirdTagManager implements ITagManager {
       this.logger.debug('Tag removed from message', { messageId, tagKey });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to remove tag from message', { messageId, tagKey, error: errorMessage });
-      throw new Error(`Failed to remove tag '${tagKey}' from message ${messageId}: ${errorMessage}`);
+      this.logger.error('Failed to remove tag from message', {
+        messageId,
+        tagKey,
+        error: errorMessage,
+      });
+      throw new Error(
+        `Failed to remove tag '${tagKey}' from message ${messageId}: ${errorMessage}`
+      );
     }
   }
 
@@ -332,7 +344,11 @@ export class ThunderbirdTagManager implements ITagManager {
       this.logger.debug('Tags set on message', { messageId, tagKeys });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to set tags on message', { messageId, tagKeys, error: errorMessage });
+      this.logger.error('Failed to set tags on message', {
+        messageId,
+        tagKeys,
+        error: errorMessage,
+      });
       throw new Error(`Failed to set tags on message ${messageId}: ${errorMessage}`);
     }
   }
@@ -426,8 +442,14 @@ export class ThunderbirdTagManager implements ITagManager {
       this.logger.debug('Tag added to messages', { count: messageIds.length, tagKey });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to add tag to messages', { count: messageIds.length, tagKey, error: errorMessage });
-      throw new Error(`Failed to add tag '${tagKey}' to ${messageIds.length} messages: ${errorMessage}`);
+      this.logger.error('Failed to add tag to messages', {
+        count: messageIds.length,
+        tagKey,
+        error: errorMessage,
+      });
+      throw new Error(
+        `Failed to add tag '${tagKey}' to ${messageIds.length} messages: ${errorMessage}`
+      );
     }
   }
 
@@ -435,7 +457,10 @@ export class ThunderbirdTagManager implements ITagManager {
    * @inheritdoc
    */
   async setTagsOnMessages(messageIds: number[], tagKeys: string[]): Promise<void> {
-    this.logger.debug('Setting tags on multiple messages', { messageIds: messageIds.length, tagKeys });
+    this.logger.debug('Setting tags on multiple messages', {
+      messageIds: messageIds.length,
+      tagKeys,
+    });
 
     if (messageIds.length === 0) {
       this.logger.debug('No message IDs provided, skipping');
@@ -456,7 +481,11 @@ export class ThunderbirdTagManager implements ITagManager {
       this.logger.debug('Tags set on messages', { count: messageIds.length, tagKeys });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to set tags on messages', { count: messageIds.length, tagKeys, error: errorMessage });
+      this.logger.error('Failed to set tags on messages', {
+        count: messageIds.length,
+        tagKeys,
+        error: errorMessage,
+      });
       throw new Error(`Failed to set tags on ${messageIds.length} messages: ${errorMessage}`);
     }
   }

@@ -147,9 +147,7 @@ export class EmailEventListener {
     this.onNewMailReceivedHandler = this.onNewMailReceived.bind(this);
 
     // Access global messenger object (Thunderbird WebExtension API)
-    // @ts-expect-error - messenger is a global Thunderbird API
     if (typeof messenger !== 'undefined' && messenger.messages?.onNewMailReceived) {
-      // @ts-expect-error - messenger.messages.onNewMailReceived is a Thunderbird API
       messenger.messages.onNewMailReceived.addListener(this.onNewMailReceivedHandler);
       this.listenerState.isRegistered = true;
       this.logger.info('New mail event listener registered');
@@ -173,9 +171,7 @@ export class EmailEventListener {
 
     // Unregister new mail received handler
     if (this.onNewMailReceivedHandler) {
-      // @ts-expect-error - messenger is a global Thunderbird API
       if (typeof messenger !== 'undefined' && messenger.messages?.onNewMailReceived) {
-        // @ts-expect-error - messenger.messages.onNewMailReceived is a Thunderbird API
         messenger.messages.onNewMailReceived.removeListener(this.onNewMailReceivedHandler);
         this.logger.info('New mail event listener unregistered');
       }
@@ -255,9 +251,8 @@ export class EmailEventListener {
       for (const message of messages.messages) {
         try {
           // Get message details
-          // @ts-expect-error - messenger is a global Thunderbird API
           const messageDetails = await messenger.messages.getFull(message.id);
-          
+
           await this.eventBus.publish(
             createEmailReceivedEvent(
               {
@@ -302,9 +297,7 @@ export class EmailEventListener {
       if (result.failureCount > 0) {
         this.logger.warn('Some new mail messages failed to process', {
           failed: result.failureCount,
-          failedIds: result.results
-            .filter((r) => !r.success)
-            .map((r) => r.messageId),
+          failedIds: result.results.filter((r) => !r.success).map((r) => r.messageId),
         });
       }
     } catch (error) {
@@ -328,12 +321,10 @@ export class EmailEventListener {
    */
   private async getProviderSettings(): Promise<IProviderSettings> {
     try {
-      // @ts-expect-error - messenger is a global Thunderbird API
       if (typeof messenger === 'undefined' || !messenger.storage) {
         return { provider: '' };
       }
 
-      // @ts-expect-error - messenger.storage.local is a Thunderbird API
       const result = await messenger.storage.local.get({
         provider: '',
         apiKey: '',

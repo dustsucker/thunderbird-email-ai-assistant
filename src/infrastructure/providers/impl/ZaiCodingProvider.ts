@@ -10,7 +10,7 @@ import type { IProviderSettings } from '../../interfaces/IProvider';
 // Zai API Types
 // ============================================================================
 
-const ZAI_CODING_API_URL = 'https://api.z.ai/api/coding/paas/v4/chat/completions';
+const ZAI_CODING_API_URL = 'https://api.z.ai/api/paas/v4/chat/completions';
 const DEFAULT_MODEL = 'glm-4.7';
 
 type ZaiMessageRole = 'system' | 'user' | 'assistant' | 'tool';
@@ -183,7 +183,7 @@ export class ZaiCodingProvider extends BaseProvider {
       throw new Error('API key is required to list models');
     }
 
-    const modelsEndpoint = 'https://api.z.ai/api/coding/paas/v4/models';
+    const modelsEndpoint = 'https://api.z.ai/api/paas/v4/models';
 
     try {
       const response = await fetch(modelsEndpoint, {

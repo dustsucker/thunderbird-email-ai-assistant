@@ -6,7 +6,7 @@
  *
  * This use case provides a clean interface for applying tags to messages:
  * 1. Validates and ensures all specified tags exist
- * 2. Applies tags to the specified message via ITagManager
+ * 2. Applies tags to specified message via ITagManager
  *
  * @module application/use-cases/ApplyTagsToEmail
  */
@@ -14,9 +14,11 @@
 import { injectable, inject } from 'tsyringe';
 import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { EventBus } from '@/domain/events/EventBus';
 import { createTagAppliedEvent } from '@/domain/events/TagAppliedEvent';
 import { createTagCreatedEvent } from '@/domain/events/TagCreatedEvent';
+import { HARDCODED_TAGS, type Tag } from '../../../core/config';
 
 // ============================================================================
 // Type Definitions
@@ -74,9 +76,10 @@ export class ApplyTagsToEmail {
   constructor(
     @inject('ITagManager') private readonly tagManager: ITagManager,
     @inject('ILogger') private readonly logger: ILogger,
-    @inject(EventBus) private readonly eventBus: EventBus
+    @inject(EventBus) private readonly eventBus: EventBus,
+    @inject('IConfigRepository') private readonly configRepository: IConfigRepository
   ) {
-    this.logger.debug('ApplyTagsToEmail use case initialized');
+    this.logger.debug('✅ ApplyTagsToEmail use case initialized');
   }
 
   // ==========================================================================
@@ -105,13 +108,13 @@ export class ApplyTagsToEmail {
     tagKeys: string[],
     config: ApplyTagsConfig = {}
   ): Promise<ApplyTagsResult> {
-    const {
-      createMissingTags = false,
-      replaceTags = false,
-      defaultColor = '#9E9E9E',
-    } = config;
+    const { createMissingTags = false, replaceTags = false, defaultColor = '#9E9E9E' } = config;
 
-    this.logger.info('Applying tags to email', { messageId, tagKeys, replaceTags });
+    this.logger.info('🏷️  Applying tags to email', {
+      messageId,
+      tagKeys,
+      config: { createMissingTags, replaceTags },
+    });
 
     try {
       // Validate message ID
@@ -121,22 +124,27 @@ export class ApplyTagsToEmail {
       }
 
       // Ensure all tags exist
+      this.logger.debug('➡️  Ensuring tags exist', { tagKeys, createMissingTags });
       const { applied: ensuredTags, created: createdTags } = await this.ensureTagsExist(
         tagKeys,
         createMissingTags,
         defaultColor
       );
+      this.logger.debug('✅ Tags ensured', { ensuredTags, createdTags });
 
       // Apply tags to message
+      this.logger.debug('➡️  Applying tags to message');
       await this.applyTagsToMessage(messageIdNum, ensuredTags, replaceTags);
+      this.logger.debug('✅ Tags applied to message');
 
-      this.logger.info('Tags applied successfully', {
+      this.logger.info('✅ Tags applied successfully', {
         messageId,
         appliedTags: ensuredTags,
         createdTags,
       });
 
       // Publish TagAppliedEvent
+      this.logger.debug('➡️  Publishing TagAppliedEvent');
       await this.eventBus.publish(
         createTagAppliedEvent(messageId, ensuredTags, {
           skippedTags: tagKeys.filter((k) => !ensuredTags.includes(k)),
@@ -153,7 +161,7 @@ export class ApplyTagsToEmail {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to apply tags', { messageId, tagKeys, error: errorMessage });
+      this.logger.error('❌ Failed to apply tags', { messageId, tagKeys, error: errorMessage });
       throw new Error(`Failed to apply tags to message ${messageId}: ${errorMessage}`);
     }
   }
@@ -185,22 +193,23 @@ export class ApplyTagsToEmail {
     createMissing: boolean = false,
     defaultColor: string = '#9E9E9E'
   ): Promise<{ applied: string[]; created: string[] }> {
-    this.logger.debug('Ensuring tags exist', { tagKeys, createMissing });
+    this.logger.debug('🔍 Ensuring tags exist', { tagKeys, createMissing, defaultColor });
 
     const applied: string[] = [];
     const created: string[] = [];
 
     for (const tagKey of tagKeys) {
       try {
+        this.logger.debug('➡️  Checking tag existence', { tagKey });
         const existingTag = await this.tagManager.getTag(tagKey);
 
         if (existingTag) {
           // Tag already exists
-          this.logger.debug('Tag already exists', { tagKey });
+          this.logger.debug('✅ Tag already exists', { tagKey });
           applied.push(tagKey);
         } else if (createMissing) {
           // Create missing tag
-          this.logger.info('Creating missing tag', { tagKey, color: defaultColor });
+          this.logger.info('🆕 Creating missing tag', { tagKey, color: defaultColor });
 
           // Generate a readable tag name from key
           const tagName = this.keyToTagName(tagKey);
@@ -210,24 +219,24 @@ export class ApplyTagsToEmail {
           applied.push(tagKey);
 
           // Publish TagCreatedEvent
-          await this.eventBus.publish(
-            createTagCreatedEvent(tagKey, tagName, defaultColor)
-          );
+          this.logger.debug('➡️  Publishing TagCreatedEvent');
+          await this.eventBus.publish(createTagCreatedEvent(tagKey, tagName, defaultColor));
+          this.logger.debug('✅ TagCreatedEvent published');
         } else {
           // Tag does not exist and creation is disabled
-          this.logger.warn('Tag does not exist and creation is disabled', { tagKey });
+          this.logger.warn('⚠️  Tag does not exist and creation is disabled', { tagKey });
           throw new Error(
             `Tag '${tagKey}' does not exist. Set createMissingTags=true to create it automatically.`
           );
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        this.logger.error('Failed to ensure tag exists', { tagKey, error: errorMessage });
+        this.logger.error('❌ Failed to ensure tag exists', { tagKey, error: errorMessage });
         throw error;
       }
     }
 
-    this.logger.debug('Tags ensured', { applied: applied.length, created: created.length });
+    this.logger.debug('✅ Tags ensured', { applied: applied.length, created: created.length });
 
     return { applied, created };
   }
@@ -248,7 +257,7 @@ export class ApplyTagsToEmail {
    * ```
    */
   async removeTags(messageId: string, tagKeys: string[]): Promise<void> {
-    this.logger.info('Removing tags from email', { messageId, tagKeys });
+    this.logger.info('🗑️  Removing tags from email', { messageId, tagKeys });
 
     try {
       const messageIdNum = parseInt(messageId, 10);
@@ -257,28 +266,31 @@ export class ApplyTagsToEmail {
       }
 
       // Get current tags on message
+      this.logger.debug('➡️  Getting current tags on message');
       const currentTags = await this.getCurrentTags(messageIdNum);
       const keysToRemove = tagKeys.filter((k) => currentTags.includes(k));
+      this.logger.debug('✅ Current tags retrieved', { currentTags, keysToRemove });
 
       if (keysToRemove.length === 0) {
-        this.logger.debug('No tags to remove', { messageId, tagKeys });
+        this.logger.debug('⏭️  No tags to remove', { messageId, tagKeys });
         return;
       }
 
       // Calculate remaining tags
       const remainingTags = currentTags.filter((k) => !keysToRemove.includes(k));
+      this.logger.debug('➡️  Setting remaining tags', { remainingTags });
 
       // Set remaining tags
       await this.tagManager.setTagsOnMessage(messageIdNum, remainingTags);
 
-      this.logger.info('Tags removed successfully', {
+      this.logger.info('✅ Tags removed successfully', {
         messageId,
         removedTags: keysToRemove,
         remainingTags: remainingTags.length,
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to remove tags', { messageId, tagKeys, error: errorMessage });
+      this.logger.error('❌ Failed to remove tags', { messageId, tagKeys, error: errorMessage });
       throw new Error(`Failed to remove tags from message ${messageId}: ${errorMessage}`);
     }
   }
@@ -298,7 +310,7 @@ export class ApplyTagsToEmail {
    * ```
    */
   async clearTags(messageId: string): Promise<void> {
-    this.logger.info('Clearing all tags from email', { messageId });
+    this.logger.info('🧹 Clearing all tags from email', { messageId });
 
     try {
       const messageIdNum = parseInt(messageId, 10);
@@ -306,12 +318,13 @@ export class ApplyTagsToEmail {
         throw new Error(`Invalid message ID: ${messageId}`);
       }
 
+      this.logger.debug('➡️  Setting empty tag array');
       await this.tagManager.setTagsOnMessage(messageIdNum, []);
 
-      this.logger.info('All tags cleared', { messageId });
+      this.logger.info('✅ All tags cleared', { messageId });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to clear tags', { messageId, error: errorMessage });
+      this.logger.error('❌ Failed to clear tags', { messageId, error: errorMessage });
       throw new Error(`Failed to clear tags from message ${messageId}: ${errorMessage}`);
     }
   }
@@ -333,23 +346,26 @@ export class ApplyTagsToEmail {
     tagKeys: string[],
     replaceTags: boolean
   ): Promise<void> {
-    this.logger.debug('Applying tags to message', { messageId, tagKeys, replaceTags });
+    this.logger.debug('🔧 Applying tags to message', { messageId, tagKeys, replaceTags });
 
     try {
       if (replaceTags) {
         // Replace all tags
+        this.logger.debug('➡️  Replacing all tags');
         await this.tagManager.setTagsOnMessage(messageId, tagKeys);
       } else {
         // Append tags to existing ones
+        this.logger.debug('➡️  Appending tags to existing ones');
         const currentTags = await this.getCurrentTags(messageId);
         const newTags = [...new Set([...currentTags, ...tagKeys])];
+        this.logger.debug('✅ Combined tags', { current: currentTags.length, new: newTags.length });
         await this.tagManager.setTagsOnMessage(messageId, newTags);
       }
 
-      this.logger.debug('Tags applied to message', { messageId, count: tagKeys.length });
+      this.logger.debug('✅ Tags applied to message', { messageId, count: tagKeys.length });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to apply tags to message', { messageId, error: errorMessage });
+      this.logger.error('❌ Failed to apply tags to message', { messageId, error: errorMessage });
       throw error;
     }
   }
@@ -370,7 +386,7 @@ export class ApplyTagsToEmail {
     // 2. Extract tags from message.tags property
     // 3. Return tag keys
 
-    this.logger.debug('Getting current tags for message', { messageId });
+    this.logger.debug('🔍 Getting current tags for message', { messageId });
 
     // Placeholder implementation
     // This should be replaced with actual Thunderbird API call

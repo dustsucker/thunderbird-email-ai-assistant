@@ -7,8 +7,17 @@
 
 import { injectable, container, inject, InjectionToken } from 'tsyringe';
 import { BaseProviderAdapter } from './BaseProviderAdapter';
+import type { BaseProvider } from './BaseProvider';
 import type { IProvider } from '../interfaces/IProvider';
 import type { ILogger } from '../interfaces/ILogger';
+import { OpenAIProvider } from './impl/OpenAIProvider';
+import { ClaudeProvider } from './impl/ClaudeProvider';
+import { GeminiProvider } from './impl/GeminiProvider';
+import { MistralProvider } from './impl/MistralProvider';
+import { OllamaProvider } from './impl/OllamaProvider';
+import { DeepseekProvider } from './impl/DeepseekProvider';
+import { ZaiPaaSProvider } from './impl/ZaiPaaSProvider';
+import { ZaiCodingProvider } from './impl/ZaiCodingProvider';
 import 'reflect-metadata';
 
 // ============================================================================
@@ -44,6 +53,21 @@ const PROVIDER_ID_TO_TOKEN: ReadonlyMap<string, InjectionToken<unknown>> = new M
   ['zai-paas', ProviderTokens.ZAI_PAAS_PROVIDER],
   ['zai-coding', ProviderTokens.ZAI_CODING_PROVIDER],
 ] as const);
+
+/**
+ * Provider ID to class mapping
+ * Maps provider IDs to their implementation classes
+ */
+const PROVIDER_ID_TO_CLASS: ReadonlyMap<string, new (logger: ILogger) => unknown> = new Map([
+  ['openai', OpenAIProvider],
+  ['claude', ClaudeProvider],
+  ['gemini', GeminiProvider],
+  ['mistral', MistralProvider],
+  ['ollama', OllamaProvider],
+  ['deepseek', DeepseekProvider],
+  ['zai-paas', ZaiPaaSProvider],
+  ['zai-coding', ZaiCodingProvider],
+] as Array<[string, new (logger: ILogger) => unknown]>);
 
 // ============================================================================
 // TYPE GUARDS
@@ -160,9 +184,20 @@ export class ProviderFactory {
         useFactory: () => {
           this.logger.debug('Creating adapter for provider', { providerId });
 
-          // Import provider dynamically (legacy implementations)
-          // This will be replaced with DI-ready providers in future
-          return new BaseProviderAdapter(providerId, null as never, this.logger);
+          // Get the provider class from mapping
+          const ProviderClass = PROVIDER_ID_TO_CLASS.get(providerId);
+          if (!ProviderClass) {
+            this.logger.error('Provider class not found', { providerId });
+            throw new Error(`Provider class not found for provider: ${providerId}`);
+          }
+
+          // Instantiate the provider with logger
+          // Type assertion: all provider classes extend BaseProvider
+          const providerInstance = new ProviderClass(this.logger) as BaseProvider;
+          this.logger.debug('Provider instantiated', { providerId });
+
+          // Create adapter with the provider instance
+          return new BaseProviderAdapter(providerId, providerInstance, this.logger);
         },
       });
 

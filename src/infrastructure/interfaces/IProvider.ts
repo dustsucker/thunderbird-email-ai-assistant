@@ -105,6 +105,8 @@ export interface IAnalyzeInput {
   data: IStructuredEmailData;
   /** Custom tag configurations for analysis */
   tags: ICustomTag[];
+  /** AbortSignal for cancelling the analysis */
+  signal?: AbortSignal;
 }
 
 // ============================================================================

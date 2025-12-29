@@ -43,6 +43,12 @@ import { RateLimiterService } from './src/application/services/RateLimiterServic
 import { ProviderFactory } from './src/infrastructure/providers/ProviderFactory';
 
 // ============================================================================
+// Domain Types
+// ============================================================================
+
+import type { IProviderSettings } from './src/infrastructure/interfaces/IProvider';
+
+// ============================================================================
 // Use Cases
 // ============================================================================
 
@@ -79,7 +85,10 @@ interface FolderMenuOnClickData {
   menuItemId: string | number;
   selectedFolders?: ThunderbirdFolder[];
   modifiers: string[];
-  selectedMessages?: Array<{ id: number }>;
+  selectedMessages?: {
+    id: number | null;
+    messages: Array<{ id: number; date: string }>;
+  };
 }
 
 /**
@@ -200,6 +209,9 @@ class BackgroundScript {
   private eventListener: EmailEventListener | null = null;
   private messageHandler: MessageHandler | null = null;
   private logger: ILogger | null = null;
+  private analyzeEmail: AnalyzeEmail | null = null;
+  private analyzeBatch: AnalyzeBatchEmails | null = null;
+  private appConfigService: AppConfigService | null = null;
   private isInitialized = false;
 
   // ==========================================================================
@@ -236,6 +248,11 @@ class BackgroundScript {
       // Step 3: Resolve background services
       this.eventListener = container.resolve<EmailEventListener>(EmailEventListener);
       this.messageHandler = container.resolve<MessageHandler>(MessageHandler);
+
+      // Step 3.5: Resolve use cases and config service for context menu handlers
+      this.analyzeEmail = container.resolve<AnalyzeEmail>(AnalyzeEmail);
+      this.analyzeBatch = container.resolve<AnalyzeBatchEmails>(AnalyzeBatchEmails);
+      this.appConfigService = container.resolve<AppConfigService>(AppConfigService);
 
       // Step 4: Start background services
       this.eventListener.start();
@@ -431,8 +448,19 @@ class BackgroundScript {
    * Handles context menu clicks.
    */
   private async handleContextMenuClick(info: FolderMenuOnClickData, _tab: Tab): Promise<void> {
+    // Extract message data for proper access to messages array
+    const messageData = info.selectedMessages;
+
+    // Detailed debug logging before any conditions
     this.logger?.info('Context menu clicked', {
       menuItemId: info.menuItemId,
+      menuItemIdType: typeof info.menuItemId,
+      hasSelectedMessages: messageData !== undefined,
+      hasMessagesProperty: messageData?.messages !== undefined,
+      messageCount: messageData?.messages?.length ?? 0,
+      hasSelectedFolders: info.selectedFolders !== undefined,
+      folderCount: info.selectedFolders?.length ?? 0,
+      fullInfo: info,
     });
 
     try {
@@ -444,26 +472,104 @@ class BackgroundScript {
       const menuItemId = info.menuItemId as string;
 
       // Handle folder batch analysis
-      if (menuItemId === 'batch-analyze-folder' && info.selectedFolders) {
+      if (menuItemId === 'batch-analyze-folder') {
+        if (!info.selectedFolders) {
+          this.logger?.warn('Folder batch analysis requested but no folders selected', {
+            menuItemId,
+          });
+          return;
+        }
+
         const folders = info.selectedFolders;
-        if (folders.length > 0) {
-          const folder = folders[0];
-          this.logger?.info('Starting batch analysis for folder', {
-            folderId: folder.id,
-            folderName: folder.name,
+        if (folders.length === 0) {
+          this.logger?.warn('Folder batch analysis requested but folder list is empty', {
+            menuItemId,
+            folderCount: 0,
+          });
+          return;
+        }
+
+        const folder = folders[0];
+        this.logger?.info('Starting batch analysis for folder', {
+          folderId: folder.id,
+          folderName: folder.name,
+        });
+
+        // Show notification
+        await messenger.notifications.create({
+          type: 'basic',
+          iconUrl: 'icon.png',
+          title: 'Batch-Analysis gestartet',
+          message: `Batch-Analysis für Ordner "${folder.name}" gestartet`,
+        });
+
+        try {
+          this.logger?.info('Batch Step 1: Getting provider settings...');
+          const providerSettings = await this.getProviderSettings();
+
+          this.logger?.info('Batch Step 2: Provider settings retrieved', {
+            provider: providerSettings.provider,
+            hasApiKey: !!providerSettings.apiKey,
           });
 
-          // Show notification
+          if (!providerSettings.provider) {
+            await messenger.notifications.create({
+              type: 'basic',
+              iconUrl: 'icon.png',
+              title: 'Fehler',
+              message: 'Kein Provider konfiguriert. Bitte überprüfen Sie Ihre Einstellungen.',
+            });
+            return;
+          }
+
+          // Get messages to analyze
+          const messageIds = await this.getMessagesToAnalyze(folder.id);
+
+          if (messageIds.length === 0) {
+            await messenger.notifications.create({
+              type: 'basic',
+              iconUrl: 'icon.png',
+              title: 'Keine Nachrichten',
+              message: `Keine Nachrichten in Ordner "${folder.name}" gefunden.`,
+            });
+            return;
+          }
+
+          this.logger?.info('Batch Step 3: Starting batch analysis', {
+            messageCount: messageIds.length,
+          });
+
+          // Direct use case call
+          const result = await this.analyzeBatch!.execute(messageIds, {
+            providerSettings,
+            priority: 1,
+            concurrency: 3,
+          });
+
+          this.logger?.info('Batch analysis completed successfully', {
+            total: result.total,
+            successful: result.successCount,
+            failed: result.failureCount,
+          });
+
           await messenger.notifications.create({
             type: 'basic',
             iconUrl: 'icon.png',
-            title: 'Batch-Analysis gestartet',
-            message: `Batch-Analysis für Ordner "${folder.name}" gestartet`,
+            title: 'Batch-Analysis abgeschlossen',
+            message: `Analyzed ${result.successCount}/${result.total} messages successfully.`,
           });
-
-          await messenger.runtime.sendMessage({
-            action: 'startBatchAnalysis',
-            folderId: folder.id,
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorStack = error instanceof Error ? error.stack : undefined;
+          this.logger?.error('Failed to execute batch analysis', {
+            error: errorMessage,
+            stack: errorStack,
+          });
+          await messenger.notifications.create({
+            type: 'basic',
+            iconUrl: 'icon.png',
+            title: 'Fehler',
+            message: `Batch-Analyse fehlgeschlagen: ${errorMessage}`,
           });
         }
         return;
@@ -471,35 +577,92 @@ class BackgroundScript {
 
       // Handle single message analysis
       if (
-        (menuItemId === 'analyze-single-message-list' ||
-          menuItemId === 'analyze-single-message-display') &&
-        info.selectedMessages
+        menuItemId === 'analyze-single-message-list' ||
+        menuItemId === 'analyze-single-message-display'
       ) {
-        const messages = info.selectedMessages;
-        if (messages.length > 0) {
-          const messageId = messages[0].id;
-          this.logger?.info('Starting single message analysis', { messageId });
+        if (!messageData) {
+          this.logger?.warn('Single message analysis requested but no messages selected', {
+            menuItemId,
+          });
+          return;
+        }
 
-          // Show notification
+        const messages = messageData.messages || [];
+        if (messages.length === 0) {
+          this.logger?.warn('Single message analysis requested but message list is empty', {
+            menuItemId,
+            messageCount: 0,
+          });
+          return;
+        }
+
+        const messageId = messages[0].id;
+        this.logger?.info('Starting single message analysis', { messageId });
+
+        // Show notification
+        await messenger.notifications.create({
+          type: 'basic',
+          iconUrl: 'icon.png',
+          title: 'Analyse gestartet',
+          message: `Analyse für Nachricht ${messageId} gestartet`,
+        });
+
+        try {
+          this.logger?.info('Step 1: Getting provider settings...');
+          const providerSettings = await this.getProviderSettings();
+
+          this.logger?.info('Step 2: Provider settings retrieved', {
+            provider: providerSettings.provider,
+            hasApiKey: !!providerSettings.apiKey,
+          });
+
+          if (!providerSettings.provider) {
+            await messenger.notifications.create({
+              type: 'basic',
+              iconUrl: 'icon.png',
+              title: 'Fehler',
+              message: 'Kein Provider konfiguriert. Bitte überprüfen Sie Ihre Einstellungen.',
+            });
+            return;
+          }
+
+          this.logger?.info('Step 3: Calling analyzeEmail.execute()...');
+          const result = await this.analyzeEmail!.execute(String(messageId), providerSettings);
+
+          this.logger?.info('Single message analysis completed successfully', {
+            messageId,
+            tags: result.tags,
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorStack = error instanceof Error ? error.stack : undefined;
+          this.logger?.error('Failed to analyze single message', {
+            messageId,
+            error: errorMessage,
+            stack: errorStack,
+          });
           await messenger.notifications.create({
             type: 'basic',
             iconUrl: 'icon.png',
-            title: 'Analyse gestartet',
-            message: `Analyse für Nachricht ${messageId} gestartet`,
-          });
-
-          await messenger.runtime.sendMessage({
-            action: 'analyzeSingleMessage',
-            messageId: String(messageId),
+            title: 'Fehler',
+            message: `Analyse fehlgeschlagen: ${errorMessage}`,
           });
         }
         return;
       }
 
-      this.logger?.warn('Unknown context menu item', { menuItemId });
+      this.logger?.warn('Unknown context menu item', {
+        menuItemId,
+        hasSelectedMessages: messageData !== undefined,
+        hasSelectedFolders: info.selectedFolders !== undefined,
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger?.error('Failed to handle context menu click', { error: errorMessage });
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger?.error('[DEBUG-background] Failed to handle context menu click', {
+        error: errorMessage,
+        stack: errorStack,
+      });
     }
   }
 
@@ -632,6 +795,70 @@ class BackgroundScript {
     }
 
     this.logger?.info('Shutdown handler registered');
+  }
+
+  // ==========================================================================
+  // Private Methods - Helper for Context Menu Handlers
+  // ==========================================================================
+
+  /**
+   * Gets provider settings from app config.
+   *
+   * @returns Provider settings
+   */
+  private async getProviderSettings(): Promise<IProviderSettings> {
+    if (!this.appConfigService) {
+      throw new Error('AppConfigService not initialized');
+    }
+
+    try {
+      this.logger?.info('Attempting to get app config...');
+      const appConfig = await this.appConfigService.getAppConfig();
+      const defaultProvider = appConfig.defaultProvider;
+
+      this.logger?.info('App config retrieved', { defaultProvider });
+
+      this.logger?.info(`Attempting to get provider settings for: ${defaultProvider}`);
+      const providerSettings = await this.appConfigService.getProviderSettings(defaultProvider);
+
+      this.logger?.info('Provider settings retrieved', {
+        apiKey: providerSettings.apiKey ? '***' : 'missing',
+      });
+
+      return {
+        provider: defaultProvider,
+        apiKey: providerSettings.apiKey,
+        model: providerSettings.model,
+        apiUrl: providerSettings.apiUrl,
+        additionalConfig: providerSettings.additionalConfig,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger?.error('Failed to get provider settings', {
+        error: errorMessage,
+        stack: errorStack,
+      });
+      this.logger?.error('Returning empty provider settings - THIS WILL CAUSE ANALYSIS TO FAIL');
+      return { provider: '' };
+    }
+  }
+
+  /**
+   * Gets messages to analyze from folder.
+   *
+   * @param folderId - Folder ID
+   * @returns Array of message IDs
+   */
+  private async getMessagesToAnalyze(folderId: string): Promise<string[]> {
+    try {
+      const messages = await messenger.messages.list(folderId);
+      return messages.messages.map((message) => String(message.id));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger?.error('Failed to get messages from folder', { folderId, error: errorMessage });
+      return [];
+    }
   }
 }
 

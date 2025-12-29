@@ -23,6 +23,53 @@ import { AppConfigService } from '@/infrastructure/config/AppConfig';
 import { EventBus } from '@/domain/events/EventBus';
 import { createProviderErrorEvent } from '@/domain/events/ProviderErrorEvent';
 
+declare const browser: {
+  runtime?: {
+    onMessage?: {
+      addListener(
+        callback: (
+          message: unknown,
+          sender: unknown,
+          sendResponse: (response?: unknown) => void
+        ) => boolean
+      ): void;
+      removeListener(
+        callback: (
+          message: unknown,
+          sender: unknown,
+          sendResponse: (response?: unknown) => void
+        ) => boolean
+      ): void;
+    };
+  };
+};
+
+declare const messenger: {
+  runtime?: {
+    onMessage?: {
+      addListener(
+        callback: (
+          message: unknown,
+          sender: unknown,
+          sendResponse: (response?: unknown) => void
+        ) => boolean
+      ): void;
+      removeListener(
+        callback: (
+          message: unknown,
+          sender: unknown,
+          sendResponse: (response?: unknown) => void
+        ) => boolean
+      ): void;
+    };
+  };
+  messages?: {
+    list(folderId?: string): Promise<{ messages: Array<{ id: number }> }>;
+  };
+};
+
+// ============================================================================
+// Type Definitions
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -344,27 +391,25 @@ export class MessageHandler {
       return;
     }
 
-    this.logger.info('Registering runtime message handlers');
+    this.logger.info('[DEBUG-MessageHandler] Registering runtime message handlers');
 
-    // Register message handler
     this.handleMessageHandler = this.handleMessage.bind(this);
 
-    // Access global browser/messenger object (Thunderbird WebExtension API)
-    // @ts-expect-error - browser is a global WebExtension API
     if (typeof browser !== 'undefined' && browser.runtime?.onMessage) {
-      // @ts-expect-error - browser.runtime.onMessage is a WebExtension API
       browser.runtime.onMessage.addListener(this.handleMessageHandler);
       this.handlerState.isRegistered = true;
-      this.logger.info('Runtime message handler registered');
+      this.logger.info('[DEBUG-MessageHandler] Runtime message handler registered via browser API');
     } else {
-      // @ts-expect-error - messenger is a global Thunderbird API
       if (typeof messenger !== 'undefined' && messenger.runtime?.onMessage) {
-        // @ts-expect-error - messenger.runtime.onMessage is a Thunderbird API
         messenger.runtime.onMessage.addListener(this.handleMessageHandler);
         this.handlerState.isRegistered = true;
-        this.logger.info('Runtime message handler registered (messenger API)');
+        this.logger.info(
+          '[DEBUG-MessageHandler] Runtime message handler registered via messenger API'
+        );
       } else {
-        this.logger.warn('Runtime messaging API not available');
+        this.logger.error(
+          '[DEBUG-MessageHandler] Runtime messaging API not available - THIS IS A PROBLEM!'
+        );
       }
     }
   }
@@ -383,15 +428,11 @@ export class MessageHandler {
     this.logger.info('Unregistering runtime message handlers');
 
     if (this.handleMessageHandler) {
-      // @ts-expect-error - browser is a global WebExtension API
       if (typeof browser !== 'undefined' && browser.runtime?.onMessage) {
-        // @ts-expect-error - browser.runtime.onMessage is a WebExtension API
         browser.runtime.onMessage.removeListener(this.handleMessageHandler);
         this.logger.info('Runtime message handler unregistered');
       } else {
-        // @ts-expect-error - messenger is a global Thunderbird API
         if (typeof messenger !== 'undefined' && messenger.runtime?.onMessage) {
-          // @ts-expect-error - messenger.runtime.onMessage is a Thunderbird API
           messenger.runtime.onMessage.removeListener(this.handleMessageHandler);
           this.logger.info('Runtime message handler unregistered (messenger API)');
         }
@@ -451,6 +492,17 @@ export class MessageHandler {
     _sender: unknown,
     sendResponse: (response?: unknown) => void
   ): boolean {
+    this.logger.info('[DEBUG-MessageHandler] handleMessage() CALLED - RECEIVED MESSAGE', {
+      messageType: typeof message,
+      message: JSON.stringify(message),
+      hasAction: typeof message === 'object' && message !== null && 'action' in message,
+      action:
+        typeof message === 'object' && message !== null && 'action' in message
+          ? (message as Record<string, unknown>).action
+          : 'N/A',
+      messagesHandledSoFar: this.handlerState.messagesHandled,
+    });
+
     this.handlerState.messagesHandled++;
 
     // Handle messages asynchronously
@@ -458,59 +510,64 @@ export class MessageHandler {
       try {
         // Route message to appropriate handler
         if (isStartBatchAnalysisMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleStartBatchAnalysis');
           const result = await this.handleStartBatchAnalysis(message);
           sendResponse(result);
           return;
         }
 
         if (isGetBatchProgressMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleGetBatchProgress');
           const result = this.handleGetBatchProgress();
           sendResponse(result);
           return;
         }
 
         if (isCancelBatchAnalysisMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleCancelBatchAnalysis');
           const result = await this.handleCancelBatchAnalysis();
           sendResponse(result);
           return;
         }
 
         if (isAnalyzeSingleMessageMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleAnalyzeSingleMessage');
           const result = await this.handleAnalyzeSingleMessage(message);
           sendResponse(result);
           return;
         }
 
         if (isClearQueueMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleClearQueue');
           const result = this.handleClearQueue(message);
           sendResponse(result);
           return;
         }
 
         if (isClearCacheMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleClearCache');
           const result = await this.handleClearCache();
           sendResponse(result);
           return;
         }
 
         if (isGetCacheStatsMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleGetCacheStats');
           const result = await this.handleGetCacheStats();
           sendResponse(result);
           return;
         }
 
-        // Unknown message type
-        this.logger.warn('Unknown runtime message received', { message });
+        this.logger.warn('[DEBUG-MessageHandler] Unknown runtime message received', { message });
         sendResponse({ success: false, message: 'Unknown message type' });
       } catch (error) {
         this.handlerState.errorsEncountered++;
         const errorMessage = error instanceof Error ? error.message : String(error);
-        this.logger.error('Internal error processing message', {
+        this.logger.error('[DEBUG-MessageHandler] Internal error processing message', {
           message,
           error: errorMessage,
         });
 
-        // Publish ProviderErrorEvent for internal errors
         this.eventBus
           .publish(
             createProviderErrorEvent('message-handler', 'unknown', errorMessage, {
@@ -519,7 +576,7 @@ export class MessageHandler {
             })
           )
           .catch((publishError) => {
-            this.logger.error('Failed to publish ProviderErrorEvent', {
+            this.logger.error('[DEBUG-MessageHandler] Failed to publish ProviderErrorEvent', {
               error: publishError instanceof Error ? publishError.message : String(publishError),
             });
           });
@@ -528,7 +585,6 @@ export class MessageHandler {
       }
     })();
 
-    // Return true to indicate async response
     return true;
   }
 
@@ -693,7 +749,9 @@ export class MessageHandler {
   private async handleAnalyzeSingleMessage(
     message: AnalyzeSingleMessageMessage
   ): Promise<AnalyzeSingleMessageResult> {
-    this.logger.info('Handling analyzeSingleMessage message', { messageId: message.messageId });
+    this.logger.info('[DEBUG-MessageHandler] handleAnalyzeSingleMessage() ENTERED', {
+      messageId: message.messageId,
+    });
 
     try {
       this.logger.info('Step 1: Getting provider settings...');
@@ -834,12 +892,10 @@ export class MessageHandler {
    */
   private async getMessagesToAnalyze(folderId?: string): Promise<string[]> {
     try {
-      // @ts-expect-error - messenger is a global Thunderbird API
       if (typeof messenger === 'undefined' || !messenger.messages) {
         return [];
       }
 
-      // @ts-expect-error - messenger.messages is a Thunderbird API
       const result = await messenger.messages.list(folderId);
 
       if (!result.messages || result.messages.length === 0) {

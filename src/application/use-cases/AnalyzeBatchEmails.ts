@@ -204,7 +204,19 @@ export class AnalyzeBatchEmails {
    * ```
    */
   async execute(messageIds: string[], config: BatchAnalysisConfig): Promise<BatchAnalysisResult> {
+    this.logger.info('🚀 Starting batch email analysis', {
+      messageCount: messageIds.length,
+      provider: config.providerSettings.provider,
+      config: {
+        priority: config.priority,
+        concurrency: config.concurrency,
+        delayBetweenAnalyses: config.delayBetweenAnalyses,
+        continueOnError: config.continueOnError,
+      },
+    });
+
     // Load batch settings from AppConfig with fallback to defaults
+    this.logger.debug('➡️  Loading app config for concurrency limits');
     const appConfig = await this.loadAppConfig();
     const concurrency =
       config.concurrency ?? this.getConcurrencyLimit(appConfig, config.providerSettings);
@@ -214,18 +226,29 @@ export class AnalyzeBatchEmails {
     const continueOnError =
       config.continueOnError ?? DEFAULT_BATCH_CONFIG.DEFAULT_CONTINUE_ON_ERROR;
 
+    this.logger.debug('✅ Batch configuration loaded', {
+      concurrency,
+      priority,
+      delayBetweenAnalyses,
+      continueOnError,
+    });
+
     if (this.isProcessing) {
+      this.logger.error('❌ Batch analysis already running');
       throw new Error('Batch analysis is already running. Wait for current batch to complete.');
     }
 
-    this.logger.info('Starting batch email analysis', {
+    this.logger.info('✅ Starting batch processing', {
       count: messageIds.length,
       priority,
       concurrency,
     });
 
+    const startTime = Date.now();
+
     try {
       // Initialize batch state
+      this.logger.debug('➡️  Initializing batch state');
       this.isProcessing = true;
       this.isCancelled = false;
       this.processedCount = 0;
@@ -234,12 +257,14 @@ export class AnalyzeBatchEmails {
       this.processedMessageIds = [];
       this.failedMessageIds = [];
       this.analysisResults = [];
+      this.logger.debug('✅ Batch state initialized');
 
       new Promise<BatchAnalysisResult>((resolve) => {
         this.resolvePromise = resolve;
       });
 
       // Enqueue all messages
+      this.logger.debug('➡️  Enqueuing messages', { count: messageIds.length });
       for (const messageId of messageIds) {
         const queueItem: QueueItem = {
           messageId,
@@ -248,15 +273,19 @@ export class AnalyzeBatchEmails {
         await this.queue.enqueue(queueItem, priority);
       }
 
-      this.logger.debug('All messages enqueued', { count: messageIds.length });
+      this.logger.debug('✅ All messages enqueued', { count: messageIds.length });
 
       // Start worker processes
+      this.logger.debug('➡️  Starting worker processes', { workerCount: concurrency });
       for (let i = 0; i < concurrency; i++) {
         this.activeWorkers.push(this.startWorker(delayBetweenAnalyses, continueOnError));
       }
+      this.logger.debug('✅ Workers started');
 
       // Wait for all workers to complete
+      this.logger.debug('⏳ Waiting for all workers to complete');
       await Promise.all(this.activeWorkers);
+      this.logger.debug('✅ All workers completed');
 
       // Resolve the batch promise
       const result: BatchAnalysisResult = {
@@ -271,18 +300,19 @@ export class AnalyzeBatchEmails {
         this.resolvePromise(result);
       }
 
-      this.logger.info('Batch analysis completed', {
+      this.logger.info('✅ Batch analysis completed', {
         total: result.total,
         success: result.successCount,
         failed: result.failureCount,
         cancelled: result.cancelled,
+        duration: `${Date.now() - startTime}ms`,
       });
 
       this.resetState();
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Batch analysis failed', { error: errorMessage });
+      this.logger.error('❌ Batch analysis failed', { error: errorMessage });
 
       // Reset state on error
       this.resetState();
@@ -333,17 +363,19 @@ export class AnalyzeBatchEmails {
    */
   async cancel(): Promise<void> {
     if (!this.isProcessing) {
-      this.logger.debug('No batch processing to cancel');
+      this.logger.debug('⏭️  No batch processing to cancel');
       return;
     }
 
-    this.logger.info('Cancelling batch analysis');
+    this.logger.info('🛑 Cancelling batch analysis');
 
     this.isCancelled = true;
     this.isProcessing = false;
 
     // Clear remaining items from queue
+    this.logger.debug('➡️  Clearing queue');
     const clearedCount = await this.queue.clear(false);
+    this.logger.debug('✅ Queue cleared', { clearedCount });
 
     // Resolve the batch promise with partial results
     if (this.resolvePromise) {
@@ -357,7 +389,7 @@ export class AnalyzeBatchEmails {
       this.resolvePromise(result);
     }
 
-    this.logger.info('Batch analysis cancelled', {
+    this.logger.info('✅ Batch analysis cancelled', {
       processed: this.processedCount,
       failed: this.failedCount,
       remaining: clearedCount,
@@ -462,33 +494,39 @@ export class AnalyzeBatchEmails {
    * @returns Promise resolving when worker completes
    */
   private async startWorker(delayBetweenAnalyses: number, continueOnError: boolean): Promise<void> {
-    this.logger.debug('Starting worker process');
+    this.logger.debug('👷 Starting worker process', { delayBetweenAnalyses, continueOnError });
 
     try {
       while (this.isProcessing && !this.isCancelled) {
         // Dequeue next item
+        this.logger.debug('➡️  Dequeueing next item');
         const item = await this.queue.dequeue<QueueItem>();
 
         if (item === null) {
           // Queue is empty
+          this.logger.debug('⏭️  Queue is empty, worker stopping');
           break;
         }
+
+        this.logger.debug('✅ Item dequeued', { messageId: item.messageId });
 
         // Process the item
         await this.processQueueItem(item);
 
         // Delay between analyses if configured
         if (delayBetweenAnalyses > 0) {
+          this.logger.debug('⏳ Sleeping between analyses', { duration: delayBetweenAnalyses });
           await this.sleep(delayBetweenAnalyses);
         }
       }
 
-      this.logger.debug('Worker process completed');
+      this.logger.debug('✅ Worker process completed');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Worker process failed', { error: errorMessage });
+      this.logger.error('❌ Worker process failed', { error: errorMessage });
 
       if (!continueOnError) {
+        this.logger.debug('⏹️  Stopping all workers (continueOnError=false)');
         this.isProcessing = false;
         this.isCancelled = true;
       }
@@ -504,10 +542,14 @@ export class AnalyzeBatchEmails {
   private async processQueueItem(item: QueueItem): Promise<void> {
     const { messageId, providerSettings } = item;
 
-    this.logger.debug('Processing queue item', { messageId });
+    this.logger.debug('📧 Processing queue item', {
+      messageId,
+      provider: providerSettings.provider,
+    });
 
     try {
       // Analyze the email
+      this.logger.debug('➡️  Calling analyzeEmail.execute()');
       const result = await this.analyzeEmail.execute(messageId, providerSettings);
 
       // Record successful analysis
@@ -519,10 +561,11 @@ export class AnalyzeBatchEmails {
         tags: result.tags,
       });
 
-      this.logger.debug('Email analyzed successfully', {
+      this.logger.debug('✅ Email analyzed successfully', {
         messageId,
         tags: result.tags,
         confidence: result.confidence,
+        processed: `${this.processedCount}/${this.totalCount}`,
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -536,7 +579,11 @@ export class AnalyzeBatchEmails {
         error: errorMessage,
       });
 
-      this.logger.error('Failed to analyze email', { messageId, error: errorMessage });
+      this.logger.error('❌ Failed to analyze email', {
+        messageId,
+        error: errorMessage,
+        failed: `${this.failedCount}/${this.totalCount}`,
+      });
     }
   }
 

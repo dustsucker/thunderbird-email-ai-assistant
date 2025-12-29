@@ -43,6 +43,7 @@ export interface AnalyzeInput {
   settings: BaseProviderSettings;
   structuredData: StructuredEmailData;
   customTags: CustomTags;
+  signal?: AbortSignal;
 }
 
 /**
@@ -90,10 +91,18 @@ const DEFAULT_RETRY_CONFIG = {
 async function fetchWithTimeout(
   url: string,
   options: FetchOptions = {},
-  timeout: number = DEFAULT_TIMEOUT
+  timeout: number = DEFAULT_TIMEOUT,
+  externalSignal?: AbortSignal
 ): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  if (externalSignal) {
+    externalSignal.addEventListener('abort', () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    });
+  }
 
   try {
     const response = await fetch(url, {
@@ -320,7 +329,8 @@ export abstract class BaseProvider {
    */
   protected async executeRequest(
     settings: BaseProviderSettings,
-    requestBody: RequestBody
+    requestBody: RequestBody,
+    externalSignal?: AbortSignal
   ): Promise<Response> {
     const apiUrl = this.getApiUrl();
     const headers = this.getHeaders(settings);
@@ -340,7 +350,8 @@ export abstract class BaseProvider {
             headers,
             body: JSON.stringify(requestBody),
           },
-          this.timeout
+          this.timeout,
+          externalSignal
         );
 
         if (!isOkResponse(res)) {
@@ -377,7 +388,7 @@ export abstract class BaseProvider {
    * @returns Promise resolving to validated tag response, or null on error
    */
   public async analyze(input: AnalyzeInput): Promise<AnalyzeOutput> {
-    const { settings, structuredData, customTags } = input;
+    const { settings, structuredData, customTags, signal } = input;
 
     try {
       this.logInfo('Starting email analysis', {
@@ -398,7 +409,7 @@ export abstract class BaseProvider {
       const requestBody = this.buildRequestBody(settings, prompt, structuredData, customTags);
       this.logDebug('Built request body');
 
-      const response = await this.executeRequest(settings, requestBody);
+      const response = await this.executeRequest(settings, requestBody, signal);
       const responseData = await response.json();
 
       this.logDebug('Parsing provider response');
