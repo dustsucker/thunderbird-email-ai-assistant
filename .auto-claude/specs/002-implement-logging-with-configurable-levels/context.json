@@ -1,0 +1,50 @@
+{
+  "task_description": "Bitte Verbessere mit das Logging, so das ich das logg level einstellen kann und möglichst alles gelogged wird, um besser heraus finden zu können warum sachen nicht funktionieren.",
+  "scoped_services": ["main"],
+  "files_to_modify": {
+    "main": [
+      "src/infrastructure/interfaces/ILogger.ts",
+      "src/infrastructure/interfaces/IConfigRepository.ts",
+      "src/infrastructure/logger/ConsoleLogger.ts",
+      "src/infrastructure/repositories/IndexedDBConfigRepository.ts",
+      "src/interfaces/options/OptionsScript.ts",
+      "src/interfaces/options/SettingsForm.ts",
+      "src/application/use-cases/AnalyzeEmail.ts",
+      "src/application/use-cases/AnalyzeBatchEmails.ts",
+      "src/infrastructure/providers/ProviderFactory.ts",
+      "src/infrastructure/providers/BaseProviderAdapter.ts"
+    ]
+  },
+  "files_to_reference": {
+    "main": [
+      "src/infrastructure/logger/LegacyLogger.ts",
+      "src/infrastructure/interfaces/IConfigRepository.ts",
+      "src/interfaces/options/SettingsForm.ts",
+      "src/infrastructure/repositories/IndexedDBConfigRepository.ts",
+      "src/application/use-cases/AnalyzeEmail.ts"
+    ]
+  },
+  "patterns": {
+    "log_level_filtering": "LegacyLogger.ts has complete implementation with LogLevel enum (DEBUG=0, INFO=1, WARN=2, ERROR=3) and shouldLog() method that checks level >= currentLogLevel",
+    "di_pattern": "All services use tsyringe @injectable() decorator and @inject('IServiceName') for constructor injection",
+    "config_pattern": "IAppConfig interface with serializable fields stored in browser.storage.local via IndexedDBConfigRepository",
+    "logger_usage": "Use @inject('ILogger') in constructor, then call logger.debug/info/warn/error with message and optional context object",
+    "ui_pattern": "SettingsForm uses helper methods to create form controls, attaches event listeners that call saveSettings()"
+  },
+  "existing_implementations": {
+    "console_logger": "src/infrastructure/logger/ConsoleLogger.ts - Currently logs all messages without level filtering, needs enhancement",
+    "legacy_logger": "src/infrastructure/logger/LegacyLogger.ts - Has complete log level filtering implementation to copy pattern from",
+    "config_storage": "src/infrastructure/repositories/IndexedDBConfigRepository.ts - Handles app config persistence using browser.storage.local",
+    "settings_ui": "src/interfaces/options/SettingsForm.ts - Has existing form controls and event handling patterns to follow"
+  },
+  "tech_stack": {
+    "language": "TypeScript",
+    "framework": "None (vanilla TypeScript with Webpack)",
+    "build_tool": "Webpack",
+    "di_container": "tsyringe",
+    "testing": "Vitest",
+    "storage": "browser.storage.local (Chrome Storage API)"
+  },
+  "created_at": "2026-01-04T22:33:59.293674",
+  "updated_at": "2026-01-04T22:45:00.000Z"
+}

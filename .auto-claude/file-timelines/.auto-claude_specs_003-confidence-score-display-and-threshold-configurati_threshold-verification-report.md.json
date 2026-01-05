@@ -1,0 +1,25 @@
+{
+  "file_path": ".auto-claude/specs/003-confidence-score-display-and-threshold-configurati/threshold-verification-report.md",
+  "main_branch_history": [],
+  "task_views": {
+    "003-confidence-score-display-and-threshold-configurati": {
+      "task_id": "003-confidence-score-display-and-threshold-configurati",
+      "branch_point": {
+        "commit_hash": "f6a57e8f6ff34822855d2c5f711f425bd9bc6897",
+        "content": "",
+        "timestamp": "2026-01-05T14:48:03.044500"
+      },
+      "worktree_state": null,
+      "task_intent": {
+        "title": "Confidence Score Display and Threshold Configuration",
+        "description": "",
+        "from_plan": false
+      },
+      "commits_behind_main": 0,
+      "status": "active",
+      "merged_at": null
+    }
+  },
+  "created_at": "2026-01-05T14:48:03.083853",
+  "last_updated": "2026-01-05T14:48:03.087447"
+}

@@ -1,0 +1,8 @@
+{
+  "feature": "Manual Analysis Trigger from Message Context",
+  "description": "# Manual Analysis Trigger from Message Context\n\nAdd a right-click context menu option and keyboard shortcut to manually trigger AI analysis on selected email(s). Users can analyze specific messages on-demand without waiting for automatic processing.\n\n## Rationale\nUsers need control over when analysis happens. Addresses the gap where users can't analyze emails that arrived before extension installation or re-analyze with updated prompts. Competitors like manual Thunderbird filters require tedious rule creation (pain-4-1) - this provides an intelligent alternative.\n\n## User Stories\n- As an email power user, I want to manually trigger AI analysis on specific emails so that I can organize messages that arrived before I configured my tags\n- As a privacy-conscious user, I want to analyze only selected emails so that I control exactly which messages are processed by AI\n\n## Acceptance Criteria\n- [ ] Right-click context menu shows 'Analyze with AI' option on selected messages\n- [ ] Keyboard shortcut (configurable) triggers analysis on selected messages\n- [ ] Multiple message selection is supported for batch manual analysis\n- [ ] Progress indicator shows analysis status\n- [ ] Results are applied immediately after analysis completes\n",
+  "created_at": "2026-01-04T21:45:34.164Z",
+  "updated_at": "2026-01-04T21:45:34.164Z",
+  "status": "pending",
+  "phases": []
+}

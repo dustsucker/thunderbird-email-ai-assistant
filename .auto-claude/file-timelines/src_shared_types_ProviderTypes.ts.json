@@ -1,0 +1,28 @@
+{
+  "file_path": "src/shared/types/ProviderTypes.ts",
+  "main_branch_history": [],
+  "task_views": {
+    "003-confidence-score-display-and-threshold-configurati": {
+      "task_id": "003-confidence-score-display-and-threshold-configurati",
+      "branch_point": {
+        "commit_hash": "f6a57e8f6ff34822855d2c5f711f425bd9bc6897",
+        "content": "export interface Tag {\n  key: string;\n  name: string;\n  color: string;\n  prompt?: string;\n}\n\nexport type HardcodedTagKey = 'is_scam' | 'spf_fail' | 'dkim_fail' | 'tagged' | 'email_ai_analyzed';\n\nexport type HardcodedTags = Record<HardcodedTagKey, Tag>;\n\nexport type CustomTags = ReadonlyArray<Tag>;\n\nexport type AllTags = HardcodedTags & CustomTags;\n\nexport enum Provider {\n  OLLAMA = 'ollama',\n  OPENAI = 'openai',\n  GEMINI = 'gemini',\n  CLAUDE = 'claude',\n  MISTRAL = 'mistral',\n  DEEPSEEK = 'deepseek',\n  ZAI_PAAS = 'zai-paas',\n  ZAI_CODING = 'zai-coding',\n}\n\nexport interface ProviderConfig {\n  provider: Provider;\n  ollamaApiUrl: string;\n  ollamaModel: string;\n  openaiApiKey: string;\n  geminiApiKey: string;\n  claudeApiKey: string;\n  mistralApiKey: string;\n  deepseekApiKey: string;\n  zaiPaasApiKey: string;\n  zaiPaasModel: string;\n  zaiCodingApiKey: string;\n  zaiCodingModel: string;\n  model?: string;\n}\n\nexport interface AnalysisLimits {\n  contextCharLimit: number;\n}\n\nexport interface AnalysisPrompt {\n  template: string;\n  instructions: ReadonlyArray<string>;\n}\n\nexport interface AnalysisFeatures {\n  enableNotifications: boolean;\n  enableLogging: boolean;\n}\n\nexport interface ModelConcurrencyConfig {\n  provider: string;\n  model?: string;\n  concurrency: number;\n}\n\nexport interface AppConfig extends ProviderConfig, AnalysisFeatures {\n  customTags: CustomTags;\n  modelConcurrencyLimits?: ModelConcurrencyConfig[];\n}\n\nexport interface DefaultConfig extends AppConfig {}\n",
+        "timestamp": "2026-01-05T14:48:03.044500"
+      },
+      "worktree_state": {
+        "content": "export interface Tag {\n  key: string;\n  name: string;\n  color: string;\n  prompt?: string;\n  thresholdOverride?: number;\n}\n\nexport type HardcodedTagKey = 'is_scam' | 'spf_fail' | 'dkim_fail' | 'tagged' | 'email_ai_analyzed';\n\nexport type HardcodedTags = Record<HardcodedTagKey, Tag>;\n\nexport type CustomTags = ReadonlyArray<Tag>;\n\nexport type AllTags = HardcodedTags & CustomTags;\n\nexport enum Provider {\n  OLLAMA = 'ollama',\n  OPENAI = 'openai',\n  GEMINI = 'gemini',\n  CLAUDE = 'claude',\n  MISTRAL = 'mistral',\n  DEEPSEEK = 'deepseek',\n  ZAI_PAAS = 'zai-paas',\n  ZAI_CODING = 'zai-coding',\n}\n\nexport interface ProviderConfig {\n  provider: Provider;\n  ollamaApiUrl: string;\n  ollamaModel: string;\n  openaiApiKey: string;\n  geminiApiKey: string;\n  claudeApiKey: string;\n  mistralApiKey: string;\n  deepseekApiKey: string;\n  zaiPaasApiKey: string;\n  zaiPaasModel: string;\n  zaiCodingApiKey: string;\n  zaiCodingModel: string;\n  model?: string;\n}\n\nexport interface AnalysisLimits {\n  contextCharLimit: number;\n}\n\nexport interface AnalysisPrompt {\n  template: string;\n  instructions: ReadonlyArray<string>;\n}\n\nexport interface AnalysisFeatures {\n  enableNotifications: boolean;\n  enableLogging: boolean;\n  confidenceThreshold: number;\n}\n\nexport interface ModelConcurrencyConfig {\n  provider: string;\n  model?: string;\n  concurrency: number;\n}\n\nexport interface AppConfig extends ProviderConfig, AnalysisFeatures {\n  customTags: CustomTags;\n  modelConcurrencyLimits?: ModelConcurrencyConfig[];\n}\n\nexport interface DefaultConfig extends AppConfig {}\n",
+        "last_modified": "2026-01-05T19:59:00.213303"
+      },
+      "task_intent": {
+        "title": "Confidence Score Display and Threshold Configuration",
+        "description": "",
+        "from_plan": false
+      },
+      "commits_behind_main": 0,
+      "status": "active",
+      "merged_at": null
+    }
+  },
+  "created_at": "2026-01-05T14:48:03.080292",
+  "last_updated": "2026-01-05T14:48:03.083376"
+}

@@ -1,0 +1,8 @@
+{
+  "feature": "Implement Bayes classifier for LLM credit optimization",
+  "description": "Add Bayes classifier to save on LLM credits.\n\nThe idea is, that the User provides an LLM via the providers, that classifies Mails these classiefied mails are used to train a bayes classifier for each tag. So that the classification can be speed up. Every mail schould be first analysed by the bayes and then corrected by the lmm and if the tags do not match it should be used for training the bayes. Every tag gets its own bayes classifier the data should be stroed in index db.  After the bayes reaches a good acuracy (variable) the llm should only be used for testing accuracy for some mails like 20% if the accuracy drops the bayes should be trained with the tests and reevaluated. So Training on the job just in this case distiling the llm predictions to a simple bayes.  \n\nThe whole feature should be the default, but it should also give an option to disable its completely.",
+  "created_at": "2026-01-05T10:05:13.678Z",
+  "updated_at": "2026-01-05T10:05:13.678Z",
+  "status": "pending",
+  "phases": []
+}
