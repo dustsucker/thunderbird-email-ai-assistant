@@ -10,6 +10,7 @@ export interface Tag {
   name: string;
   color: string;
   prompt?: string;
+  minConfidenceThreshold?: number;
 }
 
 /**
