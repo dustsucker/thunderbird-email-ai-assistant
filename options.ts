@@ -1155,18 +1155,31 @@ async function populateZaiModels(provider: 'zaiPaas' | 'zaiCoding'): Promise<voi
 /**
  * Renders the tag list to the DOM
  */
-function renderTagList(container: HTMLDivElement, customTags: CustomTags): void {
+function renderTagList(
+  container: HTMLDivElement,
+  customTags: CustomTags,
+  globalThreshold: number = DEFAULTS.minConfidenceThreshold
+): void {
   container.innerHTML = '';
 
   customTags.forEach((tag, index) => {
     const item = document.createElement('div');
     item.className = 'tag-item';
+
+    // Determine threshold display
+    const hasCustomThreshold = tag.minConfidenceThreshold !== undefined;
+    const thresholdDisplay = hasCustomThreshold
+      ? `${tag.minConfidenceThreshold}%`
+      : `Global (${globalThreshold}%)`;
+    const thresholdClass = hasCustomThreshold ? 'tag-threshold-custom' : 'tag-threshold-global';
+
     item.innerHTML = `
       <div class="tag-color-preview" style="background-color: ${escapeHtml(tag.color)};"></div>
       <div class="tag-details">
         <div class="tag-name">${escapeHtml(tag.name)}</div>
         <div class="tag-key">Key: ${escapeHtml(tag.key)}</div>
         <div class="tag-prompt">Prompt: ${escapeHtml(tag.prompt || '')}</div>
+        <div class="tag-threshold ${thresholdClass}">Threshold: ${escapeHtml(thresholdDisplay)}</div>
       </div>
       <div class="tag-actions">
         <button class="edit-tag-btn" data-index="${index}">Edit</button>
@@ -1587,7 +1600,17 @@ function handleTagListClick(
         if (confirm(`Are you sure you want to delete the "${tag.name}" tag?`)) {
           (customTags as Tag[]).splice(index, 1);
           saveCustomTags(customTags)
-            .then(() => renderTagList(elements.tagListContainer, customTags))
+            .then(async () => {
+              // Load global threshold for rendering
+              const data = await messenger.storage.local.get({
+                appConfig: { minConfidenceThreshold: DEFAULTS.minConfidenceThreshold },
+              });
+              const appConfig = (data as AppSettingsStorage).appConfig || {};
+              const globalThreshold =
+                appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
+
+              renderTagList(elements.tagListContainer, customTags, globalThreshold);
+            })
             .catch((error) => {
               logger.error('Failed to delete tag', { error });
             });
@@ -1667,7 +1690,15 @@ async function handleTagFormSubmit(
 
   try {
     await saveCustomTags(customTags);
-    renderTagList(elements.tagListContainer, customTags);
+
+    // Load global threshold for rendering
+    const data = await messenger.storage.local.get({
+      appConfig: { minConfidenceThreshold: DEFAULTS.minConfidenceThreshold },
+    });
+    const appConfig = (data as AppSettingsStorage).appConfig || {};
+    const globalThreshold = appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
+
+    renderTagList(elements.tagListContainer, customTags, globalThreshold);
     closeModal(elements);
   } catch (error) {
     alert('Fehler: Tag konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.');
@@ -1782,11 +1813,20 @@ function initializeOptionsPage(): void {
       });
     }
 
-    // Load and initialize custom tags
-    loadCustomTags()
-      .then((tags) => {
+    // Load global threshold and custom tags
+    Promise.all([
+      loadCustomTags(),
+      messenger.storage.local.get({
+        appConfig: { minConfidenceThreshold: DEFAULTS.minConfidenceThreshold },
+      }),
+    ])
+      .then(([tags, data]) => {
+        const appConfig = (data as AppSettingsStorage).appConfig || {};
+        const globalThreshold =
+          appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
+
         currentCustomTags = tags;
-        renderTagList(elements.tagListContainer, currentCustomTags);
+        renderTagList(elements.tagListContainer, currentCustomTags, globalThreshold);
       })
       .catch((error) => {
         logger.error('Failed to load custom tags on init', { error });

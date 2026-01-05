@@ -518,10 +518,21 @@ button:disabled {
 }
 
 .tag-key,
-.tag-prompt {
+.tag-prompt,
+.tag-threshold {
   font-size: 12px;
   color: var(--color-gray-600);
   word-break: break-word;
+}
+
+.tag-threshold-custom {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.tag-threshold-global {
+  color: var(--color-gray-600);
+  font-style: italic;
 }
 
 .tag-actions button {
