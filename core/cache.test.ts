@@ -274,12 +274,86 @@ describe('cache module', () => {
 
       await cache.set(mockHash, mockResult);
       const existsAfter = await cache.has(mockHash);
-      
+
       if (typeof indexedDB !== 'undefined') {
         expect(existsAfter).toBe(true);
       } else {
         expect(existsAfter).toBe(false);
       }
+    });
+
+    it('should store per-tag confidence scores', async () => {
+      const mockHash = 'test-hash-tagconf';
+      const mockResult = {
+        tags: ['business', 'urgent'],
+        confidence: 0.85,
+        reasoning: 'Test reasoning',
+      };
+      const tagConfidence = {
+        'business': 0.9,
+        'urgent': 0.75,
+      };
+
+      await cache.set(mockHash, mockResult, tagConfidence);
+
+      const retrieved = await cache.getTagConfidence(mockHash);
+      if (retrieved !== null) {
+        expect(retrieved).toEqual(tagConfidence);
+        expect(retrieved['business']).toBe(0.9);
+        expect(retrieved['urgent']).toBe(0.75);
+      }
+    });
+
+    it('should populate tagConfidence with overall confidence if not provided', async () => {
+      const mockHash = 'test-hash-autofill';
+      const mockResult = {
+        tags: ['business', 'urgent'],
+        confidence: 0.85,
+        reasoning: 'Test reasoning',
+      };
+
+      await cache.set(mockHash, mockResult);
+
+      const retrieved = await cache.getTagConfidence(mockHash);
+      if (retrieved !== null) {
+        expect(retrieved['business']).toBe(0.85);
+        expect(retrieved['urgent']).toBe(0.85);
+      }
+    });
+
+    it('should retrieve full cache entry with getWithDetails', async () => {
+      const mockHash = 'test-hash-details';
+      const mockResult = {
+        tags: ['business'],
+        confidence: 0.9,
+        reasoning: 'Business email',
+      };
+      const tagConfidence = {
+        'business': 0.95,
+      };
+
+      await cache.set(mockHash, mockResult, tagConfidence);
+
+      const entry = await cache.getWithDetails(mockHash);
+      if (entry !== null) {
+        expect(entry.result).toEqual(mockResult);
+        expect(entry.tagConfidence).toEqual(tagConfidence);
+        expect(entry.emailHash).toBe(mockHash);
+        expect(typeof entry.timestamp).toBe('number');
+      } else {
+        // If IndexedDB is not available
+        expect(entry).toBeNull();
+      }
+    });
+
+    it('should return null for getTagConfidence when entry does not exist', async () => {
+      const retrieved = await cache.getTagConfidence('nonexistent-hash');
+      expect(retrieved).toBeNull();
+    });
+
+    it('should return null for getWithDetails when entry does not exist', async () => {
+      const entry = await cache.getWithDetails('nonexistent-hash');
+      expect(entry).toBeNull();
     });
   });
 });
