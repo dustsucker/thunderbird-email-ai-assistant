@@ -32,6 +32,37 @@
               <option value="zai-coding">Zai Coding</option>
             </select>
           </div>
+
+          <div class="form-group">
+            <label for="min-confidence-threshold">
+              Minimales Konfidenz-Level: <span id="confidence-value">70</span>%
+            </label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <input
+                type="range"
+                id="min-confidence-threshold-slider"
+                name="min-confidence-threshold-slider"
+                min="0"
+                max="100"
+                value="70"
+                style="flex: 1;"
+              />
+              <input
+                type="number"
+                id="min-confidence-threshold"
+                name="min-confidence-threshold"
+                min="0"
+                max="100"
+                value="70"
+                style="width: 70px;"
+              />
+            </div>
+            <p class="help-text">
+              Tags werden nur angewendet, wenn das Konfidenz-Level dieses Wert erreicht oder überschreitet.
+              Ein höherer Wert bedeutet mehr Sicherheit, aber weniger automatisch angewendete Tags.
+            </p>
+          </div>
+
           <div class="provider-settings-container">
             <form id="provider-options-form">
               <div id="ollama-settings" class="provider-settings active">

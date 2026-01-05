@@ -62,6 +62,7 @@ interface AppSettingsStorage {
     defaultProvider?: string;
     enableNotifications?: boolean;
     enableLogging?: boolean;
+    minConfidenceThreshold?: number;
   };
   providerSettings?: StorageProviderSettings;
   customTags?: CustomTags;
@@ -114,6 +115,9 @@ interface GeneralSettingsElements {
   zaiPaasModel: HTMLSelectElement | null;
   zaiCodingApiKey: HTMLInputElement | null;
   zaiCodingModel: HTMLSelectElement | null;
+  minConfidenceThreshold: HTMLInputElement | null;
+  minConfidenceThresholdSlider: HTMLInputElement | null;
+  confidenceValue: HTMLSpanElement | null;
 }
 
 /**
@@ -445,6 +449,9 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
   const zaiPaasModel = getElementById<HTMLSelectElement>('zaiPaasModel');
   const zaiCodingApiKey = getElementById<HTMLInputElement>('zaiCodingApiKey');
   const zaiCodingModel = getElementById<HTMLSelectElement>('zaiCodingModel');
+  const minConfidenceThreshold = getElementById<HTMLInputElement>('min-confidence-threshold');
+  const minConfidenceThresholdSlider = getElementById<HTMLInputElement>('min-confidence-threshold-slider');
+  const confidenceValue = getElementById<HTMLSpanElement>('confidence-value');
 
   if (!providerSelect || !generalForm || !generalStatusMessage || !statusMessage) {
     throw new Error('Required general settings elements not found');
@@ -466,6 +473,9 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
     zaiPaasModel,
     zaiCodingApiKey,
     zaiCodingModel,
+    minConfidenceThreshold,
+    minConfidenceThresholdSlider,
+    confidenceValue,
   };
 }
 
@@ -642,6 +652,21 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
     });
 
     elements.providerSelect.value = appConfig.defaultProvider || DEFAULTS.provider;
+
+    // Load min confidence threshold
+    const minConfidenceThreshold = appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
+    if (elements.minConfidenceThreshold) {
+      elements.minConfidenceThreshold.value = minConfidenceThreshold.toString();
+    }
+    if (elements.minConfidenceThresholdSlider) {
+      elements.minConfidenceThresholdSlider.value = minConfidenceThreshold.toString();
+    }
+    if (elements.confidenceValue) {
+      elements.confidenceValue.textContent = minConfidenceThreshold.toString();
+    }
+    logger.info('[DEBUG-options] Loaded minConfidenceThreshold', {
+      threshold: minConfidenceThreshold,
+    });
 
     if (elements.ollamaApiUrl && providerSettings.ollama) {
       logger.info('[DEBUG-options] Loaded ollama settings', {
@@ -922,6 +947,24 @@ async function handleGeneralSettingsSubmit(
       providerSettings[provider] = convertedSettings;
 
       existingAppConfig.defaultProvider = provider as Provider;
+
+      // Save min confidence threshold
+      if (elements.minConfidenceThreshold && elements.minConfidenceThreshold.value !== '') {
+        const threshold = parseInt(elements.minConfidenceThreshold.value, 10);
+        if (!isNaN(threshold) && threshold >= 0 && threshold <= 100) {
+          existingAppConfig.minConfidenceThreshold = threshold;
+          logger.info('[DEBUG-options] Saving minConfidenceThreshold', {
+            threshold,
+          });
+        } else {
+          logger.warn('[DEBUG-options] Invalid minConfidenceThreshold, using default', {
+            threshold,
+          });
+          existingAppConfig.minConfidenceThreshold = DEFAULTS.minConfidenceThreshold;
+        }
+      } else {
+        existingAppConfig.minConfidenceThreshold = DEFAULTS.minConfidenceThreshold;
+      }
 
       logger.info('[DEBUG-options] Saving to storage', {
         appConfig: existingAppConfig,
@@ -1654,6 +1697,32 @@ function initializeOptionsPage(): void {
       const target = e.target as HTMLSelectElement;
       showRelevantSettings(target.value);
     });
+
+    // Confidence threshold slider synchronization
+    if (elements.minConfidenceThresholdSlider && elements.minConfidenceThreshold && elements.confidenceValue) {
+      elements.minConfidenceThresholdSlider.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement;
+        elements.minConfidenceThreshold!.value = target.value;
+        elements.confidenceValue!.textContent = target.value;
+      });
+
+      elements.minConfidenceThreshold.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement;
+        let value = parseInt(target.value, 10);
+
+        // Clamp value between 0 and 100
+        if (isNaN(value)) {
+          value = 0;
+        } else if (value < 0) {
+          value = 0;
+        } else if (value > 100) {
+          value = 100;
+        }
+
+        elements.minConfidenceThresholdSlider!.value = value.toString();
+        elements.confidenceValue!.textContent = value.toString();
+      });
+    }
 
     // z.ai API key change handler - fetch models when key changes
     if (elements.zaiPaasApiKey) {
