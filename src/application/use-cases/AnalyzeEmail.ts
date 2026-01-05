@@ -231,8 +231,20 @@ export class AnalyzeEmail {
 
           if (applyTags) {
             this.logger.debug('➡️  Applying cached tags to email');
-            await this.applyTagsToEmail(messageId, cachedResult.tags, cachedResult.confidence);
-            this.logger.debug('✅ Cached tags applied');
+            const lowConfidenceFlags = await this.applyTagsToEmail(
+              messageId,
+              cachedResult.tags,
+              cachedResult.confidence,
+              cachedResult.reasoning
+            );
+            this.logger.debug('✅ Cached tags applied', {
+              lowConfidenceFlagCount: lowConfidenceFlags.length,
+            });
+
+            // Store low-confidence flags from cache
+            if (lowConfidenceFlags.length > 0) {
+              await this.storeLowConfidenceFlags(cacheKey, lowConfidenceFlags);
+            }
           }
 
           // Publish EmailAnalyzedEvent (from cache)
@@ -285,13 +297,35 @@ export class AnalyzeEmail {
       await this.cacheResult(cacheKey, analysisResult, cacheTtl);
       this.logger.debug('✅ Step 8 complete: Result cached');
 
-      // Step 9: Apply tags to the message
+      // Step 9: Apply tags to the message and get low-confidence flags
+      let lowConfidenceFlags: Array<{
+        tagKey: string;
+        confidence: number;
+        threshold: number;
+        thresholdType: 'custom' | 'global';
+        reasoning: string;
+      }> = [];
+
       if (applyTags) {
         this.logger.debug('➡️  Step 9: Applying tags to message');
-        await this.applyTagsToEmail(messageId, analysisResult.tags, analysisResult.confidence);
-        this.logger.debug('✅ Step 9 complete: Tags applied');
+        lowConfidenceFlags = await this.applyTagsToEmail(
+          messageId,
+          analysisResult.tags,
+          analysisResult.confidence,
+          analysisResult.reasoning
+        );
+        this.logger.debug('✅ Step 9 complete: Tags applied', {
+          lowConfidenceFlagCount: lowConfidenceFlags.length,
+        });
       } else {
         this.logger.debug('⏭️  Skipping tag application (applyTags=false)');
+      }
+
+      // Step 9.5: Store low-confidence flags for manual review
+      if (lowConfidenceFlags.length > 0) {
+        this.logger.debug('➡️  Step 9.5: Storing low-confidence flags');
+        await this.storeLowConfidenceFlags(cacheKey, lowConfidenceFlags);
+        this.logger.debug('✅ Step 9.5 complete: Low-confidence flags stored');
       }
 
       // Publish EmailAnalyzedEvent
@@ -653,6 +687,59 @@ export class AnalyzeEmail {
   }
 
   /**
+   * Stores low-confidence flags for manual review.
+   *
+   * Uses messenger.storage.local to persist low-confidence flags for queryability.
+   * Stores flags under a key that can be retrieved later for manual review.
+   *
+   * @param cacheKey - Cache key for the email analysis
+   * @param flags - Array of low-confidence flags
+   */
+  private async storeLowConfidenceFlags(
+    cacheKey: string,
+    flags: Array<{
+      tagKey: string;
+      confidence: number;
+      threshold: number;
+      thresholdType: 'custom' | 'global';
+      reasoning: string;
+    }>
+  ): Promise<void> {
+    this.logger.debug('🚩 Storing low-confidence flags', {
+      cacheKey: cacheKey.substring(0, 16) + '...',
+      flagCount: flags.length,
+    });
+
+    try {
+      // Use messenger.storage.local to persist low-confidence flags
+      // This provides a queryable list of emails needing manual review
+      const storageKey = `lowConfidence_${cacheKey}`;
+      const flagData = {
+        cacheKey,
+        flags,
+        timestamp: Date.now(),
+      };
+
+      if (typeof messenger !== 'undefined' && messenger.storage) {
+        await messenger.storage.local.set({ [storageKey]: flagData });
+        this.logger.debug('✅ Low-confidence flags stored', {
+          storageKey,
+          flagCount: flags.length,
+        });
+      } else {
+        this.logger.warn('⚠️  Messenger storage not available, skipping low-confidence flag storage');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn('⚠️  Failed to store low-confidence flags', {
+        cacheKey: cacheKey.substring(0, 16) + '...',
+        error: errorMessage,
+      });
+      // Non-fatal error, continue execution
+    }
+  }
+
+  /**
    * Applies tags to email message, filtering by confidence thresholds.
    *
    * Tags are only applied if their confidence meets the configured threshold.
@@ -661,13 +748,24 @@ export class AnalyzeEmail {
    * @param messageId - Message ID to apply tags to
    * @param tagKeys - Tag keys to apply
    * @param confidence - Overall confidence score (0-1 range)
+   * @param reasoning - AI reasoning for the classification (optional)
+   * @returns Promise resolving to array of low-confidence flags for skipped tags
    * @throws {Error} If tag application fails
    */
   private async applyTagsToEmail(
     messageId: string,
     tagKeys: string[],
-    confidence: number
-  ): Promise<void> {
+    confidence: number,
+    reasoning?: string
+  ): Promise<
+    Array<{
+      tagKey: string;
+      confidence: number;
+      threshold: number;
+      thresholdType: 'custom' | 'global';
+      reasoning: string;
+    }>
+  > {
     this.logger.debug('🏷️  Applying tags to email with confidence filtering', {
       messageId,
       tagKeys,
@@ -697,11 +795,18 @@ export class AnalyzeEmail {
 
       // Filter tags based on confidence thresholds
       const tagsToApply: string[] = [];
-      const skippedTags: Array<{ tag: string; threshold: number; reason: string }> = [];
+      const lowConfidenceFlags: Array<{
+        tagKey: string;
+        confidence: number;
+        threshold: number;
+        thresholdType: 'custom' | 'global';
+        reasoning: string;
+      }> = [];
 
       for (const tagKey of tagKeys) {
         const tag = tagMap.get(tagKey);
         const effectiveThreshold = getEffectiveThreshold(tag ?? {}, globalThreshold);
+        const thresholdType = tag?.minConfidenceThreshold !== undefined ? 'custom' : 'global';
 
         if (meetsTagThreshold(confidence, tag ?? {}, globalThreshold)) {
           tagsToApply.push(tagKey);
@@ -709,19 +814,24 @@ export class AnalyzeEmail {
             tag: tagKey,
             confidence: `${(confidence * 100).toFixed(1)}%`,
             threshold: effectiveThreshold,
-            thresholdType: tag?.minConfidenceThreshold !== undefined ? 'custom' : 'global',
+            thresholdType,
           });
         } else {
-          skippedTags.push({
-            tag: tagKey,
+          // Create low-confidence flag with reasoning
+          lowConfidenceFlags.push({
+            tagKey,
+            confidence,
             threshold: effectiveThreshold,
-            reason: `Confidence ${(confidence * 100).toFixed(1)}% below threshold ${effectiveThreshold}%`,
+            thresholdType,
+            reasoning:
+              reasoning ??
+              `Confidence ${(confidence * 100).toFixed(1)}% below threshold ${effectiveThreshold}% (${thresholdType} threshold)`,
           });
           this.logger.debug('⏭️  Tag below threshold, skipping', {
             tag: tagKey,
             confidence: `${(confidence * 100).toFixed(1)}%`,
             threshold: effectiveThreshold,
-            thresholdType: tag?.minConfidenceThreshold !== undefined ? 'custom' : 'global',
+            thresholdType,
           });
         }
       }
@@ -743,14 +853,18 @@ export class AnalyzeEmail {
         });
       }
 
-      // Log skipped tags for debugging
-      if (skippedTags.length > 0) {
-        this.logger.info('📋 Tags skipped due to low confidence', {
+      // Log low-confidence flags
+      if (lowConfidenceFlags.length > 0) {
+        this.logger.info('📋 Low-confidence flags created', {
           messageId,
-          skippedCount: skippedTags.length,
-          skipped: skippedTags.map((s) => `${s.tag} (${s.reason})`),
+          flagCount: lowConfidenceFlags.length,
+          flags: lowConfidenceFlags.map(
+            (f) => `${f.tagKey}: ${f.confidence * 100}% < ${f.threshold}%`
+          ),
         });
       }
+
+      return lowConfidenceFlags;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('❌ Failed to apply tags', {
