@@ -97,7 +97,7 @@ export interface AnalysisFeatures {
 }
 
 /**
- * Complete application configuration
+ * Model concurrency configuration
  */
 export interface ModelConcurrencyConfig {
   provider: string;
@@ -105,9 +105,13 @@ export interface ModelConcurrencyConfig {
   concurrency: number;
 }
 
+/**
+ * Confidence threshold configuration
+ */
 export interface AppConfig extends ProviderConfig, AnalysisFeatures {
   customTags: CustomTags;
   modelConcurrencyLimits?: ModelConcurrencyConfig[];
+  minConfidenceThreshold: number;
 }
 
 /**
@@ -217,6 +221,7 @@ export const DEFAULTS: Readonly<DefaultConfig> = {
   enableLogging: true,
   model: undefined,
   modelConcurrencyLimits: undefined,
+  minConfidenceThreshold: 70,
 } as const;
 
 // ============================================================================
@@ -271,6 +276,13 @@ export function isHardcodedTag(tag: Tag): tag is Tag & { key: HardcodedTagKey } 
  */
 export function isValidColor(color: string): boolean {
   return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
+}
+
+/**
+ * Type guard to check if a confidence threshold value is valid
+ */
+export function isValidConfidenceThreshold(threshold: number): boolean {
+  return Number.isInteger(threshold) && threshold >= 0 && threshold <= 100;
 }
 
 const PROVIDER_DEFAULT_CONCURRENCY: Record<Provider, number> = {
@@ -328,6 +340,25 @@ export function validateConcurrencyConfig(config: ModelConcurrencyConfig[]): str
         `Invalid concurrency value for ${entry.provider}/${entry.model}: ${entry.concurrency}. Must be a positive integer.`
       );
     }
+  }
+
+  return errors;
+}
+
+/**
+ * Validates the confidence threshold configuration
+ */
+export function validateConfidenceThreshold(threshold: number): string[] {
+  const errors: string[] = [];
+
+  if (!Number.isInteger(threshold)) {
+    errors.push(`Confidence threshold must be an integer, got: ${threshold}`);
+  }
+
+  if (threshold < 0 || threshold > 100) {
+    errors.push(
+      `Confidence threshold must be between 0 and 100, got: ${threshold}`
+    );
   }
 
   return errors;
