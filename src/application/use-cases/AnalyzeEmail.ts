@@ -34,6 +34,8 @@ import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 import { EventBus } from '@/domain/events/EventBus';
 import { createEmailAnalyzedEvent } from '@/domain/events/EmailAnalyzedEvent';
 import { createProviderErrorEvent } from '@/domain/events/ProviderErrorEvent';
+import { meetsTagThreshold, getEffectiveThreshold } from '@/shared/utils/confidenceUtils';
+import type { Tag } from '@/shared/types/ProviderTypes';
 
 // ============================================================================
 // Browser-compatible Crypto Utilities
@@ -229,7 +231,7 @@ export class AnalyzeEmail {
 
           if (applyTags) {
             this.logger.debug('➡️  Applying cached tags to email');
-            await this.applyTagsToEmail(messageId, cachedResult.tags);
+            await this.applyTagsToEmail(messageId, cachedResult.tags, cachedResult.confidence);
             this.logger.debug('✅ Cached tags applied');
           }
 
@@ -286,7 +288,7 @@ export class AnalyzeEmail {
       // Step 9: Apply tags to the message
       if (applyTags) {
         this.logger.debug('➡️  Step 9: Applying tags to message');
-        await this.applyTagsToEmail(messageId, analysisResult.tags);
+        await this.applyTagsToEmail(messageId, analysisResult.tags, analysisResult.confidence);
         this.logger.debug('✅ Step 9 complete: Tags applied');
       } else {
         this.logger.debug('⏭️  Skipping tag application (applyTags=false)');
@@ -651,14 +653,26 @@ export class AnalyzeEmail {
   }
 
   /**
-   * Applies tags to email message.
+   * Applies tags to email message, filtering by confidence thresholds.
+   *
+   * Tags are only applied if their confidence meets the configured threshold.
+   * Per-tag threshold overrides take precedence over the global threshold.
    *
    * @param messageId - Message ID to apply tags to
    * @param tagKeys - Tag keys to apply
+   * @param confidence - Overall confidence score (0-1 range)
    * @throws {Error} If tag application fails
    */
-  private async applyTagsToEmail(messageId: string, tagKeys: string[]): Promise<void> {
-    this.logger.debug('🏷️  Applying tags to email', { messageId, tagKeys });
+  private async applyTagsToEmail(
+    messageId: string,
+    tagKeys: string[],
+    confidence: number
+  ): Promise<void> {
+    this.logger.debug('🏷️  Applying tags to email with confidence filtering', {
+      messageId,
+      tagKeys,
+      confidence,
+    });
 
     try {
       const messageIdNum = parseInt(messageId, 10);
@@ -666,12 +680,85 @@ export class AnalyzeEmail {
         throw new Error(`Invalid message ID: ${messageId}`);
       }
 
-      await this.tagManager.setTagsOnMessage(messageIdNum, tagKeys);
+      // Load app config to get global confidence threshold
+      this.logger.debug('➡️  Loading app config for confidence threshold');
+      const appConfig = await this.configRepository.getAppConfig();
+      const globalThreshold = appConfig.minConfidenceThreshold ?? 70;
+      this.logger.debug('✅ Global threshold loaded', { globalThreshold });
 
-      this.logger.debug('✅ Tags applied successfully', { messageId, count: tagKeys.length });
+      // Load custom tags to get per-tag threshold overrides
+      this.logger.debug('➡️  Loading custom tags for threshold overrides');
+      const customTags = await this.configRepository.getCustomTags();
+      this.logger.debug('✅ Custom tags loaded', { count: customTags.length });
+
+      // Build tag lookup map for threshold overrides
+      const tagMap = new Map<string, Tag>();
+      customTags.forEach((tag) => tagMap.set(tag.key, tag));
+
+      // Filter tags based on confidence thresholds
+      const tagsToApply: string[] = [];
+      const skippedTags: Array<{ tag: string; threshold: number; reason: string }> = [];
+
+      for (const tagKey of tagKeys) {
+        const tag = tagMap.get(tagKey);
+        const effectiveThreshold = getEffectiveThreshold(tag ?? {}, globalThreshold);
+
+        if (meetsTagThreshold(confidence, tag ?? {}, globalThreshold)) {
+          tagsToApply.push(tagKey);
+          this.logger.debug('✅ Tag meets threshold', {
+            tag: tagKey,
+            confidence: `${(confidence * 100).toFixed(1)}%`,
+            threshold: effectiveThreshold,
+            thresholdType: tag?.minConfidenceThreshold !== undefined ? 'custom' : 'global',
+          });
+        } else {
+          skippedTags.push({
+            tag: tagKey,
+            threshold: effectiveThreshold,
+            reason: `Confidence ${(confidence * 100).toFixed(1)}% below threshold ${effectiveThreshold}%`,
+          });
+          this.logger.debug('⏭️  Tag below threshold, skipping', {
+            tag: tagKey,
+            confidence: `${(confidence * 100).toFixed(1)}%`,
+            threshold: effectiveThreshold,
+            thresholdType: tag?.minConfidenceThreshold !== undefined ? 'custom' : 'global',
+          });
+        }
+      }
+
+      // Apply only tags that meet thresholds
+      if (tagsToApply.length > 0) {
+        await this.tagManager.setTagsOnMessage(messageIdNum, tagsToApply);
+        this.logger.info('✅ Tags applied successfully', {
+          messageId,
+          applied: tagsToApply.length,
+          total: tagKeys.length,
+        });
+      } else {
+        this.logger.warn('⚠️  No tags met confidence threshold', {
+          messageId,
+          total: tagKeys.length,
+          confidence: `${(confidence * 100).toFixed(1)}%`,
+          globalThreshold,
+        });
+      }
+
+      // Log skipped tags for debugging
+      if (skippedTags.length > 0) {
+        this.logger.info('📋 Tags skipped due to low confidence', {
+          messageId,
+          skippedCount: skippedTags.length,
+          skipped: skippedTags.map((s) => `${s.tag} (${s.reason})`),
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('❌ Failed to apply tags', { messageId, tagKeys, error: errorMessage });
+      this.logger.error('❌ Failed to apply tags', {
+        messageId,
+        tagKeys,
+        confidence,
+        error: errorMessage,
+      });
       throw error;
     }
   }

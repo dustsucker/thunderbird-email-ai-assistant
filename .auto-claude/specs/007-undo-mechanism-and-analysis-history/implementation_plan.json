@@ -1,8 +1,0 @@
-{
-  "feature": "Undo Mechanism and Analysis History",
-  "description": "# Undo Mechanism and Analysis History\n\nAllow users to undo recent tag applications and view a history/audit log of all AI classifications. History includes timestamp, email subject, applied tags, confidence scores, and provider used.\n\n## Rationale\nAddresses known gap for undo mechanism and audit log. Users need to correct AI mistakes easily and review past classifications. This builds trust and enables users to refine their prompts based on historical performance.\n\n## User Stories\n- As a user, I want to undo incorrect tag applications so that I can easily correct AI mistakes\n- As a power user, I want to review analysis history so that I can evaluate how well my prompts are working\n\n## Acceptance Criteria\n- [ ] Undo button in notification after tags are applied\n- [ ] Undo option in message context menu for recently tagged messages\n- [ ] Analysis history page showing last 1000 classifications\n- [ ] History entries include: timestamp, email subject, tags, confidence, provider\n- [ ] Filter history by date range, tag, or confidence level\n- [ ] Export history as CSV for analysis\n- [ ] History stored locally with configurable retention period\n",
-  "created_at": "2026-01-04T21:46:01.191Z",
-  "updated_at": "2026-01-04T21:46:01.191Z",
-  "status": "pending",
-  "phases": []
-}

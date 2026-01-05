@@ -43,6 +43,8 @@ export interface IAppConfig {
   enableLogging: boolean;
   /** Model-specific concurrency limits */
   modelConcurrencyLimits?: IModelConcurrencyConfig[];
+  /** Minimum confidence threshold for tag application (0-100) */
+  minConfidenceThreshold?: number;
 }
 
 /**
@@ -57,6 +59,8 @@ export interface ICustomTag {
   color: string;
   /** Optional prompt description for AI analysis */
   prompt?: string;
+  /** Optional minimum confidence threshold override (0-100) */
+  minConfidenceThreshold?: number;
 }
 
 /**
