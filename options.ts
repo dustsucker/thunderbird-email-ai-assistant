@@ -135,6 +135,7 @@ interface TagManagementElements {
   tagKey: HTMLInputElement;
   tagColor: HTMLInputElement;
   tagPrompt: HTMLTextAreaElement;
+  tagThreshold: HTMLInputElement;
 }
 
 /**
@@ -494,6 +495,7 @@ function getTagManagementElements(): TagManagementElements {
   const tagKey = getElementById<HTMLInputElement>('tag-key');
   const tagColor = getElementById<HTMLInputElement>('tag-color');
   const tagPrompt = getElementById<HTMLTextAreaElement>('tag-prompt');
+  const tagThreshold = getElementById<HTMLInputElement>('tag-threshold');
 
   if (
     !tagListContainer ||
@@ -506,7 +508,8 @@ function getTagManagementElements(): TagManagementElements {
     !tagName ||
     !tagKey ||
     !tagColor ||
-    !tagPrompt
+    !tagPrompt ||
+    !tagThreshold
   ) {
     throw new Error('Required tag management elements not found');
   }
@@ -523,6 +526,7 @@ function getTagManagementElements(): TagManagementElements {
     tagKey,
     tagColor,
     tagPrompt,
+    tagThreshold,
   };
 }
 
@@ -1538,6 +1542,10 @@ function openModal(elements: TagManagementElements, context: TagEditContext): vo
     elements.tagKey.value = context.tag.key;
     elements.tagColor.value = context.tag.color;
     elements.tagPrompt.value = context.tag.prompt || '';
+    // Set threshold value if it exists
+    if (context.tag.minConfidenceThreshold !== undefined) {
+      elements.tagThreshold.value = context.tag.minConfidenceThreshold.toString();
+    }
   } else {
     elements.modalTitle.textContent = 'Add New Tag';
   }
@@ -1601,6 +1609,7 @@ async function handleTagFormSubmit(
   const key = elements.tagKey.value.trim();
   const color = elements.tagColor.value;
   const prompt = elements.tagPrompt.value.trim();
+  const thresholdValue = elements.tagThreshold.value.trim();
 
   // Validate inputs
   if (!name) {
@@ -1628,6 +1637,17 @@ async function handleTagFormSubmit(
     return;
   }
 
+  // Validate threshold if provided
+  let minConfidenceThreshold: number | undefined = undefined;
+  if (thresholdValue) {
+    const threshold = parseInt(thresholdValue, 10);
+    if (isNaN(threshold) || threshold < 0 || threshold > 100) {
+      alert('Fehler: Konfidenz-Schwellenwert muss eine Zahl zwischen 0 und 100 sein.');
+      return;
+    }
+    minConfidenceThreshold = threshold;
+  }
+
   // Check for duplicate keys (excluding current index for edits)
   const isDuplicate = customTags.some((tag, i) => tag.key === key && i !== index);
   if (isDuplicate) {
@@ -1635,7 +1655,7 @@ async function handleTagFormSubmit(
     return;
   }
 
-  const newTag: Tag = { name, key, color, prompt };
+  const newTag: Tag = { name, key, color, prompt, minConfidenceThreshold };
 
   if (index === -1) {
     // Add new tag
