@@ -1,0 +1,308 @@
+/**
+ * Confidence Badge Styles
+ *
+ * Visual styling for confidence score badges with color-coded levels.
+ * Supports multiple display modes: compact, detailed, and minimal.
+ *
+ * Color Coding:
+ * - High (>= 80%): Green (#4CAF50)
+ * - Medium (70-79%): Amber/Yellow (#FFC107)
+ * - Low (< 70%): Red (#F44336)
+ */
+
+:root {
+  /* Confidence level colors */
+  --confidence-high-bg: #4CAF50;
+  --confidence-high-text: #FFFFFF;
+  --confidence-high-border: #45A049;
+
+  --confidence-medium-bg: #FFC107;
+  --confidence-medium-text: #1a1a1a;
+  --confidence-medium-border: #FFB300;
+
+  --confidence-low-bg: #F44336;
+  --confidence-low-text: #FFFFFF;
+  --confidence-low-border: #E53935;
+
+  /* Confidence badge sizing */
+  --confidence-badge-padding-compact: 4px 8px;
+  --confidence-badge-padding-detailed: 6px 10px;
+  --confidence-badge-size-minimal: 12px;
+
+  /* Confidence badge typography */
+  --confidence-badge-font-size: 12px;
+  --confidence-badge-font-weight: 600;
+  --confidence-badge-font-size-detailed: 13px;
+
+  /* Confidence badge border radius */
+  --confidence-badge-radius: 12px;
+  --confidence-badge-radius-minimal: 50%;
+}
+
+/* ============================================================================
+   Base Confidence Badge Styles
+   ============================================================================ */
+
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--confidence-badge-padding-compact);
+  border-radius: var(--confidence-badge-radius);
+  font-size: var(--confidence-badge-font-size);
+  font-weight: var(--confidence-badge-font-weight);
+  line-height: 1;
+  white-space: nowrap;
+  transition: all 0.2s ease-in-out;
+  cursor: default;
+  user-select: none;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+}
+
+.confidence-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.confidence-badge:focus {
+  outline: 2px solid var(--confidence-high-bg);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   Confidence Level Variants
+   ============================================================================ */
+
+/* High Confidence (>= 80%) */
+.confidence-badge.confidence-high {
+  background-color: var(--confidence-high-bg);
+  color: var(--confidence-high-text);
+  border-color: var(--confidence-high-border);
+}
+
+/* Medium Confidence (70-79%) */
+.confidence-badge.confidence-medium {
+  background-color: var(--confidence-medium-bg);
+  color: var(--confidence-medium-text);
+  border-color: var(--confidence-medium-border);
+}
+
+/* Low Confidence (< 70%) */
+.confidence-badge.confidence-low {
+  background-color: var(--confidence-low-bg);
+  color: var(--confidence-low-text);
+  border-color: var(--confidence-low-border);
+}
+
+/* ============================================================================
+   Display Modes
+   ============================================================================ */
+
+/* Compact Mode - Default */
+.confidence-badge.compact {
+  padding: var(--confidence-badge-padding-compact);
+  font-size: var(--confidence-badge-font-size);
+  min-width: 40px;
+}
+
+/* Detailed Mode - Includes label */
+.confidence-badge.detailed {
+  padding: var(--confidence-badge-padding-detailed);
+  font-size: var(--confidence-badge-font-size-detailed);
+  gap: 4px;
+}
+
+.confidence-badge.detailed::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.8;
+  margin-right: 2px;
+}
+
+/* Minimal Mode - Colored dot indicator only */
+.confidence-badge.minimal {
+  width: var(--confidence-badge-size-minimal);
+  height: var(--confidence-badge-size-minimal);
+  padding: 0;
+  border-radius: var(--confidence-badge-radius-minimal);
+  min-width: unset;
+}
+
+.confidence-badge.minimal[aria-label] {
+  position: relative;
+}
+
+.confidence-badge.minimal[aria-label]:hover::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background-color: rgba(0, 0, 0, 0.9);
+  color: white;
+  font-size: 11px;
+  border-radius: 4px;
+  white-space: nowrap;
+  margin-bottom: 4px;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* ============================================================================
+   Responsive Design
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .confidence-badge {
+    --confidence-badge-font-size: 11px;
+    --confidence-badge-padding-compact: 3px 6px;
+  }
+
+  .confidence-badge.detailed {
+    --confidence-badge-font-size-detailed: 12px;
+    --confidence-badge-padding-detailed: 5px 8px;
+  }
+}
+
+/* ============================================================================
+   Integration with Tag Items
+   ============================================================================ */
+
+/* Confidence badge next to tag name */
+.tag-name .confidence-badge,
+.tag-details .confidence-badge {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* Confidence badge in tag actions */
+.tag-actions .confidence-badge {
+  margin: 0 4px;
+}
+
+/* ============================================================================
+   Animation States
+   ============================================================================ */
+
+@keyframes confidencePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.confidence-badge.pulse {
+  animation: confidencePulse 2s ease-in-out infinite;
+}
+
+/* ============================================================================
+   Accessibility Enhancements
+   ============================================================================ */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .confidence-badge {
+    border-width: 2px;
+  }
+
+  .confidence-badge.confidence-high {
+    border-color: #2E7D32;
+  }
+
+  .confidence-badge.confidence-medium {
+    border-color: #F57F17;
+  }
+
+  .confidence-badge.confidence-low {
+    border-color: #C62828;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .confidence-badge {
+    transition: none;
+  }
+
+  .confidence-badge:hover {
+    transform: none;
+  }
+
+  .confidence-badge.pulse {
+    animation: none;
+  }
+}
+
+/* Dark mode support (optional, if needed in future) */
+@media (prefers-color-scheme: dark) {
+  .confidence-badge.confidence-medium {
+    --confidence-medium-bg: #FFB300;
+    --confidence-medium-text: #1a1a1a;
+  }
+}
+
+/* ============================================================================
+   Utility Classes
+   ============================================================================ */
+
+/* Small variant */
+.confidence-badge.small {
+  --confidence-badge-font-size: 10px;
+  --confidence-badge-padding-compact: 2px 6px;
+  --confidence-badge-radius: 8px;
+}
+
+/* Large variant */
+.confidence-badge.large {
+  --confidence-badge-font-size: 14px;
+  --confidence-badge-padding-compact: 6px 12px;
+  --confidence-badge-radius: 16px;
+}
+
+/* Outline variant (no background) */
+.confidence-badge.outline {
+  background-color: transparent !important;
+  border-width: 2px;
+}
+
+.confidence-badge.outline.confidence-high {
+  color: var(--confidence-high-bg);
+  border-color: var(--confidence-high-bg);
+}
+
+.confidence-badge.outline.confidence-medium {
+  color: var(--confidence-medium-bg);
+  border-color: var(--confidence-medium-bg);
+}
+
+.confidence-badge.outline.confidence-low {
+  color: var(--confidence-low-bg);
+  border-color: var(--confidence-low-bg);
+}
+
+/* Subtle variant (lighter backgrounds) */
+.confidence-badge.subtle.confidence-high {
+  background-color: rgba(76, 175, 80, 0.15);
+  color: #2E7D32;
+  border-color: transparent;
+}
+
+.confidence-badge.subtle.confidence-medium {
+  background-color: rgba(255, 193, 7, 0.2);
+  color: #F57C00;
+  border-color: transparent;
+}
+
+.confidence-badge.subtle.confidence-low {
+  background-color: rgba(244, 67, 54, 0.15);
+  color: #C62828;
+  border-color: transparent;
+}
