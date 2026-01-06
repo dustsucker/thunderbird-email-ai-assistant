@@ -364,3 +364,44 @@ export function validateConfidenceThreshold(threshold: number): string[] {
 
   return errors;
 }
+
+/**
+ * Validates confidence thresholds for an array of custom tags
+ *
+ * @param customTags - Array of custom tag configurations to validate
+ * @returns Array of error messages (empty if all valid)
+ *
+ * @example
+ * const tags = [
+ *   { key: 'tag1', name: 'Tag 1', color: '#FF0000', minConfidenceThreshold: 75 },
+ *   { key: 'tag2', name: 'Tag 2', color: '#00FF00', minConfidenceThreshold: 101 },
+ * ];
+ * const errors = validateCustomTagsThresholds(tags);
+ * // Returns ["Tag 'tag2' has invalid threshold: 101. Must be an integer between 0 and 100"]
+ */
+export function validateCustomTagsThresholds(customTags: CustomTags): string[] {
+  const errors: string[] = [];
+
+  for (const tag of customTags) {
+    if (tag.minConfidenceThreshold === undefined) {
+      continue; // Undefined threshold is valid (uses global setting)
+    }
+
+    const threshold = tag.minConfidenceThreshold;
+
+    if (!Number.isInteger(threshold)) {
+      errors.push(
+        `Tag '${tag.key}' has invalid threshold: ${threshold}. Must be an integer between 0 and 100`
+      );
+      continue;
+    }
+
+    if (threshold < 0 || threshold > 100) {
+      errors.push(
+        `Tag '${tag.key}' has invalid threshold: ${threshold}. Must be an integer between 0 and 100`
+      );
+    }
+  }
+
+  return errors;
+}

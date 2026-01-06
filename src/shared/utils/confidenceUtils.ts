@@ -8,8 +8,8 @@
  * @module shared/utils/confidenceUtils
  */
 
-import type { Tag } from '@/shared/types/ProviderTypes';
-import { DEFAULTS } from '@/shared/types/ProviderTypes';
+import type { Tag } from '../types/ProviderTypes';
+import { DEFAULTS } from '../types/ProviderTypes';
 
 // ============================================================================
 // TYPE DEFINITIONS
