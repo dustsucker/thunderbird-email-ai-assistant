@@ -31,21 +31,29 @@
           "id": "milestone-1-1",
           "title": "Manual Analysis Complete",
           "description": "Users can manually trigger AI analysis on selected emails with visual feedback",
-          "features": ["feature-1", "feature-3"],
+          "features": [
+            "feature-1",
+            "feature-3"
+          ],
           "status": "planned"
         },
         {
           "id": "milestone-1-2",
           "title": "Classification Transparency",
           "description": "Users can see confidence scores and preview tag suggestions before applying",
-          "features": ["feature-2", "feature-4"],
+          "features": [
+            "feature-2",
+            "feature-4"
+          ],
           "status": "planned"
         },
         {
           "id": "milestone-1-3",
           "title": "Production Stability",
           "description": "Extension is stable with clear error feedback and undo capability",
-          "features": ["feature-5"],
+          "features": [
+            "feature-5"
+          ],
           "status": "planned"
         }
       ]
@@ -68,14 +76,21 @@
           "id": "milestone-2-1",
           "title": "Bulk Operations Ready",
           "description": "Users can re-analyze multiple emails and manage tags in bulk",
-          "features": ["feature-6", "feature-7"],
+          "features": [
+            "feature-6",
+            "feature-7"
+          ],
           "status": "planned"
         },
         {
           "id": "milestone-2-2",
           "title": "Configuration Flexibility",
           "description": "Users can configure AI models, export settings, and customize behavior",
-          "features": ["feature-8", "feature-9", "feature-10"],
+          "features": [
+            "feature-8",
+            "feature-9",
+            "feature-10"
+          ],
           "status": "planned"
         }
       ]
@@ -97,14 +112,20 @@
           "id": "milestone-3-1",
           "title": "Learning System Active",
           "description": "Extension learns from user corrections and provides smart suggestions",
-          "features": ["feature-11", "feature-12"],
+          "features": [
+            "feature-11",
+            "feature-12"
+          ],
           "status": "planned"
         },
         {
           "id": "milestone-3-2",
           "title": "Analytics Dashboard Live",
           "description": "Users can view classification statistics, costs, and performance metrics",
-          "features": ["feature-13", "feature-14"],
+          "features": [
+            "feature-13",
+            "feature-14"
+          ],
           "status": "planned"
         }
       ]
@@ -126,21 +147,28 @@
           "id": "milestone-4-1",
           "title": "Global Ready",
           "description": "Extension supports multiple languages and is prepared for international users",
-          "features": ["feature-15"],
+          "features": [
+            "feature-15"
+          ],
           "status": "planned"
         },
         {
           "id": "milestone-4-2",
           "title": "Future Proof",
           "description": "Extension migrated to Manifest V3 and has extensible provider architecture",
-          "features": ["feature-16", "feature-17"],
+          "features": [
+            "feature-16",
+            "feature-17"
+          ],
           "status": "planned"
         },
         {
           "id": "milestone-4-3",
           "title": "Community Ecosystem",
           "description": "Users can share and discover tag configurations from the community",
-          "features": ["feature-18"],
+          "features": [
+            "feature-18"
+          ],
           "status": "planned"
         }
       ]
@@ -157,7 +185,7 @@
       "impact": "high",
       "phase_id": "phase-1",
       "dependencies": [],
-      "status": "idea",
+      "status": "planned",
       "acceptance_criteria": [
         "Right-click context menu shows 'Analyze with AI' option on selected messages",
         "Keyboard shortcut (configurable) triggers analysis on selected messages",
@@ -169,7 +197,11 @@
         "As an email power user, I want to manually trigger AI analysis on specific emails so that I can organize messages that arrived before I configured my tags",
         "As a privacy-conscious user, I want to analyze only selected emails so that I control exactly which messages are processed by AI"
       ],
-      "competitor_insight_ids": ["pain-4-1", "pain-4-2"]
+      "linked_spec_id": "009-manual-analysis-trigger-from-message-context",
+      "competitor_insight_ids": [
+        "pain-4-1",
+        "pain-4-2"
+      ]
     },
     {
       "id": "feature-2",
@@ -181,7 +213,7 @@
       "impact": "high",
       "phase_id": "phase-1",
       "dependencies": [],
-      "status": "idea",
+      "status": "planned",
       "acceptance_criteria": [
         "Confidence score (0-100%) is displayed alongside each tag suggestion",
         "Global confidence threshold setting in options (default: 70%)",
@@ -193,7 +225,11 @@
         "As a cautious user, I want to see confidence scores so that I can understand how certain the AI is about its classifications",
         "As a power user, I want to set minimum confidence thresholds so that only high-confidence tags are applied automatically"
       ],
-      "competitor_insight_ids": ["pain-3-3", "gap-5"]
+      "linked_spec_id": "010-confidence-score-display-and-threshold-configurati",
+      "competitor_insight_ids": [
+        "pain-3-3",
+        "gap-5"
+      ]
     },
     {
       "id": "feature-3",
@@ -205,7 +241,7 @@
       "impact": "high",
       "phase_id": "phase-1",
       "dependencies": [],
-      "status": "idea",
+      "status": "planned",
       "acceptance_criteria": [
         "API errors show specific, actionable error messages (not just 'Error')",
         "Rate limit errors suggest waiting time or switching providers",
@@ -218,6 +254,7 @@
         "As a new user, I want clear error messages so that I can fix configuration problems without searching documentation",
         "As a power user, I want to be notified when batch analysis completes so that I don't have to manually check"
       ],
+      "linked_spec_id": "011-enhanced-error-feedback-and-notifications",
       "competitor_insight_ids": []
     },
     {
@@ -229,8 +266,10 @@
       "complexity": "medium",
       "impact": "high",
       "phase_id": "phase-1",
-      "dependencies": ["feature-2"],
-      "status": "idea",
+      "dependencies": [
+        "feature-2"
+      ],
+      "status": "planned",
       "acceptance_criteria": [
         "Preview mode toggle in settings (preview all / auto-apply above threshold)",
         "Preview UI shows email subject, proposed tags, and confidence scores",
@@ -243,6 +282,7 @@
         "As a new user, I want to preview tag suggestions so that I can verify my prompts are working correctly before auto-applying",
         "As a careful user, I want to approve tags before they're applied so that I maintain control over my email organization"
       ],
+      "linked_spec_id": "012-tag-suggestion-preview-before-application",
       "competitor_insight_ids": []
     },
     {
@@ -255,7 +295,7 @@
       "impact": "high",
       "phase_id": "phase-1",
       "dependencies": [],
-      "status": "idea",
+      "status": "planned",
       "acceptance_criteria": [
         "Undo button in notification after tags are applied",
         "Undo option in message context menu for recently tagged messages",
@@ -269,6 +309,7 @@
         "As a user, I want to undo incorrect tag applications so that I can easily correct AI mistakes",
         "As a power user, I want to review analysis history so that I can evaluate how well my prompts are working"
       ],
+      "linked_spec_id": "013-undo-mechanism-and-analysis-history",
       "competitor_insight_ids": []
     },
     {
@@ -280,8 +321,10 @@
       "complexity": "medium",
       "impact": "medium",
       "phase_id": "phase-2",
-      "dependencies": ["feature-1"],
-      "status": "idea",
+      "dependencies": [
+        "feature-1"
+      ],
+      "status": "under_review",
       "acceptance_criteria": [
         "Re-analyze button for selected emails in folder view",
         "Filter options: by folder, date range, existing tags, or no tags",
@@ -306,7 +349,7 @@
       "impact": "medium",
       "phase_id": "phase-2",
       "dependencies": [],
-      "status": "idea",
+      "status": "under_review",
       "acceptance_criteria": [
         "Tag groups for organizing related tags",
         "Drag-and-drop reordering of tags",
@@ -320,7 +363,11 @@
         "As a user with many tags, I want to organize them into groups so that I can manage my classification system efficiently",
         "As a new user, I want prompt templates so that I can quickly set up effective classification criteria"
       ],
-      "competitor_insight_ids": ["pain-1-3", "pain-3-2", "gap-2"]
+      "competitor_insight_ids": [
+        "pain-1-3",
+        "pain-3-2",
+        "gap-2"
+      ]
     },
     {
       "id": "feature-8",
@@ -332,7 +379,7 @@
       "impact": "medium",
       "phase_id": "phase-2",
       "dependencies": [],
-      "status": "idea",
+      "status": "under_review",
       "acceptance_criteria": [
         "Model dropdown selector for each cloud provider",
         "API call to fetch available models (where supported)",
@@ -345,7 +392,9 @@
         "As a cost-conscious user, I want to use GPT-3.5 instead of GPT-4 so that I can save money on API costs",
         "As a power user, I want to use Claude 3 Opus for complex classifications so that I get higher accuracy"
       ],
-      "competitor_insight_ids": ["gap-4"]
+      "competitor_insight_ids": [
+        "gap-4"
+      ]
     },
     {
       "id": "feature-9",
@@ -357,7 +406,7 @@
       "impact": "medium",
       "phase_id": "phase-2",
       "dependencies": [],
-      "status": "idea",
+      "status": "under_review",
       "acceptance_criteria": [
         "Export button generates downloadable JSON file",
         "Export includes: tags, prompts, provider settings, preferences",
@@ -383,7 +432,7 @@
       "impact": "medium",
       "phase_id": "phase-2",
       "dependencies": [],
-      "status": "idea",
+      "status": "under_review",
       "acceptance_criteria": [
         "Configurable maximum token/character limit per email",
         "Toggle to skip attachment content analysis",
@@ -407,8 +456,11 @@
       "complexity": "high",
       "impact": "high",
       "phase_id": "phase-3",
-      "dependencies": ["feature-4", "feature-5"],
-      "status": "idea",
+      "dependencies": [
+        "feature-4",
+        "feature-5"
+      ],
+      "status": "under_review",
       "acceptance_criteria": [
         "Track all user modifications to AI-applied tags",
         "Analyze correction patterns to identify weak prompts",
@@ -421,7 +473,9 @@
         "As a user, I want the system to learn from my corrections so that classification accuracy improves over time",
         "As a power user, I want to see which tags have high correction rates so that I can improve those prompts"
       ],
-      "competitor_insight_ids": ["pain-4-4"]
+      "competitor_insight_ids": [
+        "pain-4-4"
+      ]
     },
     {
       "id": "feature-12",
@@ -432,8 +486,10 @@
       "complexity": "medium",
       "impact": "medium",
       "phase_id": "phase-3",
-      "dependencies": ["feature-2"],
-      "status": "idea",
+      "dependencies": [
+        "feature-2"
+      ],
+      "status": "under_review",
       "acceptance_criteria": [
         "Optional 'explain reasoning' toggle in settings",
         "Reasoning displayed alongside tag suggestions in preview",
@@ -446,7 +502,10 @@
         "As a curious user, I want to see why emails are classified a certain way so that I can understand the AI's decision-making",
         "As a power user refining prompts, I want classification reasoning so that I can identify what triggers incorrect classifications"
       ],
-      "competitor_insight_ids": ["pain-3-3", "gap-5"]
+      "competitor_insight_ids": [
+        "pain-3-3",
+        "gap-5"
+      ]
     },
     {
       "id": "feature-13",
@@ -457,8 +516,10 @@
       "complexity": "high",
       "impact": "medium",
       "phase_id": "phase-3",
-      "dependencies": ["feature-5"],
-      "status": "idea",
+      "dependencies": [
+        "feature-5"
+      ],
+      "status": "under_review",
       "acceptance_criteria": [
         "Dashboard page in options with visual charts",
         "Metrics: emails analyzed, tags applied, confidence distribution",
@@ -484,7 +545,7 @@
       "impact": "medium",
       "phase_id": "phase-3",
       "dependencies": [],
-      "status": "idea",
+      "status": "under_review",
       "acceptance_criteria": [
         "Toggle to enable email summarization",
         "Summary length option: one-line / short paragraph",
@@ -509,7 +570,7 @@
       "impact": "medium",
       "phase_id": "phase-4",
       "dependencies": [],
-      "status": "idea",
+      "status": "under_review",
       "acceptance_criteria": [
         "WebExtension i18n API integration",
         "All UI strings externalized to messages.json",
@@ -535,7 +596,7 @@
       "impact": "high",
       "phase_id": "phase-4",
       "dependencies": [],
-      "status": "idea",
+      "status": "under_review",
       "acceptance_criteria": [
         "Manifest updated to version 3",
         "Background script converted to service worker",
@@ -561,7 +622,7 @@
       "impact": "medium",
       "phase_id": "phase-4",
       "dependencies": [],
-      "status": "idea",
+      "status": "under_review",
       "acceptance_criteria": [
         "Provider interface/contract clearly defined",
         "Providers registered via configuration, not code",
@@ -575,7 +636,9 @@
         "As a developer, I want to add custom AI providers so that I can use my company's internal LLM",
         "As a user, I want provider flexibility so that I can quickly adopt new AI services as they become available"
       ],
-      "competitor_insight_ids": ["gap-4"]
+      "competitor_insight_ids": [
+        "gap-4"
+      ]
     },
     {
       "id": "feature-18",
@@ -586,8 +649,10 @@
       "complexity": "high",
       "impact": "medium",
       "phase_id": "phase-4",
-      "dependencies": ["feature-9"],
-      "status": "idea",
+      "dependencies": [
+        "feature-9"
+      ],
+      "status": "under_review",
       "acceptance_criteria": [
         "In-app browser for community tag configurations",
         "One-click import of community tags",
@@ -606,7 +671,7 @@
   ],
   "metadata": {
     "created_at": "2025-12-28T18:40:00Z",
-    "updated_at": "2025-12-28T18:40:00Z",
+    "updated_at": "2026-01-05T19:04:22.193Z",
     "generated_by": "roadmap_features agent",
     "prioritization_framework": "MoSCoW",
     "competitor_analysis_used": true,

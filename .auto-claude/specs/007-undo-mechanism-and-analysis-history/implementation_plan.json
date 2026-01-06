@@ -1,0 +1,482 @@
+{
+  "feature": "Undo Mechanism and Analysis History",
+  "description": "# Undo Mechanism and Analysis History\n\nAllow users to undo recent tag applications and view a history/audit log of all AI classifications. History includes timestamp, email subject, applied tags, confidence scores, and provider used.\n\n## Rationale\nAddresses known gap for undo mechanism and audit log. Users need to correct AI mistakes easily and review past classifications. This builds trust and enables users to refine their prompts based on historical performance.\n\n## User Stories\n- As a user, I want to undo incorrect tag applications so that I can easily correct AI mistakes\n- As a power user, I want to review analysis history so that I can evaluate how well my prompts are working\n\n## Acceptance Criteria\n- [ ] Undo button in notification after tags are applied\n- [ ] Undo option in message context menu for recently tagged messages\n- [ ] Analysis history page showing last 1000 classifications\n- [ ] History entries include: timestamp, email subject, tags, confidence, provider\n- [ ] Filter history by date range, tag, or confidence level\n- [ ] Export history as CSV for analysis\n- [ ] History stored locally with configurable retention period\n",
+  "created_at": "2026-01-04T21:46:01.191Z",
+  "updated_at": "2026-01-05T19:56:11.564Z",
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "phases": [
+    {
+      "id": "phase-1",
+      "title": "Phase 1: Analysis History Storage System",
+      "description": "Implement the core storage layer for tracking all email analyses with undo capability",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-1-subtask-1",
+          "title": "Design and implement analysis history data structures",
+          "description": "Create TypeScript interfaces for AnalysisHistoryEntry including messageId, timestamp, subject, tags, confidence scores, provider, and undo availability",
+          "status": "completed",
+          "files": [
+            "core/history.ts"
+          ],
+          "acceptanceCriteria": [
+            "Define AnalysisHistoryEntry interface with all required fields",
+            "Define AnalysisHistoryStorage interface for storage operations",
+            "Define HistoryFilterOptions interface for filtering",
+            "Add proper TypeScript types and JSDoc comments"
+          ]
+        },
+        {
+          "id": "phase-1-subtask-2",
+          "title": "Implement history storage service",
+          "description": "Create a service to store, retrieve, and manage analysis history in browser storage.local with configurable retention",
+          "status": "completed",
+          "files": [
+            "core/history.ts"
+          ],
+          "acceptanceCriteria": [
+            "Implement addHistoryEntry() to store new analysis results",
+            "Implement getHistory() to retrieve entries with pagination",
+            "Implement getHistoryEntry() to fetch single entry by ID",
+            "Implement deleteOldEntries() for retention policy",
+            "Implement getHistoryByMessageId() to find entries for specific message",
+            "Maximum 1000 entries stored by default",
+            "Configurable retention period (default 90 days)"
+          ]
+        },
+        {
+          "id": "phase-1-subtask-3",
+          "title": "Add history tracking to background.js analysis flow",
+          "description": "Modify background.js to save analysis results to history after tagging emails",
+          "status": "completed",
+          "files": [
+            "background.js"
+          ],
+          "acceptanceCriteria": [
+            "Import history tracking utilities",
+            "After successful tagging, call addHistoryEntry() with full analysis data",
+            "Extract confidence scores from analysis response",
+            "Handle errors gracefully if history storage fails",
+            "Include timestamp, provider, all applied tags"
+          ],
+          "notes": [
+            "Imported getHistoryStorage from core/history.js",
+            "Captured original tags before applying AI analysis (line 219)",
+            "Created tagConfidence array from analysis response (lines 255-258)",
+            "Saved complete history entry with all required fields (lines 285-297)",
+            "Wrapped history storage in try/catch for graceful error handling (lines 244-306)",
+            "Extracted provider and model information for all supported providers",
+            "Used fullMessage.headers for email subject extraction",
+            "Filtered appliedTags to only include newly added tags"
+          ]
+        },
+        {
+          "id": "phase-1-subtask-4",
+          "title": "Add configuration options for history retention",
+          "description": "Add settings for history retention period and maximum entries",
+          "status": "completed",
+          "files": [
+            "core/config.ts"
+          ],
+          "acceptanceCriteria": [
+            "Add historyMaxEntries to DEFAULTS (default 1000)",
+            "Add historyRetentionDays to DEFAULTS (default 90)",
+            "Include in AppConfig interface"
+          ],
+          "notes": [
+            "Added historyMaxEntries: number to AppConfig interface",
+            "Added historyRetentionDays: number to AppConfig interface",
+            "Added historyMaxEntries: 1000 to DEFAULTS",
+            "Added historyRetentionDays: 90 to DEFAULTS",
+            "Build verification: PASSED (webpack successful)",
+            "Config tests: PASSED (38 tests)"
+          ]
+        },
+        {
+          "id": "phase-1-subtask-5",
+          "title": "Write unit tests for history storage",
+          "description": "Create comprehensive tests for history storage operations",
+          "status": "completed",
+          "files": [
+            "core/history.test.ts"
+          ],
+          "acceptanceCriteria": [
+            "Test addHistoryEntry() stores data correctly",
+            "Test getHistory() with pagination works",
+            "Test filtering by date range",
+            "Test filtering by tag",
+            "Test filtering by confidence level",
+            "Test deleteOldEntries() respects retention policy",
+            "Test maximum entries limit enforcement"
+          ],
+          "notes": [
+            "Created comprehensive test suite with 81 tests covering all history storage operations",
+            "Type guard tests: isTagConfidence, isAnalysisHistoryEntry, isHistoryFilterOptions",
+            "Undo availability tests: isUndoable function with various time windows",
+            "Storage operation tests: add, get, update, delete, enforce limits, clear, stats",
+            "Filter tests: date range, tags, confidence, provider, undo status, combined filters",
+            "Pagination tests: correct page size, total count, hasMore flag",
+            "Error handling tests: validation errors, corrupted data, invalid entries",
+            "Mock storage implementation for browser.storage.local API",
+            "All acceptance criteria met",
+            "Build verification: PASSED (81/81 tests passing)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "title": "Phase 2: Undo Mechanism",
+      "description": "Implement undo functionality for recently applied tags",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-2-subtask-1",
+          "title": "Implement undo service for tag removal",
+          "description": "Create service to undo tag applications with history tracking",
+          "status": "pending",
+          "files": [
+            "core/undo.ts"
+          ],
+          "acceptanceCriteria": [
+            "Implement undoTagApplication() function",
+            "Fetch original message tags before AI analysis",
+            "Restore message tags to pre-analysis state",
+            "Mark history entry as undone",
+            "Add undo timestamp to history entry",
+            "Validate message still has the tags before removing"
+          ]
+        },
+        {
+          "id": "phase-2-subtask-2",
+          "title": "Enhance background.js to store pre-analysis tags",
+          "description": "Modify background.js to capture and store tags before applying AI analysis",
+          "status": "pending",
+          "files": [
+            "background.js"
+          ],
+          "acceptanceCriteria": [
+            "Capture message.tags before analysis",
+            "Store original tags in history entry",
+            "Handle edge case where message has no tags",
+            "Ensure thread safety for concurrent analyses"
+          ]
+        },
+        {
+          "id": "phase-2-subtask-3",
+          "title": "Add undo button to notifications",
+          "description": "Modify notification system to include undo button with action handler",
+          "status": "pending",
+          "files": [
+            "background.js"
+          ],
+          "acceptanceCriteria": [
+            "Update showNotification() to support buttons",
+            "Add 'Undo' button to successful tagging notifications",
+            "Handle undo button click event",
+            "Show confirmation after successful undo",
+            "Handle errors during undo operation"
+          ]
+        },
+        {
+          "id": "phase-2-subtask-4",
+          "title": "Add context menu item for undo",
+          "description": "Create Thunderbird context menu option to undo recent tag applications",
+          "status": "pending",
+          "files": [
+            "background.js"
+          ],
+          "acceptanceCriteria": [
+            "Register context menu using messenger.menus.create()",
+            "Show 'Undo AI Tags' option for recently analyzed messages",
+            "Check if message has recent AI analysis before showing menu",
+            "Handle menu click to trigger undo",
+            "Disable menu item if undo not available (older than 24h or already undone)"
+          ]
+        },
+        {
+          "id": "phase-2-subtask-5",
+          "title": "Write unit tests for undo functionality",
+          "description": "Create tests for undo operations",
+          "status": "pending",
+          "files": [
+            "core/undo.test.ts"
+          ],
+          "acceptanceCriteria": [
+            "Test undo restores original tags",
+            "Test undo marks history entry as undone",
+            "Test undo fails gracefully if tags already changed",
+            "Test undo only removes AI-applied tags, preserves others",
+            "Test concurrent undo operations"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "title": "Phase 3: Analysis History UI",
+      "description": "Create user interface for viewing and managing analysis history",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-3-subtask-1",
+          "title": "Add History tab to options page",
+          "description": "Create new tab in options.html for analysis history",
+          "status": "pending",
+          "files": [
+            "options.html"
+          ],
+          "acceptanceCriteria": [
+            "Add 'Analysis History' tab button to tab bar",
+            "Create history-tab-content section",
+            "Include loading indicator",
+            "Design responsive layout for history table"
+          ]
+        },
+        {
+          "id": "phase-3-subtask-2",
+          "title": "Create history table UI component",
+          "description": "Build table to display analysis history entries",
+          "status": "pending",
+          "files": [
+            "options.html",
+            "options.css"
+          ],
+          "acceptanceCriteria": [
+            "Table columns: Date, Subject, Tags, Confidence, Provider, Actions",
+            "Display tags as colored badges",
+            "Show confidence score as progress bar or percentage",
+            "Add 'Undo' button for recent entries (< 24h, not undone)",
+            "Add 'View Details' button for each entry",
+            "Show 'Undone' status for undone entries",
+            "Responsive design for different screen sizes"
+          ]
+        },
+        {
+          "id": "phase-3-subtask-3",
+          "title": "Implement history filtering controls",
+          "description": "Add UI controls for filtering history by date, tag, and confidence",
+          "status": "pending",
+          "files": [
+            "options.html",
+            "options.css"
+          ],
+          "acceptanceCriteria": [
+            "Date range picker (from/to)",
+            "Tag dropdown multi-select",
+            "Confidence level slider or dropdown (High/Medium/Low)",
+            "Provider filter dropdown",
+            "Show 'Undone entries' checkbox",
+            "Apply and Reset filter buttons",
+            "Display count of filtered results"
+          ]
+        },
+        {
+          "id": "phase-3-subtask-4",
+          "title": "Implement history loading and rendering logic",
+          "description": "Write JavaScript to load, filter, and display history entries",
+          "status": "pending",
+          "files": [
+            "options.js"
+          ],
+          "acceptanceCriteria": [
+            "Load history entries on tab activation",
+            "Implement pagination (50 entries per page)",
+            "Render entries to table",
+            "Apply filters when controls change",
+            "Handle empty state gracefully",
+            "Show loading spinner during data fetch",
+            "Sort by date descending (newest first)"
+          ]
+        },
+        {
+          "id": "phase-3-subtask-5",
+          "title": "Add export to CSV functionality",
+          "description": "Implement CSV export of filtered or all history entries",
+          "status": "pending",
+          "files": [
+            "options.js"
+          ],
+          "acceptanceCriteria": [
+            "Add 'Export CSV' button",
+            "Export all columns including detailed data",
+            "Respect current filters (export filtered results only)",
+            "Generate proper CSV with headers",
+            "Handle special characters (commas, quotes) in CSV",
+            "Trigger browser download of CSV file",
+            "Show success message after export"
+          ]
+        },
+        {
+          "id": "phase-3-subtask-6",
+          "title": "Add history entry detail modal",
+          "description": "Create modal to show full details of a history entry",
+          "status": "pending",
+          "files": [
+            "options.html",
+            "options.css",
+            "options.js"
+          ],
+          "acceptanceCriteria": [
+            "Modal shows all entry fields",
+            "Display full email subject",
+            "List all applied tags with colors",
+            "Show full analysis response (if available)",
+            "Display confidence breakdown per tag",
+            "Show provider and model used",
+            "Display timestamps (analyzed, undone if applicable)",
+            "Close button functionality"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "title": "Phase 4: Configuration and Cleanup",
+      "description": "Add settings for history management and implement automatic cleanup",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-4-subtask-1",
+          "title": "Add history settings to options UI",
+          "description": "Create settings section for history retention and storage",
+          "status": "pending",
+          "files": [
+            "options.html",
+            "options.js"
+          ],
+          "acceptanceCriteria": [
+            "Add 'History Settings' section to Provider tab or new Settings tab",
+            "Input field for maximum entries (1-10000)",
+            "Dropdown/input for retention period (7/30/60/90/180/365 days)",
+            "Display current storage usage (entry count, storage size)",
+            "'Clear History' button with confirmation",
+            "Save settings to storage.local"
+          ]
+        },
+        {
+          "id": "phase-4-subtask-2",
+          "title": "Implement automatic history cleanup",
+          "description": "Create background process to clean up old history entries",
+          "status": "pending",
+          "files": [
+            "background.js"
+          ],
+          "acceptanceCriteria": [
+            "Run cleanup on extension startup",
+            "Run cleanup daily via alarm API",
+            "Delete entries older than retention period",
+            "Keep only most recent N entries (maxEntries)",
+            "Log cleanup actions",
+            "Handle cleanup errors gracefully"
+          ]
+        },
+        {
+          "id": "phase-4-subtask-3",
+          "title": "Add storage usage display",
+          "description": "Calculate and display current storage usage for history",
+          "status": "pending",
+          "files": [
+            "options.js"
+          ],
+          "acceptanceCriteria": [
+            "Calculate number of entries stored",
+            "Estimate storage size in bytes",
+            "Display as friendly format (e.g., '245 entries, ~1.2 MB')",
+            "Update display when history changes",
+            "Show warning if approaching storage limits"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "title": "Phase 5: Testing and Documentation",
+      "description": "Complete testing, update documentation, and polish the feature",
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "phase-5-subtask-1",
+          "title": "End-to-end testing",
+          "description": "Test complete workflow from email analysis to undo and history viewing",
+          "status": "pending",
+          "files": [],
+          "acceptanceCriteria": [
+            "Test email analysis creates history entry",
+            "Test undo button in notification works",
+            "Test context menu undo works",
+            "Test history tab displays entries",
+            "Test filters work correctly",
+            "Test CSV export produces valid file",
+            "Test settings save and persist",
+            "Test cleanup removes old entries"
+          ]
+        },
+        {
+          "id": "phase-5-subtask-2",
+          "title": "Performance testing",
+          "description": "Ensure history operations don't impact email processing performance",
+          "status": "pending",
+          "files": [],
+          "acceptanceCriteria": [
+            "History storage adds < 10ms overhead",
+            "Loading 1000 entries takes < 500ms",
+            "Filtering 1000 entries takes < 100ms",
+            "Undo operation completes in < 200ms",
+            "Memory usage remains acceptable"
+          ]
+        },
+        {
+          "id": "phase-5-subtask-3",
+          "title": "Update README and documentation",
+          "description": "Document new features and usage",
+          "status": "pending",
+          "files": [
+            "README.md"
+          ],
+          "acceptanceCriteria": [
+            "Add section about undo mechanism",
+            "Add section about analysis history",
+            "Include screenshots of new UI",
+            "Document configuration options",
+            "Provide usage examples"
+          ]
+        },
+        {
+          "id": "phase-5-subtask-4",
+          "title": "Accessibility review",
+          "description": "Ensure new UI components are accessible",
+          "status": "pending",
+          "files": [
+            "options.html",
+            "options.css"
+          ],
+          "acceptanceCriteria": [
+            "All interactive elements are keyboard navigable",
+            "Proper ARIA labels on dynamic content",
+            "Color contrast meets WCAG AA standards",
+            "Screen reader announces undo actions",
+            "Focus management in modals"
+          ]
+        }
+      ]
+    }
+  ],
+  "acceptanceCriteria": [
+    "Undo button in notification after tags are applied",
+    "Undo option in message context menu for recently tagged messages",
+    "Analysis history page showing last 1000 classifications",
+    "History entries include: timestamp, email subject, tags, confidence, provider",
+    "Filter history by date range, tag, or confidence level",
+    "Export history as CSV for analysis",
+    "History stored locally with configurable retention period"
+  ],
+  "notes": [
+    "All storage operations use browser storage.local API",
+    "History is local-only and never sent to external servers",
+    "Undo is only available within 24 hours of analysis",
+    "Multiple analyses of same message create separate history entries",
+    "CSV export uses standard format compatible with Excel/Sheets"
+  ]
+}

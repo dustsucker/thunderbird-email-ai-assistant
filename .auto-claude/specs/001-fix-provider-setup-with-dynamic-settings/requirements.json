@@ -1,4 +1,0 @@
-{
-  "task_description": "Provider Setup in the options is brocken. It should enable me to select the prvider i want to use and then set this specific Provider up and not have other options displayed. Please make the provider settings dynamic so that every provider has different setting(the settings that are needed)",
-  "workflow_type": "feature"
-}

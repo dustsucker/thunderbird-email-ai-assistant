@@ -1,8 +1,606 @@
 {
-  "feature": "Implement logging with configurable levels",
-  "description": "Bitte Verbessere mit das Logging, so das ich das logg level einstellen kann und möglichst alles gelogged wird, um besser heraus finden zu können warum sachen nicht funktionieren.",
-  "created_at": "2025-12-28T17:38:29.571Z",
-  "updated_at": "2025-12-28T17:38:29.571Z",
-  "status": "pending",
-  "phases": []
+  "taskId": "002-implement-logging-with-configurable-levels",
+  "taskTitle": "Implement Configurable Logging System with Comprehensive Coverage",
+  "workflowType": "feature",
+  "createdAt": "2025-12-28T17:38:29.571Z",
+  "updatedAt": "2026-01-05T19:32:10.723Z",
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "phases": [
+    {
+      "phaseId": 1,
+      "phaseName": "Infrastructure - Logger Enhancement",
+      "description": "Add LogLevel enum and filtering logic to the logging infrastructure",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "1.1",
+          "title": "Add LogLevel enum to infrastructure/interfaces",
+          "description": "Create LogLevel enum with DEBUG=0, INFO=1, WARN=2, ERROR=3 values in appropriate location (reference LegacyLogger.ts pattern)",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/interfaces/ILogger.ts"
+          ],
+          "acceptanceCriteria": [
+            "LogLevel enum exists with DEBUG=0, INFO=1, WARN=2, ERROR=3",
+            "Enum is exported and usable across the codebase"
+          ],
+          "dependencies": []
+        },
+        {
+          "subtaskId": "1.2",
+          "title": "Extend ILogger interface with setLevel() method",
+          "description": "Add setLevel(level: LogLevel): void method to ILogger interface",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/interfaces/ILogger.ts"
+          ],
+          "acceptanceCriteria": [
+            "ILogger.setLevel() method signature added",
+            "Method accepts LogLevel parameter",
+            "Interface is backward compatible with existing implementations"
+          ],
+          "dependencies": [
+            "1.1"
+          ]
+        },
+        {
+          "subtaskId": "1.3",
+          "title": "Enhance ConsoleLogger with log level filtering",
+          "description": "Add private logLevel field, setLevel() method, shouldLog() helper, and filtering logic to all log methods (debug, info, warn, error)",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/logger/ConsoleLogger.ts"
+          ],
+          "acceptanceCriteria": [
+            "Private logLevel field added with default value INFO",
+            "setLevel() method updates logLevel field",
+            "shouldLog() helper returns true when level >= currentLogLevel",
+            "All log methods (debug, info, warn, error) check shouldLog() before output",
+            "Pattern follows LegacyLogger.ts implementation"
+          ],
+          "dependencies": [
+            "1.1",
+            "1.2"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": 2,
+      "phaseName": "Configuration - Persistence and Loading",
+      "description": "Add logLevel configuration field and ensure proper persistence",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "2.1",
+          "title": "Extend IAppConfig interface with logLevel field",
+          "description": "Add logLevel: LogLevel field to IAppConfig interface in IConfigRepository.ts with default value of INFO",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/interfaces/IConfigRepository.ts"
+          ],
+          "acceptanceCriteria": [
+            "IAppConfig includes logLevel: LogLevel field",
+            "Field is optional with default INFO value",
+            "Type is properly imported from LogLevel enum location"
+          ],
+          "dependencies": [
+            "1.1"
+          ]
+        },
+        {
+          "subtaskId": "2.2",
+          "title": "Update IndexedDBConfigRepository for logLevel persistence",
+          "description": "Ensure IndexedDBConfigRepository properly saves and loads logLevel field with app config, including handling of missing/invalid values",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/repositories/IndexedDBConfigRepository.ts"
+          ],
+          "acceptanceCriteria": [
+            "logLevel is persisted to browser.storage.local with other config",
+            "Loading config retrieves logLevel field",
+            "Missing logLevel defaults to INFO",
+            "Invalid logLevel values default to INFO with warning log"
+          ],
+          "dependencies": [
+            "2.1"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": 3,
+      "phaseName": "Logger Initialization",
+      "description": "Ensure logger loads and applies log level from config on startup",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "3.1",
+          "title": "Initialize logger with config level in OptionsScript",
+          "description": "Modify OptionsScript.ts to retrieve app config and call logger.setLevel() after loading config",
+          "status": "pending",
+          "files": [
+            "src/interfaces/options/OptionsScript.ts"
+          ],
+          "acceptanceCriteria": [
+            "After app config loads, logger.setLevel() is called with config.logLevel",
+            "Handles case where config is not yet loaded (graceful handling)",
+            "Logger has correct level before any use cases execute"
+          ],
+          "dependencies": [
+            "1.3",
+            "2.2"
+          ]
+        },
+        {
+          "subtaskId": "3.2",
+          "title": "Initialize logger with config level in background script",
+          "description": "Ensure background script (src/interfaces/background/index.ts) also initializes logger with config log level",
+          "status": "pending",
+          "files": [
+            "src/interfaces/background/index.ts"
+          ],
+          "acceptanceCriteria": [
+            "Background script loads app config and sets logger level",
+            "Initialization happens before background tasks execute",
+            "Handles config load failures gracefully (defaults to INFO)"
+          ],
+          "dependencies": [
+            "1.3",
+            "2.2"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": 4,
+      "phaseName": "Settings UI",
+      "description": "Add log level selector to the settings page",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "4.1",
+          "title": "Add log level selector UI to SettingsForm",
+          "description": "Create dropdown/select element for log level with 4 options (Debug, Info, Warning, Error) following existing form control patterns",
+          "status": "pending",
+          "files": [
+            "src/interfaces/options/SettingsForm.ts"
+          ],
+          "acceptanceCriteria": [
+            "Log level dropdown exists in settings form",
+            "Dropdown shows 4 options with proper labels",
+            "Dropdown displays current log level from config",
+            "UI follows existing CSS styling and form control patterns"
+          ],
+          "dependencies": [
+            "2.1"
+          ]
+        },
+        {
+          "subtaskId": "4.2",
+          "title": "Implement log level change event handling",
+          "description": "Attach change event handler to log level dropdown that saves config and immediately updates logger level",
+          "status": "pending",
+          "files": [
+            "src/interfaces/options/SettingsForm.ts"
+          ],
+          "acceptanceCriteria": [
+            "Changing dropdown selection triggers saveSettings()",
+            "After saving, logger.setLevel() is called immediately",
+            "No restart required for change to take effect",
+            "Uses async/await for config operations"
+          ],
+          "dependencies": [
+            "4.1",
+            "1.3"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": 5,
+      "phaseName": "Debug Logging Enhancement",
+      "description": "Add comprehensive debug logging to key application workflows",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "5.1",
+          "title": "Add debug logging to AnalyzeEmail use case",
+          "description": "Add comprehensive debug logs for email analysis workflow: start, email retrieval, content extraction, cache check, provider call, tag application, completion",
+          "status": "pending",
+          "files": [
+            "src/application/use-cases/AnalyzeEmail.ts"
+          ],
+          "acceptanceCriteria": [
+            "Logs entry point with messageId",
+            "Logs email retrieval success/failure",
+            "Logs content extraction details",
+            "Logs cache check results",
+            "Logs provider API call initiation",
+            "Logs tag application results",
+            "Logs completion status",
+            "All logs include relevant context objects"
+          ],
+          "dependencies": [
+            "1.3"
+          ]
+        },
+        {
+          "subtaskId": "5.2",
+          "title": "Add debug logging to AnalyzeBatchEmails use case",
+          "description": "Add debug logs for batch analysis: batch start, each email analysis progress, batch completion, error handling",
+          "status": "pending",
+          "files": [
+            "src/application/use-cases/AnalyzeBatchEmails.ts"
+          ],
+          "acceptanceCriteria": [
+            "Logs batch analysis start with email count",
+            "Logs progress for each email analysis",
+            "Logs batch completion summary",
+            "Logs any errors with context",
+            "Includes messageId, batch size, success/failure counts in context"
+          ],
+          "dependencies": [
+            "1.3"
+          ]
+        },
+        {
+          "subtaskId": "5.3",
+          "title": "Add debug logging to ProviderFactory",
+          "description": "Add debug logs for provider factory operations: provider creation, initialization, configuration loading, errors",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/providers/ProviderFactory.ts"
+          ],
+          "acceptanceCriteria": [
+            "Logs provider type being created",
+            "Logs initialization steps",
+            "Logs configuration values being applied",
+            "Logs any initialization errors",
+            "Includes provider type and config details in context"
+          ],
+          "dependencies": [
+            "1.3"
+          ]
+        },
+        {
+          "subtaskId": "5.4",
+          "title": "Add debug logging to BaseProviderAdapter",
+          "description": "Add debug logs for API operations: request initiation, response receipt, error handling, retry attempts",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/providers/BaseProviderAdapter.ts"
+          ],
+          "acceptanceCriteria": [
+            "Logs API request URL and method",
+            "Logs response status code",
+            "Logs successful response data (at summary level)",
+            "Logs errors with full context",
+            "Logs retry attempts",
+            "Includes request ID, provider, status codes in context"
+          ],
+          "dependencies": [
+            "1.3"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": 6,
+      "phaseName": "Testing",
+      "description": "Write unit tests for log level filtering functionality",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "6.1",
+          "title": "Write unit tests for LogLevel enum and values",
+          "description": "Create tests verifying LogLevel enum has correct numeric values (DEBUG=0, INFO=1, WARN=2, ERROR=3)",
+          "status": "pending",
+          "files": [
+            "test/infrastructure/logger/console-logger.test.ts"
+          ],
+          "acceptanceCriteria": [
+            "Test verifies DEBUG === 0",
+            "Test verifies INFO === 1",
+            "Test verifies WARN === 2",
+            "Test verifies ERROR === 3"
+          ],
+          "dependencies": [
+            "1.1"
+          ]
+        },
+        {
+          "subtaskId": "6.2",
+          "title": "Write unit tests for setLevel() method",
+          "description": "Create tests verifying setLevel() correctly updates the logger's internal log level",
+          "status": "pending",
+          "files": [
+            "test/infrastructure/logger/console-logger.test.ts"
+          ],
+          "acceptanceCriteria": [
+            "Test setLevel() updates currentLogLevel",
+            "Test setLevel() can be called multiple times",
+            "Test all four log levels can be set"
+          ],
+          "dependencies": [
+            "1.3"
+          ]
+        },
+        {
+          "subtaskId": "6.3",
+          "title": "Write unit tests for shouldLog() filtering logic",
+          "description": "Create tests verifying shouldLog() returns correct boolean based on message level vs current level",
+          "status": "pending",
+          "files": [
+            "test/infrastructure/logger/console-logger.test.ts"
+          ],
+          "acceptanceCriteria": [
+            "Test shouldLog(DEBUG) returns true only when currentLevel <= DEBUG",
+            "Test shouldLog(INFO) returns true when currentLevel <= INFO",
+            "Test shouldLog(WARN) returns true when currentLevel <= WARN",
+            "Test shouldLog(ERROR) returns true for all levels",
+            "Test shouldLog() returns false when level < currentLevel"
+          ],
+          "dependencies": [
+            "1.3"
+          ]
+        },
+        {
+          "subtaskId": "6.4",
+          "title": "Write unit tests for debug() log level filtering",
+          "description": "Create tests verifying debug() only outputs when log level is DEBUG",
+          "status": "pending",
+          "files": [
+            "test/infrastructure/logger/console-logger.test.ts"
+          ],
+          "acceptanceCriteria": [
+            "Test debug() outputs when level is DEBUG",
+            "Test debug() does not output when level is INFO",
+            "Test debug() does not output when level is WARN",
+            "Test debug() does not output when level is ERROR",
+            "Uses console.debug spy for verification"
+          ],
+          "dependencies": [
+            "1.3"
+          ]
+        },
+        {
+          "subtaskId": "6.5",
+          "title": "Write unit tests for info() log level filtering",
+          "description": "Create tests verifying info() outputs when level is DEBUG or INFO",
+          "status": "pending",
+          "files": [
+            "test/infrastructure/logger/console-logger.test.ts"
+          ],
+          "acceptanceCriteria": [
+            "Test info() outputs when level is DEBUG",
+            "Test info() outputs when level is INFO",
+            "Test info() does not output when level is WARN",
+            "Test info() does not output when level is ERROR",
+            "Uses console.info spy for verification"
+          ],
+          "dependencies": [
+            "1.3"
+          ]
+        },
+        {
+          "subtaskId": "6.6",
+          "title": "Write unit tests for warn() log level filtering",
+          "description": "Create tests verifying warn() outputs when level is DEBUG, INFO, or WARN",
+          "status": "pending",
+          "files": [
+            "test/infrastructure/logger/console-logger.test.ts"
+          ],
+          "acceptanceCriteria": [
+            "Test warn() outputs when level is DEBUG",
+            "Test warn() outputs when level is INFO",
+            "Test warn() outputs when level is WARN",
+            "Test warn() does not output when level is ERROR",
+            "Uses console.warn spy for verification"
+          ],
+          "dependencies": [
+            "1.3"
+          ]
+        },
+        {
+          "subtaskId": "6.7",
+          "title": "Write unit tests for error() log level filtering",
+          "description": "Create tests verifying error() always outputs regardless of log level",
+          "status": "pending",
+          "files": [
+            "test/infrastructure/logger/console-logger.test.ts"
+          ],
+          "acceptanceCriteria": [
+            "Test error() outputs when level is DEBUG",
+            "Test error() outputs when level is INFO",
+            "Test error() outputs when level is WARN",
+            "Test error() outputs when level is ERROR",
+            "Uses console.error spy for verification"
+          ],
+          "dependencies": [
+            "1.3"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": 7,
+      "phaseName": "Validation and QA",
+      "description": "Verify implementation meets all requirements and passes all tests",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "7.1",
+          "title": "Run all tests and ensure they pass",
+          "description": "Execute full test suite including new unit tests, verify no regressions",
+          "status": "pending",
+          "files": [],
+          "acceptanceCriteria": [
+            "All existing tests pass",
+            "All new logger tests pass",
+            "Test coverage meets requirements",
+            "No test failures or timeouts"
+          ],
+          "dependencies": [
+            "6.1",
+            "6.2",
+            "6.3",
+            "6.4",
+            "6.5",
+            "6.6",
+            "6.7"
+          ]
+        },
+        {
+          "subtaskId": "7.2",
+          "title": "Run TypeScript type checking",
+          "description": "Execute npm run type-check and ensure no type errors",
+          "status": "pending",
+          "files": [],
+          "acceptanceCriteria": [
+            "TypeScript compilation succeeds",
+            "No type errors in any modified files",
+            "All imports are properly resolved"
+          ],
+          "dependencies": [
+            "7.1"
+          ]
+        },
+        {
+          "subtaskId": "7.3",
+          "title": "Verify settings UI functionality",
+          "description": "Manually test settings page: verify log level dropdown exists, changes save correctly, logger updates immediately",
+          "status": "pending",
+          "files": [],
+          "acceptanceCriteria": [
+            "Log level dropdown visible in settings",
+            "All 4 options (Debug, Info, Warning, Error) available",
+            "Changing selection updates config",
+            "Logger level changes immediately without restart",
+            "No console errors when changing setting"
+          ],
+          "dependencies": [
+            "7.1"
+          ]
+        },
+        {
+          "subtaskId": "7.4",
+          "title": "Verify log persistence across restarts",
+          "description": "Test that log level setting survives extension restart by setting level, restarting Thunderbird, and verifying selection",
+          "status": "pending",
+          "files": [],
+          "acceptanceCriteria": [
+            "Log level saved to browser.storage.local",
+            "After restart, dropdown shows previously selected level",
+            "Logger outputs at correct level after restart"
+          ],
+          "dependencies": [
+            "7.1"
+          ]
+        },
+        {
+          "subtaskId": "7.5",
+          "title": "Verify log level filtering works correctly",
+          "description": "Test console output at each log level to ensure filtering works as expected (DEBUG shows all, ERROR shows only errors)",
+          "status": "pending",
+          "files": [],
+          "acceptanceCriteria": [
+            "DEBUG level shows all log types",
+            "INFO level shows info, warn, error",
+            "WARN level shows warn, error",
+            "ERROR level shows only error",
+            "Debug logs include detailed context information"
+          ],
+          "dependencies": [
+            "7.1"
+          ]
+        },
+        {
+          "subtaskId": "7.6",
+          "title": "Verify comprehensive debug logging in workflows",
+          "description": "Trigger email analysis and batch operations to verify debug logs appear at key steps",
+          "status": "pending",
+          "files": [],
+          "acceptanceCriteria": [
+            "Email analysis logs all workflow steps",
+            "Batch analysis logs each email progress",
+            "Provider initialization logged",
+            "API requests/responses logged",
+            "All logs include relevant context objects"
+          ],
+          "dependencies": [
+            "7.1"
+          ]
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "externalPackages": [],
+    "internalModules": [
+      "src/infrastructure/interfaces/ILogger.ts",
+      "src/infrastructure/interfaces/IConfigRepository.ts",
+      "src/infrastructure/logger/ConsoleLogger.ts",
+      "src/infrastructure/logger/LegacyLogger.ts",
+      "src/infrastructure/repositories/IndexedDBConfigRepository.ts",
+      "src/interfaces/options/OptionsScript.ts",
+      "src/interfaces/options/SettingsForm.ts",
+      "src/application/use-cases/AnalyzeEmail.ts",
+      "src/application/use-cases/AnalyzeBatchEmails.ts",
+      "src/infrastructure/providers/ProviderFactory.ts",
+      "src/infrastructure/providers/BaseProviderAdapter.ts"
+    ]
+  },
+  "successCriteria": [
+    "Log level can be set via settings UI dropdown (Debug, Info, Warning, Error)",
+    "Setting persists across extension restarts",
+    "Logger filters output based on selected level",
+    "Comprehensive debug logs added to key workflows",
+    "No console errors during normal operation",
+    "All existing tests still pass",
+    "New unit tests cover log level filtering",
+    "TypeScript compilation succeeds with no errors",
+    "User can verify log level changes immediately affect console output verbosity"
+  ],
+  "qaChecklist": {
+    "unitTests": [
+      "LogLevel enum values (DEBUG=0, INFO=1, WARN=2, ERROR=3)",
+      "setLevel() changes level correctly",
+      "shouldLog() filtering returns correct boolean",
+      "debug() respects level threshold",
+      "info() respects level threshold",
+      "warn() respects level threshold",
+      "error() always logs"
+    ],
+    "integrationTests": [
+      "Config loads log level and applies to logger",
+      "Settings UI saves level to config",
+      "Dynamic level change affects console output immediately",
+      "Default level on new install is INFO"
+    ],
+    "e2eTests": [
+      "Change to Debug shows verbose output",
+      "Change to Error shows minimal output",
+      "Persist log level across restart",
+      "Invalid config recovery defaults to INFO"
+    ],
+    "browserVerification": [
+      "Settings form has log level dropdown",
+      "Dropdown shows 4 options",
+      "Current selection matches config",
+      "Changing selection updates immediately",
+      "No console errors"
+    ],
+    "codeQuality": [
+      "TypeScript compiles without errors",
+      "All tests pass",
+      "ESLint passes",
+      "No console errors during operation"
+    ]
+  },
+  "estimatedDuration": "4-6 hours",
+  "complexity": "medium",
+  "riskLevel": "low",
+  "updated_at": "2026-01-05T19:54:33.057Z"
 }

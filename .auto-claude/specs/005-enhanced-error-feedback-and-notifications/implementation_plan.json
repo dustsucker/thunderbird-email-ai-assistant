@@ -1,0 +1,370 @@
+{
+  "specId": "005-enhanced-error-feedback-and-notifications",
+  "specTitle": "Enhanced Error Feedback and Notifications",
+  "specDescription": "Provide clear, actionable error messages in the UI when API calls fail, models are unavailable, or configuration issues occur. Include notification system for analysis results and errors.",
+  "estimatedComplexity": "medium",
+  "estimatedTime": "3-4 hours",
+  "phases": [
+    {
+      "phaseId": 1,
+      "phaseName": "Error Classification System",
+      "phaseDescription": "Create a comprehensive error classification system to categorize and format errors with actionable messages",
+      "estimatedTime": "1 hour",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "1.1",
+          "title": "Create ErrorClassifier utility",
+          "description": "Implement ErrorClassifier utility that categorizes errors into types: rate_limit, invalid_api_key, network, api_error, validation, configuration",
+          "status": "pending",
+          "files": [
+            "src/shared/utils/ErrorClassifier.ts"
+          ],
+          "acceptanceCriteria": [
+            "ErrorClassifier detects rate limit errors from HTTP status codes and response bodies",
+            "ErrorClassifier detects invalid API key errors from 401/403 responses",
+            "ErrorClassifier distinguishes between network connectivity issues and API errors",
+            "Each error type includes a user-friendly message and actionable suggestion",
+            "ErrorClassifier handles provider-specific error formats (OpenAI, Claude, etc.)"
+          ]
+        },
+        {
+          "subtaskId": "1.2",
+          "title": "Create error message templates",
+          "description": "Create localized error message templates with actionable guidance for each error type",
+          "status": "pending",
+          "files": [
+            "src/shared/constants/ErrorMessages.ts"
+          ],
+          "acceptanceCriteria": [
+            "Rate limit errors include retry-after timing and provider switching suggestions",
+            "Invalid API key errors guide users to configuration page with direct link",
+            "Network errors distinguish between offline, timeout, and service unavailable",
+            "Configuration errors specify which setting is missing or invalid",
+            "All messages are in German (matching existing UI language)"
+          ]
+        },
+        {
+          "subtaskId": "1.3",
+          "title": "Create EnhancedError type",
+          "description": "Create EnhancedError type that wraps original errors with classification, user message, and actionable steps",
+          "status": "pending",
+          "files": [
+            "src/shared/types/EnhancedError.ts"
+          ],
+          "acceptanceCriteria": [
+            "EnhancedError includes original error for debugging",
+            "EnhancedError includes error type (rate_limit, invalid_api_key, etc.)",
+            "EnhancedError includes user-friendly message",
+            "EnhancedError includes actionable steps array",
+            "EnhancedError includes timestamp and provider info"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": 2,
+      "phaseName": "Provider Error Enhancement",
+      "phaseDescription": "Enhance provider error handling to use the new error classification system",
+      "estimatedTime": "1 hour",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "2.1",
+          "title": "Update BaseProvider error handling",
+          "description": "Modify BaseProvider.executeRequest() to classify errors using ErrorClassifier before throwing",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/providers/BaseProvider.ts"
+          ],
+          "acceptanceCriteria": [
+            "HTTP errors are classified by status code (401, 429, 500, etc.)",
+            "Network errors (timeout, fetch fail) are classified as connectivity issues",
+            "Response body is parsed for provider-specific error details",
+            "Errors are wrapped in EnhancedError with actionable guidance",
+            "Original error is preserved for logging"
+          ]
+        },
+        {
+          "subtaskId": "2.2",
+          "title": "Update provider implementations",
+          "description": "Update specific provider implementations (OpenAI, Claude, etc.) to extract provider-specific error details",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/providers/impl/OpenAIProvider.ts",
+            "src/infrastructure/providers/impl/ClaudeProvider.ts",
+            "src/infrastructure/providers/impl/GeminiProvider.ts",
+            "src/infrastructure/providers/impl/MistralProvider.ts"
+          ],
+          "acceptanceCriteria": [
+            "OpenAI provider extracts error.type and error.message from API responses",
+            "Claude provider extracts error.type from responses",
+            "Rate limit information (retry-after) is extracted when available",
+            "Provider-specific error codes are mapped to error types",
+            "All providers use consistent error classification"
+          ]
+        },
+        {
+          "subtaskId": "2.3",
+          "title": "Publish ProviderErrorEvent with enhanced details",
+          "description": "Update ProviderErrorEvent publishing to include enhanced error information",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/providers/BaseProvider.ts",
+            "src/domain/events/ProviderErrorEvent.ts"
+          ],
+          "acceptanceCriteria": [
+            "ProviderErrorEvent includes enhanced error type",
+            "ProviderErrorEvent includes user-friendly message",
+            "ProviderErrorEvent includes actionable steps",
+            "Event subscribers can access both technical and user-facing information"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": 3,
+      "phaseName": "UI Error Display System",
+      "phaseDescription": "Implement comprehensive error display in the UI with toast notifications and error overlay",
+      "estimatedTime": "1 hour",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "3.1",
+          "title": "Create ErrorDisplayService",
+          "description": "Create a service to manage error display with toast notifications and the error overlay",
+          "status": "pending",
+          "files": [
+            "src/interfaces/shared/ErrorDisplayService.ts"
+          ],
+          "acceptanceCriteria": [
+            "ErrorDisplayService can show toast notifications for non-critical errors",
+            "ErrorDisplayService can show modal overlay for critical errors",
+            "Toasts auto-dismiss after configurable timeout (default 5 seconds)",
+            "Multiple toasts can be stacked",
+            "Error overlay requires user dismissal",
+            "Service includes methods: showError(), showToast(), hideError()"
+          ]
+        },
+        {
+          "subtaskId": "3.2",
+          "title": "Enhance error overlay styling",
+          "description": "Enhance the existing error-display-overlay with better styling and error details",
+          "status": "pending",
+          "files": [
+            "options.css"
+          ],
+          "acceptanceCriteria": [
+            "Error overlay has distinct visual hierarchy (icon, title, message, details)",
+            "Actionable steps are displayed as a bulleted list",
+            "Error overlay has smooth fade-in animation",
+            "Close button is prominent and accessible",
+            "Error type is visually indicated with color coding (warning, error, info)"
+          ]
+        },
+        {
+          "subtaskId": "3.3",
+          "title": "Update BatchAnalysisUI error handling",
+          "description": "Update BatchAnalysisUI to use ErrorDisplayService for enhanced error messages",
+          "status": "pending",
+          "files": [
+            "src/interfaces/options/BatchAnalysisUI.ts"
+          ],
+          "acceptanceCriteria": [
+            "Batch errors are classified using ErrorClassifier",
+            "Error messages are actionable and user-friendly",
+            "Rate limit errors show retry timing and suggest switching providers",
+            "Configuration errors link to provider settings tab",
+            "Network errors suggest checking internet connection",
+            "Error overlay is used for critical batch failures"
+          ]
+        },
+        {
+          "subtaskId": "3.4",
+          "title": "Update SettingsForm error handling",
+          "description": "Update SettingsForm to show enhanced error messages when provider validation fails",
+          "status": "pending",
+          "files": [
+            "src/interfaces/options/SettingsForm.ts"
+          ],
+          "acceptanceCriteria": [
+            "Provider test failures show specific error reasons",
+            "Invalid API key errors guide user to the correct input field",
+            "Network errors during provider test suggest checking connectivity",
+            "Rate limit errors during test suggest trying again later",
+            "Error messages are displayed inline near the relevant form fields"
+          ]
+        },
+        {
+          "subtaskId": "3.5",
+          "title": "Wire up error overlay to events",
+          "description": "Connect the error overlay to ProviderErrorEvent and other error events",
+          "status": "pending",
+          "files": [
+            "src/interfaces/options/OptionsScript.ts"
+          ],
+          "acceptanceCriteria": [
+            "Options page subscribes to ProviderErrorEvent",
+            "Provider errors trigger error overlay display",
+            "Error overlay shows enhanced error details",
+            "Non-critical errors show toast notifications",
+            "Event subscription is properly cleaned up on page unload"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": 4,
+      "phaseName": "Desktop Notifications",
+      "phaseDescription": "Implement optional desktop notifications for batch analysis completion and failures",
+      "estimatedTime": "30 minutes",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "4.1",
+          "title": "Create NotificationService",
+          "description": "Create a service to manage desktop notifications using the Notifications API",
+          "status": "pending",
+          "files": [
+            "src/interfaces/shared/NotificationService.ts"
+          ],
+          "acceptanceCriteria": [
+            "NotificationService checks for notification permission",
+            "NotificationService requests permission if not granted",
+            "Notifications are shown for batch completion, failure, and cancellation",
+            "Notifications include app icon and title",
+            "Notifications are clickable to focus the options page"
+          ]
+        },
+        {
+          "subtaskId": "4.2",
+          "title": "Add notification permission checkbox",
+          "description": "Add a checkbox in settings to enable/disable desktop notifications",
+          "status": "pending",
+          "files": [
+            "options.html",
+            "src/interfaces/options/SettingsForm.ts"
+          ],
+          "acceptanceCriteria": [
+            "Checkbox added to provider settings section",
+            "Setting is persisted to storage",
+            "NotificationService checks setting before showing notifications",
+            "Permission is requested only when setting is enabled"
+          ]
+        },
+        {
+          "subtaskId": "4.3",
+          "title": "Wire up notifications to batch events",
+          "description": "Trigger desktop notifications when batch analysis completes, fails, or is cancelled",
+          "status": "pending",
+          "files": [
+            "src/interfaces/options/BatchAnalysisUI.ts"
+          ],
+          "acceptanceCriteria": [
+            "Notification shown when batch completes successfully with count",
+            "Notification shown when batch fails with error summary",
+            "Notification shown when batch is cancelled",
+            "Notifications respect user preference setting",
+            "Notifications are only shown if page is not in focus"
+          ]
+        }
+      ]
+    },
+    {
+      "phaseId": 5,
+      "phaseName": "Error History Log",
+      "phaseDescription": "Implement an error history log accessible from the options page",
+      "estimatedTime": "30 minutes",
+      "status": "pending",
+      "subtasks": [
+        {
+          "subtaskId": "5.1",
+          "title": "Create ErrorLogRepository",
+          "description": "Create a repository to store and retrieve error history in IndexedDB",
+          "status": "pending",
+          "files": [
+            "src/infrastructure/repositories/ErrorLogRepository.ts"
+          ],
+          "acceptanceCriteria": [
+            "Errors are stored with timestamp, type, message, and details",
+            "Repository automatically removes errors older than 30 days",
+            "Maximum of 1000 errors are stored",
+            "Errors can be queried by type and date range",
+            "Repository implements IErrorLogRepository interface"
+          ]
+        },
+        {
+          "subtaskId": "5.2",
+          "title": "Create ErrorHistoryUI component",
+          "description": "Create a UI component to display and manage error history",
+          "status": "pending",
+          "files": [
+            "src/interfaces/options/ErrorHistoryUI.ts",
+            "options.html",
+            "options.css"
+          ],
+          "acceptanceCriteria": [
+            "New tab added to options page for 'Error History'",
+            "Errors are displayed in a table with timestamp, type, and message",
+            "Table is sortable by column",
+            "Filter by error type (all, rate_limit, api_error, etc.)",
+            "Clear error history button with confirmation",
+            "Export error log as JSON button"
+          ]
+        },
+        {
+          "subtaskId": "5.3",
+          "title": "Wire up error logging",
+          "description": "Log all enhanced errors to the ErrorLogRepository",
+          "status": "pending",
+          "files": [
+            "src/interfaces/options/OptionsScript.ts",
+            "src/interfaces/shared/ErrorDisplayService.ts"
+          ],
+          "acceptanceCriteria": [
+            "All provider errors are logged to repository",
+            "All batch analysis errors are logged",
+            "All configuration errors are logged",
+            "Errors are logged with full enhanced details",
+            "Logging failures don't break the application"
+          ]
+        }
+      ]
+    }
+  ],
+  "acceptanceCriteria": [
+    "API errors show specific, actionable error messages (not just 'Error')",
+    "Rate limit errors suggest waiting time or switching providers",
+    "Invalid API key errors guide users to configuration",
+    "Network errors distinguish between connectivity and service issues",
+    "Optional desktop notifications for analysis completion/failure",
+    "Error history log accessible in options page"
+  ],
+  "dependencies": [],
+  "testingStrategy": {
+    "unitTests": [
+      "Test ErrorClassifier with various error scenarios",
+      "Test error message templates for all error types",
+      "Test EnhancedError creation and properties",
+      "Test ErrorDisplayService toast and modal display",
+      "Test NotificationService permission handling",
+      "Test ErrorLogRepository CRUD operations"
+    ],
+    "integrationTests": [
+      "Test provider error handling with mock API failures",
+      "Test batch analysis error display and notifications",
+      "Test error history logging and retrieval",
+      "Test error overlay event handling"
+    ],
+    "manualTests": [
+      "Test error display with actual provider failures",
+      "Test desktop notifications on different platforms",
+      "Test error history UI interactions",
+      "Test notification permission flow",
+      "Test error overlay dismissal and behavior"
+    ]
+  },
+  "status": "backlog",
+  "planStatus": "pending",
+  "updated_at": "2026-01-05T19:36:24.019Z"
+}

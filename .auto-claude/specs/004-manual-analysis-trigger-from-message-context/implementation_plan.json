@@ -1,0 +1,358 @@
+{
+  "feature": "Manual Analysis Trigger from Message Context",
+  "description": "# Manual Analysis Trigger from Message Context\n\nAdd a right-click context menu option and keyboard shortcut to manually trigger AI analysis on selected email(s). Users can analyze specific messages on-demand without waiting for automatic processing.\n\n## Rationale\nUsers need control over when analysis happens. Addresses the gap where users can't analyze emails that arrived before extension installation or re-analyze with updated prompts. Competitors like manual Thunderbird filters require tedious rule creation (pain-4-1) - this provides an intelligent alternative.\n\n## User Stories\n- As an email power user, I want to manually trigger AI analysis on specific emails so that I can organize messages that arrived before I configured my tags\n- As a privacy-conscious user, I want to analyze only selected emails so that I control exactly which messages are processed by AI\n\n## Acceptance Criteria\n- [ ] Right-click context menu shows 'Analyze with AI' option on selected messages\n- [ ] Keyboard shortcut (configurable) triggers analysis on selected messages\n- [ ] Multiple message selection is supported for batch manual analysis\n- [ ] Progress indicator shows analysis status\n- [ ] Results are applied immediately after analysis completes\n",
+  "created_at": "2026-01-04T21:45:34.164Z",
+  "updated_at": "2026-01-05T19:32:09.333Z",
+  "status": "planning",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Context Menu Multi-Message Support",
+      "description": "Extend existing context menu to handle multiple selected messages for batch manual analysis",
+      "order": 1,
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "title": "Update context menu handler to process all selected messages",
+          "description": "Modify the handleContextMenuClick method in background.ts to process all messages in the selection array instead of just the first one. Use the AnalyzeBatchEmails use case for multiple selections.",
+          "status": "pending",
+          "file": "background.ts",
+          "estimatedTime": "30m",
+          "complexity": "medium",
+          "acceptanceCriteria": [
+            "Selecting multiple messages and right-clicking 'AI-Analyse' analyzes all selected messages",
+            "Single message selection still works as before",
+            "Batch analysis uses AnalyzeBatchEmails use case with proper concurrency",
+            "Notifications show total messages analyzed vs successful count"
+          ]
+        },
+        {
+          "id": "subtask-1-2",
+          "title": "Add batch analysis progress notifications",
+          "description": "Implement progress notifications during batch manual analysis to keep users informed. Show starting, progress updates, and completion notifications.",
+          "status": "pending",
+          "files": ["background.ts", "src/application/use-cases/AnalyzeBatchEmails.ts"],
+          "estimatedTime": "45m",
+          "complexity": "medium",
+          "acceptanceCriteria": [
+            "Notification shown when batch analysis starts with message count",
+            "Progress notification shown during analysis (optional, for large batches)",
+            "Completion notification shows successful/failed counts",
+            "Error notifications include actionable error messages"
+          ]
+        },
+        {
+          "subtask-1-3",
+          "title": "Test multi-message context menu functionality",
+          "description": "Create comprehensive tests for multi-message context menu analysis. Test with 1, 5, 10, and 50 messages selected.",
+          "status": "pending",
+          "files": ["tests/integration/manualAnalysisTest.ts"],
+          "estimatedTime": "30m",
+          "complexity": "low",
+          "acceptanceCriteria": [
+            "All tests pass",
+            "Edge cases covered (0 messages, 1 message, many messages)",
+            "Error handling tested (provider errors, network issues)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Keyboard Shortcut Support",
+      "description": "Add keyboard shortcut functionality for triggering analysis on selected messages",
+      "order": 2,
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "title": "Add keyboard shortcut command to manifest",
+          "description": "Update manifest.json to add commands section with 'analyze-selected' keyboard shortcut. Use Ctrl+Shift+A (or Cmd+Shift+A on Mac) as default.",
+          "status": "pending",
+          "file": "manifest.json",
+          "estimatedTime": "15m",
+          "complexity": "low",
+          "acceptanceCriteria": [
+            "manifest.json includes commands section",
+            "Default shortcut: Ctrl+Shift+A (Windows/Linux) / Cmd+Shift+A (Mac)",
+            "Shortcut has description 'Analyze selected messages with AI'",
+            "User can override shortcut in Thunderbird settings"
+          ]
+        },
+        {
+          "id": "subtask-2-2",
+          "title": "Implement keyboard shortcut handler",
+          "description": "Add handler in background.ts for the 'analyze-selected' command. Detect selected messages in current tab and trigger batch or single analysis accordingly.",
+          "status": "pending",
+          "files": ["background.ts"],
+          "estimatedTime": "60m",
+          "complexity": "high",
+          "acceptanceCriteria": [
+            "Pressing shortcut analyzes currently selected messages",
+            "Works from message list view",
+            "Works from message display view (analyzes displayed message)",
+            "Shows notification if no messages are selected",
+            "Uses AnalyzeBatchEmails for multiple, AnalyzeEmail for single"
+          ]
+        },
+        {
+          "id": "subtask-2-3",
+          "title": "Add selected messages detection utility",
+          "description": "Create utility function to detect currently selected messages in active Thunderbird tab. Use messenger.mailTabs.getSelectedMessages() or similar API.",
+          "status": "pending",
+          "files": ["src/interfaces/adapters/ThunderbirdMailReader.ts"],
+          "estimatedTime": "30m",
+          "complexity": "medium",
+          "acceptanceCriteria": [
+            "Utility returns array of selected message IDs",
+            "Works in message list view (multi-select)",
+            "Works in message display view (single message)",
+            "Returns empty array if no messages selected",
+            "Handles API unavailability gracefully"
+          ]
+        },
+        {
+          "id": "subtask-2-4",
+          "title": "Test keyboard shortcut functionality",
+          "description": "Create tests for keyboard shortcut handler. Test single message, multiple messages, and no selection scenarios.",
+          "status": "pending",
+          "files": ["tests/integration/keyboardShortcutTest.ts"],
+          "estimatedTime": "30m",
+          "complexity": "medium",
+          "acceptanceCriteria": [
+            "All tests pass",
+            "Tests cover all selection scenarios",
+            "Error handling tested"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Progress Indicator UI",
+      "description": "Add visual progress indicator for manual batch analysis",
+      "order": 3,
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "title": "Design progress notification format",
+          "description": "Define the format and content of progress notifications. Decide whether to use multiple notifications (updating) or a single notification with progress bar (if Thunderbird supports it).",
+          "status": "pending",
+          "files": ["docs/progress-indicator-design.md"],
+          "estimatedTime": "20m",
+          "complexity": "low",
+          "acceptanceCriteria": [
+            "Design document created",
+            "Mockups or descriptions of notification format",
+            "Decision on update strategy (multiple notifications vs single)",
+            "Definition of when to show progress (thresholds, timing)"
+          ]
+        },
+        {
+          "id": "subtask-3-2",
+          "title": "Implement progress tracking in AnalyzeBatchEmails",
+          "description": "Add progress callback mechanism to AnalyzeBatchEmails use case. Emit progress events during batch analysis that can be consumed by background script.",
+          "status": "pending",
+          "files": ["src/application/use-cases/AnalyzeBatchEmails.ts", "src/domain/events/AnalysisProgressEvent.ts"],
+          "estimatedTime": "45m",
+          "complexity": "medium",
+          "acceptanceCriteria": [
+            "AnalyzeBatchEmails accepts optional progress callback",
+            "Progress callback called after each message completion",
+            "Callback includes current, total, successful, failed counts",
+            "Progress events published to EventBus"
+          ]
+        },
+        {
+          "id": "subtask-3-3",
+          "title": "Connect progress to background notifications",
+          "description": "Listen to progress events in background.ts and update notifications. Show progress at meaningful intervals (e.g., every 25% or every 5 messages for small batches).",
+          "status": "pending",
+          "files": ["background.ts"],
+          "estimatedTime": "45m",
+          "complexity": "medium",
+          "acceptanceCriteria": [
+            "Progress notifications shown during analysis",
+            "Notifications update without spam",
+            "Final completion notification shows summary",
+            "Notifications can be disabled in settings"
+          ]
+        },
+        {
+          "id": "subtask-3-4",
+          "title": "Add progress indicator to options page (optional)",
+          "description": "Add a progress panel to the options page that shows current analysis progress. This provides a more detailed view than notifications.",
+          "status": "pending",
+          "files": ["src/interfaces/options/BatchAnalysisUI.ts", "options.html"],
+          "estimatedTime": "60m",
+          "complexity": "high",
+          "acceptanceCriteria": [
+            "Progress panel visible in options page",
+            "Shows real-time progress (current/total)",
+            "Shows success/failure counts",
+            "Can cancel running batch analysis",
+            "Auto-hides when analysis completes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Configurable Shortcuts",
+      "description": "Allow users to customize the keyboard shortcut in the options page",
+      "order": 4,
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "title": "Add shortcut settings to config schema",
+          "description": "Extend IConfigRepository to store custom keyboard shortcuts. Add field for 'analysisShortcut' with default value.",
+          "status": "pending",
+          "files": ["src/infrastructure/interfaces/IConfigRepository.ts", "src/infrastructure/repositories/IndexedDBConfigRepository.ts"],
+          "estimatedTime": "30m",
+          "complexity": "low",
+          "acceptanceCriteria": [
+            "Config schema includes analysisShortcut field",
+            "Default value: 'Ctrl+Shift+A' / 'Cmd+Shift+A'",
+            "Shortcut stored in IndexedDB",
+            "Validation for shortcut format"
+          ]
+        },
+        {
+          "id": "subtask-4-2",
+          "title": "Add shortcut configuration UI to options page",
+          "description": "Create a settings panel in options page where users can customize the keyboard shortcut. Include dropdown for modifier keys and letter keys.",
+          "status": "pending",
+          "files": ["src/interfaces/options/OptionsScript.ts", "options.html"],
+          "estimatedTime": "60m",
+          "complexity": "medium",
+          "acceptanceCriteria": [
+            "Settings panel for keyboard shortcut",
+            "Dropdowns for modifiers (Ctrl, Alt, Shift)",
+            "Dropdown or input for key",
+            "Save button to persist setting",
+            "Reset to default button"
+          ]
+        },
+        {
+          "id": "subtask-4-3",
+          "title": "Update shortcut registration from settings",
+          "description": "When user changes shortcut setting, update the registered command in Thunderbird. Listen to settings changes and re-register command.",
+          "status": "pending",
+          "files": ["background.ts"],
+          "estimatedTime": "45m",
+          "complexity": "high",
+          "acceptanceCriteria": [
+            "Shortcut updates when user saves new value",
+            "Old shortcut unregistered, new one registered",
+            "Changes take effect immediately",
+            "Fallback to default if invalid shortcut"
+          ]
+        },
+        {
+          "id": "subtask-4-4",
+          "title": "Test configurable shortcuts",
+          "description": "Test shortcut customization, persistence, and hot-reloading. Verify invalid shortcuts are handled gracefully.",
+          "status": "pending",
+          "files": ["tests/integration/shortcutConfigTest.ts"],
+          "estimatedTime": "30m",
+          "complexity": "medium",
+          "acceptanceCriteria": [
+            "All tests pass",
+            "Shortcut persists across browser restart",
+            "Hot-reload works correctly",
+            "Invalid shortcuts rejected or corrected"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Testing and Integration",
+      "description": "Comprehensive testing, documentation, and quality assurance",
+      "order": 5,
+      "status": "pending",
+      "subtasks": [
+        {
+          "id": "subtask-5-1",
+          "title": "Create integration test suite",
+          "description": "Create comprehensive integration tests covering all new functionality: multi-message context menu, keyboard shortcuts, progress tracking, and configurable shortcuts.",
+          "status": "pending",
+          "files": ["tests/integration/manualAnalysisIntegration.test.ts"],
+          "estimatedTime": "90m",
+          "complexity": "high",
+          "acceptanceCriteria": [
+            "Integration test suite created",
+            "Tests cover complete user workflows",
+            "Tests pass consistently",
+            "CI/CD integration working"
+          ]
+        },
+        {
+          "id": "subtask-5-2",
+          "title": "Update user documentation",
+          "description": "Update README and user guide to document the new manual analysis features. Include screenshots and step-by-step instructions.",
+          "status": "pending",
+          "files": ["README.md", "docs/user-guide/manual-analysis.md"],
+          "estimatedTime": "45m",
+          "complexity": "low",
+          "acceptanceCriteria": [
+            "User documentation updated",
+            "Screenshots included",
+            "Keyboard shortcut documented",
+            "Multi-message selection explained",
+            "Progress indicator described"
+          ]
+        },
+        {
+          "id": "subtask-5-3",
+          "title": "Manual QA testing",
+          "description": "Perform manual testing in Thunderbird with real email accounts. Test all acceptance criteria from the spec.",
+          "status": "pending",
+          "files": [".auto-claude/specs/004-manual-analysis-trigger-from-message-context/qa-checklist.md"],
+          "estimatedTime": "60m",
+          "complexity": "medium",
+          "acceptanceCriteria": [
+            "All acceptance criteria verified",
+            "Edge cases tested",
+            "Performance acceptable",
+            "No regressions in existing features"
+          ]
+        },
+        {
+          "id": "subtask-5-4",
+          "title": "Code review and refinement",
+          "description": "Perform thorough code review. Refactor for clarity, performance, and maintainability. Ensure code follows project patterns.",
+          "status": "pending",
+          "files": ["All modified files"],
+          "estimatedTime": "45m",
+          "complexity": "medium",
+          "acceptanceCriteria": [
+            "Code review completed",
+            "Refactoring done",
+            "Comments and documentation added",
+            "Code follows existing patterns",
+            "No obvious bugs or issues"
+          ]
+        }
+      ]
+    }
+  ],
+  "estimatedTotalTime": "12-14 hours",
+  "riskLevel": "medium",
+  "dependencies": [
+    "AnalyzeEmail use case must be working correctly",
+    "AnalyzeBatchEmails use case must be working correctly",
+    "MessageHandler service must be operational",
+    "Thunderbird menus API availability"
+  ],
+  "notes": [
+    "The existing code already has single-message context menu support",
+    "Focus is on extending to multiple messages and adding keyboard shortcuts",
+    "Progress indicator may be limited by Thunderbird notification API capabilities",
+    "Keyboard shortcuts are Thunderbird-specific - check API documentation",
+    "Consider localization for menu items and notifications if i18n is needed"
+  ]
+}
