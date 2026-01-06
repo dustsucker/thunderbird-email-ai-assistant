@@ -60,6 +60,7 @@ import { SettingsForm } from './SettingsForm';
 import { TagManagementUI } from './TagManagementUI';
 import { BatchAnalysisUI } from './BatchAnalysisUI';
 import { AnalysisResultsUI } from './AnalysisResultsUI';
+import { ManualReviewPanel } from './ManualReviewPanel';
 
 // ============================================================================
 // DOM Element Interfaces
@@ -133,6 +134,7 @@ class OptionsScript {
   private tagManagementUI: TagManagementUI | null = null;
   private batchAnalysisUI: BatchAnalysisUI | null = null;
   private analysisResultsUI: AnalysisResultsUI | null = null;
+  private manualReviewPanel: ManualReviewPanel | null = null;
   private logger: ILogger | null = null;
   private eventBus: EventBus | null = null;
   private isInitialized = false;
@@ -176,6 +178,7 @@ class OptionsScript {
       this.tagManagementUI = container.resolve<TagManagementUI>(TagManagementUI);
       this.batchAnalysisUI = container.resolve<BatchAnalysisUI>(BatchAnalysisUI);
       this.analysisResultsUI = container.resolve<AnalysisResultsUI>(AnalysisResultsUI);
+      this.manualReviewPanel = container.resolve<ManualReviewPanel>(ManualReviewPanel);
 
       // Step 5: Initialize UI components
       this.initializeTabs();
@@ -183,6 +186,7 @@ class OptionsScript {
       await this.initializeTagManagement();
       await this.initializeBatchAnalysis();
       await this.initializeAnalysisResults();
+      await this.initializeManualReview();
       await this.initializeCacheManagement();
 
       // Step 6: Setup runtime message listeners
@@ -256,6 +260,7 @@ class OptionsScript {
     container.registerSingleton('TagManagementUI', TagManagementUI);
     container.registerSingleton('BatchAnalysisUI', BatchAnalysisUI);
     container.registerSingleton('AnalysisResultsUI', AnalysisResultsUI);
+    container.registerSingleton('ManualReviewPanel', ManualReviewPanel);
 
     startupLogger.info('UI components registered');
     startupLogger.info('DI container setup completed');
@@ -377,6 +382,38 @@ class OptionsScript {
     }
 
     this.logger?.debug('Analysis results UI initialized');
+  }
+
+  /**
+   * Initializes manual review panel UI.
+   */
+  private async initializeManualReview(): Promise<void> {
+    this.logger?.debug('Initializing manual review panel UI');
+
+    if (!this.manualReviewPanel) {
+      throw new Error('Manual review panel not resolved from DI container');
+    }
+
+    this.manualReviewPanel.render();
+
+    // Setup refresh button
+    const refreshBtn = document.getElementById('refresh-review-btn') as HTMLButtonElement;
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        try {
+          refreshBtn.disabled = true;
+          refreshBtn.textContent = 'Wird geladen...';
+          await this.manualReviewPanel!.refresh();
+        } catch (error) {
+          this.logger?.error('Failed to refresh manual review panel', { error });
+        } finally {
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = 'Aktualisieren';
+        }
+      });
+    }
+
+    this.logger?.debug('Manual review panel UI initialized');
   }
 
   /**
