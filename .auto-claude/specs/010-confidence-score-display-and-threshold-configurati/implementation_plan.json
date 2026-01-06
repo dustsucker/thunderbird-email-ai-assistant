@@ -300,7 +300,7 @@
           "subtaskId": "5.1",
           "title": "Write unit tests for confidence utilities",
           "description": "Test confidence calculation and threshold comparison functions",
-          "status": "pending",
+          "status": "completed",
           "files": [
             "test/shared/utils/confidenceUtils.test.ts"
           ],
@@ -309,7 +309,8 @@
             "Test threshold checking logic",
             "Test effective threshold resolution",
             "Test edge cases (0, 100, equal to threshold)"
-          ]
+          ],
+          "notes": "Added 57 comprehensive tests covering all confidence utility functions including conversions, threshold comparisons, display formatting, and edge cases. All 79 tests (22 existing + 57 new) passing."
         },
         {
           "subtaskId": "5.2",
