@@ -30,7 +30,7 @@ const mockStorage = {
 };
 
 // Mock window.messenger
-global.window = {
+(global.window as any) = {
   ...global.window,
   messenger: mockStorage as any,
 };
