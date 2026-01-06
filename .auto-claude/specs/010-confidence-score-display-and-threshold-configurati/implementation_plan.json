@@ -349,17 +349,19 @@
           "subtaskId": "5.4",
           "title": "Update documentation",
           "description": "Document the confidence threshold feature in README and user guide",
-          "status": "pending",
+          "status": "completed",
           "files": [
             "README.md",
-            "docs/features/confidence-thresholds.md"
+            "docs/features/confidence-thresholds.md",
+            "ARCHITECTURE.md"
           ],
           "acceptanceCriteria": [
             "README mentions confidence threshold feature",
             "User guide explains how to configure thresholds",
             "Screenshots of UI components included",
             "Examples of threshold configuration provided"
-          ]
+          ],
+          "notes": "Comprehensive documentation added: (1) Updated README.md Key Features section with confidence threshold capabilities, (2) Added Confidence Thresholds section in README.md explaining global thresholds, per-tag overrides, visual indicators, and manual review, (3) Created detailed user guide in docs/features/confidence-thresholds.md with 11 sections covering overview, understanding confidence scores, configuration instructions, threshold behavior, manual review interface, analysis results, tips and best practices, troubleshooting, advanced configuration, FAQ, and glossary, (4) Updated ARCHITECTURE.md Key Features to include confidence score display and low-confidence flagging. Documentation includes practical examples, recommended threshold values, scenario explanations, and references to related documentation."
         }
       ]
     }
