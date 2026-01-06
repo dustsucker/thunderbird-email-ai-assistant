@@ -2,9 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   getConcurrencyLimit,
   validateConcurrencyConfig,
+  validateConfidenceThreshold,
+  validateCustomTagsThresholds,
+  isValidConfidenceThreshold,
   ModelConcurrencyConfig,
 } from '../core/config';
 import { DEFAULTS } from '../core/config';
+import type { Tag } from '../core/config';
 
 describe('Config - getConcurrencyLimit', () => {
   describe('Provider Default Concurrency', () => {
@@ -369,6 +373,237 @@ describe('Config - validateConcurrencyConfig', () => {
       expect(
         errors.some((e) => e.includes('Invalid concurrency') && e.includes('claude/claude-3'))
       ).toBe(true);
+    });
+  });
+});
+
+describe('Config - validateConfidenceThreshold', () => {
+  describe('Valid Threshold Values', () => {
+    it('should return empty errors array for valid threshold values', () => {
+      expect(validateConfidenceThreshold(0)).toEqual([]);
+      expect(validateConfidenceThreshold(50)).toEqual([]);
+      expect(validateConfidenceThreshold(70)).toEqual([]);
+      expect(validateConfidenceThreshold(100)).toEqual([]);
+    });
+
+    it('should accept boundary values', () => {
+      expect(validateConfidenceThreshold(0)).toEqual([]);
+      expect(validateConfidenceThreshold(1)).toEqual([]);
+      expect(validateConfidenceThreshold(99)).toEqual([]);
+      expect(validateConfidenceThreshold(100)).toEqual([]);
+    });
+  });
+
+  describe('Invalid Threshold Values', () => {
+    it('should reject negative values', () => {
+      const errors = validateConfidenceThreshold(-1);
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('must be between 0 and 100');
+      expect(errors[0]).toContain('-1');
+    });
+
+    it('should reject values greater than 100', () => {
+      const errors = validateConfidenceThreshold(101);
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('must be between 0 and 100');
+      expect(errors[0]).toContain('101');
+    });
+
+    it('should reject non-integer values', () => {
+      const errors = validateConfidenceThreshold(70.5);
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('must be an integer');
+      expect(errors[0]).toContain('70.5');
+    });
+
+    it('should report multiple errors for invalid values', () => {
+      const errors = validateConfidenceThreshold(150.5);
+      expect(errors.length).toBe(2);
+      expect(errors.some((e) => e.includes('must be an integer'))).toBe(true);
+      expect(errors.some((e) => e.includes('must be between 0 and 100'))).toBe(true);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should reject very large values', () => {
+      const errors = validateConfidenceThreshold(1000);
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('must be between 0 and 100');
+    });
+
+    it('should reject very small values', () => {
+      const errors = validateConfidenceThreshold(-100);
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('must be between 0 and 100');
+    });
+  });
+});
+
+describe('Config - isValidConfidenceThreshold', () => {
+  describe('Valid Thresholds', () => {
+    it('should return true for valid integer values between 0 and 100', () => {
+      expect(isValidConfidenceThreshold(0)).toBe(true);
+      expect(isValidConfidenceThreshold(1)).toBe(true);
+      expect(isValidConfidenceThreshold(50)).toBe(true);
+      expect(isValidConfidenceThreshold(70)).toBe(true);
+      expect(isValidConfidenceThreshold(99)).toBe(true);
+      expect(isValidConfidenceThreshold(100)).toBe(true);
+    });
+  });
+
+  describe('Invalid Thresholds', () => {
+    it('should return false for negative values', () => {
+      expect(isValidConfidenceThreshold(-1)).toBe(false);
+      expect(isValidConfidenceThreshold(-100)).toBe(false);
+    });
+
+    it('should return false for values greater than 100', () => {
+      expect(isValidConfidenceThreshold(101)).toBe(false);
+      expect(isValidConfidenceThreshold(150)).toBe(false);
+      expect(isValidConfidenceThreshold(1000)).toBe(false);
+    });
+
+    it('should return false for non-integer values', () => {
+      expect(isValidConfidenceThreshold(50.5)).toBe(false);
+      expect(isValidConfidenceThreshold(70.1)).toBe(false);
+      expect(isValidConfidenceThreshold(99.9)).toBe(false);
+    });
+
+    it('should return false for special numeric values', () => {
+      expect(isValidConfidenceThreshold(NaN)).toBe(false);
+      expect(isValidConfidenceThreshold(Infinity)).toBe(false);
+      expect(isValidConfidenceThreshold(-Infinity)).toBe(false);
+    });
+  });
+});
+
+describe('Config - validateCustomTagsThresholds', () => {
+  describe('Valid Tag Configurations', () => {
+    it('should return empty errors array when all tags have valid thresholds', () => {
+      const tags: Tag[] = [
+        { key: 'tag1', name: 'Tag 1', color: '#FF0000', minConfidenceThreshold: 70 },
+        { key: 'tag2', name: 'Tag 2', color: '#00FF00', minConfidenceThreshold: 80 },
+        { key: 'tag3', name: 'Tag 3', color: '#0000FF', minConfidenceThreshold: 0 },
+        { key: 'tag4', name: 'Tag 4', color: '#FFFF00', minConfidenceThreshold: 100 },
+      ];
+
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors).toEqual([]);
+    });
+
+    it('should accept tags without threshold override', () => {
+      const tags: Tag[] = [
+        { key: 'tag1', name: 'Tag 1', color: '#FF0000' },
+        { key: 'tag2', name: 'Tag 2', color: '#00FF00', minConfidenceThreshold: undefined },
+      ];
+
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors).toEqual([]);
+    });
+
+    it('should accept mixed valid and undefined thresholds', () => {
+      const tags: Tag[] = [
+        { key: 'tag1', name: 'Tag 1', color: '#FF0000', minConfidenceThreshold: 75 },
+        { key: 'tag2', name: 'Tag 2', color: '#00FF00' },
+        { key: 'tag3', name: 'Tag 3', color: '#0000FF', minConfidenceThreshold: 85 },
+      ];
+
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Invalid Tag Configurations', () => {
+    it('should reject tags with threshold below 0', () => {
+      const tags: Tag[] = [
+        { key: 'tag1', name: 'Tag 1', color: '#FF0000', minConfidenceThreshold: -1 },
+      ];
+
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('tag1');
+      expect(errors[0]).toContain('-1');
+      expect(errors[0]).toContain('Must be an integer between 0 and 100');
+    });
+
+    it('should reject tags with threshold above 100', () => {
+      const tags: Tag[] = [
+        { key: 'tag2', name: 'Tag 2', color: '#00FF00', minConfidenceThreshold: 101 },
+      ];
+
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('tag2');
+      expect(errors[0]).toContain('101');
+      expect(errors[0]).toContain('Must be an integer between 0 and 100');
+    });
+
+    it('should reject tags with non-integer threshold', () => {
+      const tags: Tag[] = [
+        { key: 'tag3', name: 'Tag 3', color: '#0000FF', minConfidenceThreshold: 75.5 },
+      ];
+
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('tag3');
+      expect(errors[0]).toContain('75.5');
+      expect(errors[0]).toContain('Must be an integer between 0 and 100');
+    });
+  });
+
+  describe('Multiple Errors', () => {
+    it('should report errors for all invalid tags', () => {
+      const tags: Tag[] = [
+        { key: 'tag1', name: 'Tag 1', color: '#FF0000', minConfidenceThreshold: 75 },
+        { key: 'tag2', name: 'Tag 2', color: '#00FF00', minConfidenceThreshold: 150 },
+        { key: 'tag3', name: 'Tag 3', color: '#0000FF', minConfidenceThreshold: -10 },
+        { key: 'tag4', name: 'Tag 4', color: '#FFFF00', minConfidenceThreshold: 85 },
+      ];
+
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors.length).toBe(2);
+      expect(errors.some((e) => e.includes('tag2') && e.includes('150'))).toBe(true);
+      expect(errors.some((e) => e.includes('tag3') && e.includes('-10'))).toBe(true);
+    });
+
+    it('should report both integer and range errors for same tag', () => {
+      const tags: Tag[] = [
+        { key: 'tag1', name: 'Tag 1', color: '#FF0000', minConfidenceThreshold: 150.5 },
+      ];
+
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('tag1');
+      expect(errors[0]).toContain('150.5');
+      // Should report both integer and range errors in the same message
+    });
+
+    it('should handle empty tag array', () => {
+      const tags: Tag[] = [];
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors).toEqual([]);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle boundary values', () => {
+      const tags: Tag[] = [
+        { key: 'tag1', name: 'Tag 1', color: '#FF0000', minConfidenceThreshold: 0 },
+        { key: 'tag2', name: 'Tag 2', color: '#00FF00', minConfidenceThreshold: 100 },
+      ];
+
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors).toEqual([]);
+    });
+
+    it('should reject values just outside boundaries', () => {
+      const tags: Tag[] = [
+        { key: 'tag1', name: 'Tag 1', color: '#FF0000', minConfidenceThreshold: -1 },
+        { key: 'tag2', name: 'Tag 2', color: '#00FF00', minConfidenceThreshold: 101 },
+      ];
+
+      const errors = validateCustomTagsThresholds(tags);
+      expect(errors.length).toBe(2);
     });
   });
 });

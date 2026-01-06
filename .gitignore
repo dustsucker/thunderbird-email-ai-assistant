@@ -22,3 +22,6 @@ options-bundle.js
 sign.bash
 /tmp/**
 .env
+
+# Auto Claude data directory
+.auto-claude/

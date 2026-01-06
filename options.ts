@@ -62,6 +62,7 @@ interface AppSettingsStorage {
     defaultProvider?: string;
     enableNotifications?: boolean;
     enableLogging?: boolean;
+    minConfidenceThreshold?: number;
   };
   providerSettings?: StorageProviderSettings;
   customTags?: CustomTags;
@@ -114,6 +115,9 @@ interface GeneralSettingsElements {
   zaiPaasModel: HTMLSelectElement | null;
   zaiCodingApiKey: HTMLInputElement | null;
   zaiCodingModel: HTMLSelectElement | null;
+  minConfidenceThreshold: HTMLInputElement | null;
+  minConfidenceThresholdSlider: HTMLInputElement | null;
+  confidenceValue: HTMLSpanElement | null;
 }
 
 /**
@@ -131,6 +135,7 @@ interface TagManagementElements {
   tagKey: HTMLInputElement;
   tagColor: HTMLInputElement;
   tagPrompt: HTMLTextAreaElement;
+  tagThreshold: HTMLInputElement;
 }
 
 /**
@@ -445,6 +450,9 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
   const zaiPaasModel = getElementById<HTMLSelectElement>('zaiPaasModel');
   const zaiCodingApiKey = getElementById<HTMLInputElement>('zaiCodingApiKey');
   const zaiCodingModel = getElementById<HTMLSelectElement>('zaiCodingModel');
+  const minConfidenceThreshold = getElementById<HTMLInputElement>('min-confidence-threshold');
+  const minConfidenceThresholdSlider = getElementById<HTMLInputElement>('min-confidence-threshold-slider');
+  const confidenceValue = getElementById<HTMLSpanElement>('confidence-value');
 
   if (!providerSelect || !generalForm || !generalStatusMessage || !statusMessage) {
     throw new Error('Required general settings elements not found');
@@ -466,6 +474,9 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
     zaiPaasModel,
     zaiCodingApiKey,
     zaiCodingModel,
+    minConfidenceThreshold,
+    minConfidenceThresholdSlider,
+    confidenceValue,
   };
 }
 
@@ -484,6 +495,7 @@ function getTagManagementElements(): TagManagementElements {
   const tagKey = getElementById<HTMLInputElement>('tag-key');
   const tagColor = getElementById<HTMLInputElement>('tag-color');
   const tagPrompt = getElementById<HTMLTextAreaElement>('tag-prompt');
+  const tagThreshold = getElementById<HTMLInputElement>('tag-threshold');
 
   if (
     !tagListContainer ||
@@ -496,7 +508,8 @@ function getTagManagementElements(): TagManagementElements {
     !tagName ||
     !tagKey ||
     !tagColor ||
-    !tagPrompt
+    !tagPrompt ||
+    !tagThreshold
   ) {
     throw new Error('Required tag management elements not found');
   }
@@ -513,6 +526,7 @@ function getTagManagementElements(): TagManagementElements {
     tagKey,
     tagColor,
     tagPrompt,
+    tagThreshold,
   };
 }
 
@@ -642,6 +656,21 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
     });
 
     elements.providerSelect.value = appConfig.defaultProvider || DEFAULTS.provider;
+
+    // Load min confidence threshold
+    const minConfidenceThreshold = appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
+    if (elements.minConfidenceThreshold) {
+      elements.minConfidenceThreshold.value = minConfidenceThreshold.toString();
+    }
+    if (elements.minConfidenceThresholdSlider) {
+      elements.minConfidenceThresholdSlider.value = minConfidenceThreshold.toString();
+    }
+    if (elements.confidenceValue) {
+      elements.confidenceValue.textContent = minConfidenceThreshold.toString();
+    }
+    logger.info('[DEBUG-options] Loaded minConfidenceThreshold', {
+      threshold: minConfidenceThreshold,
+    });
 
     if (elements.ollamaApiUrl && providerSettings.ollama) {
       logger.info('[DEBUG-options] Loaded ollama settings', {
@@ -923,6 +952,24 @@ async function handleGeneralSettingsSubmit(
 
       existingAppConfig.defaultProvider = provider as Provider;
 
+      // Save min confidence threshold
+      if (elements.minConfidenceThreshold && elements.minConfidenceThreshold.value !== '') {
+        const threshold = parseInt(elements.minConfidenceThreshold.value, 10);
+        if (!isNaN(threshold) && threshold >= 0 && threshold <= 100) {
+          existingAppConfig.minConfidenceThreshold = threshold;
+          logger.info('[DEBUG-options] Saving minConfidenceThreshold', {
+            threshold,
+          });
+        } else {
+          logger.warn('[DEBUG-options] Invalid minConfidenceThreshold, using default', {
+            threshold,
+          });
+          existingAppConfig.minConfidenceThreshold = DEFAULTS.minConfidenceThreshold;
+        }
+      } else {
+        existingAppConfig.minConfidenceThreshold = DEFAULTS.minConfidenceThreshold;
+      }
+
       logger.info('[DEBUG-options] Saving to storage', {
         appConfig: existingAppConfig,
         providerSettings,
@@ -1108,18 +1155,31 @@ async function populateZaiModels(provider: 'zaiPaas' | 'zaiCoding'): Promise<voi
 /**
  * Renders the tag list to the DOM
  */
-function renderTagList(container: HTMLDivElement, customTags: CustomTags): void {
+function renderTagList(
+  container: HTMLDivElement,
+  customTags: CustomTags,
+  globalThreshold: number = DEFAULTS.minConfidenceThreshold
+): void {
   container.innerHTML = '';
 
   customTags.forEach((tag, index) => {
     const item = document.createElement('div');
     item.className = 'tag-item';
+
+    // Determine threshold display
+    const hasCustomThreshold = tag.minConfidenceThreshold !== undefined;
+    const thresholdDisplay = hasCustomThreshold
+      ? `${tag.minConfidenceThreshold}%`
+      : `Global (${globalThreshold}%)`;
+    const thresholdClass = hasCustomThreshold ? 'tag-threshold-custom' : 'tag-threshold-global';
+
     item.innerHTML = `
       <div class="tag-color-preview" style="background-color: ${escapeHtml(tag.color)};"></div>
       <div class="tag-details">
         <div class="tag-name">${escapeHtml(tag.name)}</div>
         <div class="tag-key">Key: ${escapeHtml(tag.key)}</div>
         <div class="tag-prompt">Prompt: ${escapeHtml(tag.prompt || '')}</div>
+        <div class="tag-threshold ${thresholdClass}">Threshold: ${escapeHtml(thresholdDisplay)}</div>
       </div>
       <div class="tag-actions">
         <button class="edit-tag-btn" data-index="${index}">Edit</button>
@@ -1495,6 +1555,10 @@ function openModal(elements: TagManagementElements, context: TagEditContext): vo
     elements.tagKey.value = context.tag.key;
     elements.tagColor.value = context.tag.color;
     elements.tagPrompt.value = context.tag.prompt || '';
+    // Set threshold value if it exists
+    if (context.tag.minConfidenceThreshold !== undefined) {
+      elements.tagThreshold.value = context.tag.minConfidenceThreshold.toString();
+    }
   } else {
     elements.modalTitle.textContent = 'Add New Tag';
   }
@@ -1536,7 +1600,17 @@ function handleTagListClick(
         if (confirm(`Are you sure you want to delete the "${tag.name}" tag?`)) {
           (customTags as Tag[]).splice(index, 1);
           saveCustomTags(customTags)
-            .then(() => renderTagList(elements.tagListContainer, customTags))
+            .then(async () => {
+              // Load global threshold for rendering
+              const data = await messenger.storage.local.get({
+                appConfig: { minConfidenceThreshold: DEFAULTS.minConfidenceThreshold },
+              });
+              const appConfig = (data as AppSettingsStorage).appConfig || {};
+              const globalThreshold =
+                appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
+
+              renderTagList(elements.tagListContainer, customTags, globalThreshold);
+            })
             .catch((error) => {
               logger.error('Failed to delete tag', { error });
             });
@@ -1558,6 +1632,7 @@ async function handleTagFormSubmit(
   const key = elements.tagKey.value.trim();
   const color = elements.tagColor.value;
   const prompt = elements.tagPrompt.value.trim();
+  const thresholdValue = elements.tagThreshold.value.trim();
 
   // Validate inputs
   if (!name) {
@@ -1585,6 +1660,17 @@ async function handleTagFormSubmit(
     return;
   }
 
+  // Validate threshold if provided
+  let minConfidenceThreshold: number | undefined = undefined;
+  if (thresholdValue) {
+    const threshold = parseInt(thresholdValue, 10);
+    if (isNaN(threshold) || threshold < 0 || threshold > 100) {
+      alert('Fehler: Konfidenz-Schwellenwert muss eine Zahl zwischen 0 und 100 sein.');
+      return;
+    }
+    minConfidenceThreshold = threshold;
+  }
+
   // Check for duplicate keys (excluding current index for edits)
   const isDuplicate = customTags.some((tag, i) => tag.key === key && i !== index);
   if (isDuplicate) {
@@ -1592,7 +1678,7 @@ async function handleTagFormSubmit(
     return;
   }
 
-  const newTag: Tag = { name, key, color, prompt };
+  const newTag: Tag = { name, key, color, prompt, minConfidenceThreshold };
 
   if (index === -1) {
     // Add new tag
@@ -1604,7 +1690,15 @@ async function handleTagFormSubmit(
 
   try {
     await saveCustomTags(customTags);
-    renderTagList(elements.tagListContainer, customTags);
+
+    // Load global threshold for rendering
+    const data = await messenger.storage.local.get({
+      appConfig: { minConfidenceThreshold: DEFAULTS.minConfidenceThreshold },
+    });
+    const appConfig = (data as AppSettingsStorage).appConfig || {};
+    const globalThreshold = appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
+
+    renderTagList(elements.tagListContainer, customTags, globalThreshold);
     closeModal(elements);
   } catch (error) {
     alert('Fehler: Tag konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.');
@@ -1655,6 +1749,32 @@ function initializeOptionsPage(): void {
       showRelevantSettings(target.value);
     });
 
+    // Confidence threshold slider synchronization
+    if (elements.minConfidenceThresholdSlider && elements.minConfidenceThreshold && elements.confidenceValue) {
+      elements.minConfidenceThresholdSlider.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement;
+        elements.minConfidenceThreshold!.value = target.value;
+        elements.confidenceValue!.textContent = target.value;
+      });
+
+      elements.minConfidenceThreshold.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement;
+        let value = parseInt(target.value, 10);
+
+        // Clamp value between 0 and 100
+        if (isNaN(value)) {
+          value = 0;
+        } else if (value < 0) {
+          value = 0;
+        } else if (value > 100) {
+          value = 100;
+        }
+
+        elements.minConfidenceThresholdSlider!.value = value.toString();
+        elements.confidenceValue!.textContent = value.toString();
+      });
+    }
+
     // z.ai API key change handler - fetch models when key changes
     if (elements.zaiPaasApiKey) {
       const debouncedPopulateZaiPaasModels = debounce(() => populateZaiModels('zaiPaas'), 500);
@@ -1693,11 +1813,20 @@ function initializeOptionsPage(): void {
       });
     }
 
-    // Load and initialize custom tags
-    loadCustomTags()
-      .then((tags) => {
+    // Load global threshold and custom tags
+    Promise.all([
+      loadCustomTags(),
+      messenger.storage.local.get({
+        appConfig: { minConfidenceThreshold: DEFAULTS.minConfidenceThreshold },
+      }),
+    ])
+      .then(([tags, data]) => {
+        const appConfig = (data as AppSettingsStorage).appConfig || {};
+        const globalThreshold =
+          appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
+
         currentCustomTags = tags;
-        renderTagList(elements.tagListContainer, currentCustomTags);
+        renderTagList(elements.tagListContainer, currentCustomTags, globalThreshold);
       })
       .catch((error) => {
         logger.error('Failed to load custom tags on init', { error });

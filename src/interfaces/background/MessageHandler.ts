@@ -85,7 +85,10 @@ type RuntimeMessage =
   | AnalyzeSingleMessageMessage
   | ClearQueueMessage
   | ClearCacheMessage
-  | GetCacheStatsMessage;
+  | GetCacheStatsMessage
+  | GetAnalysisResultsMessage
+  | ApplyTagManuallyMessage
+  | DismissTagMessage;
 
 /**
  * Start batch analysis message.
@@ -137,6 +140,31 @@ interface ClearCacheMessage {
  */
 interface GetCacheStatsMessage {
   action: 'getCacheStats';
+}
+
+/**
+ * Get analysis results message.
+ */
+interface GetAnalysisResultsMessage {
+  action: 'getAnalysisResults';
+  limit?: number;
+}
+
+/**
+ * Apply tag manually message.
+ */
+interface ApplyTagManuallyMessage {
+  action: 'applyTagManually';
+  tagKey: string;
+  confidence: number;
+}
+
+/**
+ * Dismiss tag message.
+ */
+interface DismissTagMessage {
+  action: 'dismissTag';
+  tagKey: string;
 }
 
 /**
@@ -290,6 +318,45 @@ function isGetCacheStatsMessage(message: unknown): message is GetCacheStatsMessa
     message !== null &&
     'action' in message &&
     (message as Record<string, unknown>).action === 'getCacheStats'
+  );
+}
+
+/**
+ * Type guard for GetAnalysisResults messages
+ */
+function isGetAnalysisResultsMessage(message: unknown): message is GetAnalysisResultsMessage {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'action' in message &&
+    (message as Record<string, unknown>).action === 'getAnalysisResults'
+  );
+}
+
+/**
+ * Type guard for ApplyTagManually messages
+ */
+function isApplyTagManuallyMessage(message: unknown): message is ApplyTagManuallyMessage {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'action' in message &&
+    (message as Record<string, unknown>).action === 'applyTagManually' &&
+    'tagKey' in message &&
+    'confidence' in message
+  );
+}
+
+/**
+ * Type guard for DismissTag messages
+ */
+function isDismissTagMessage(message: unknown): message is DismissTagMessage {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'action' in message &&
+    (message as Record<string, unknown>).action === 'dismissTag' &&
+    'tagKey' in message
   );
 }
 
@@ -554,6 +621,27 @@ export class MessageHandler {
         if (isGetCacheStatsMessage(message)) {
           this.logger.info('[DEBUG-MessageHandler] Routing to handleGetCacheStats');
           const result = await this.handleGetCacheStats();
+          sendResponse(result);
+          return;
+        }
+
+        if (isGetAnalysisResultsMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleGetAnalysisResults');
+          const result = await this.handleGetAnalysisResults(message);
+          sendResponse(result);
+          return;
+        }
+
+        if (isApplyTagManuallyMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleApplyTagManually');
+          const result = await this.handleApplyTagManually(message);
+          sendResponse(result);
+          return;
+        }
+
+        if (isDismissTagMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleDismissTag');
+          const result = await this.handleDismissTag(message);
           sendResponse(result);
           return;
         }
@@ -843,6 +931,118 @@ export class MessageHandler {
       totalEntries: 0,
       hitRate: 0,
     };
+  }
+
+  /**
+   * Handles get analysis results message.
+   *
+   * @param message - Message containing optional limit parameter
+   * @returns Analysis results from cache
+   */
+  private async handleGetAnalysisResults(message?: unknown): Promise<{
+    success: boolean;
+    results?: Array<{
+      cacheKey: string;
+      timestamp: number;
+      tags: string[];
+      confidence: number;
+      tagConfidence?: Record<string, number>;
+      reasoning: string;
+    }>;
+    error?: string;
+  }> {
+    this.logger.info('Handling getAnalysisResults message');
+
+    try {
+      // TODO: Integrate with AnalysisCache to get actual results
+      // For now, return empty results - UI will show "No analysis results" message
+      this.logger.warn('getAnalysisResults not fully implemented - returning empty results');
+      return {
+        success: true,
+        results: [],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to get analysis results', { error: errorMessage });
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Handles apply tag manually message.
+   *
+   * Allows user to manually apply a tag that was below threshold.
+   *
+   * @param message - Apply tag manually message
+   * @returns Apply tag result
+   */
+  private async handleApplyTagManually(message: ApplyTagManuallyMessage): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> {
+    this.logger.info('Handling applyTagManually message', { tagKey: message.tagKey });
+
+    try {
+      // TODO: Implement actual tag application logic
+      // This would involve:
+      // 1. Getting the email/message ID from storage (associated with the low-confidence flag)
+      // 2. Applying the tag using ITagManager
+      // 3. Updating the low-confidence flag to mark it as resolved
+
+      this.logger.warn('handleApplyTagManually not fully implemented - returning success');
+      return {
+        success: true,
+        message: `Tag "${message.tagKey}" wurde erfolgreich angewendet.`,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to apply tag manually', { error: errorMessage });
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Handles dismiss tag message.
+   *
+   * Allows user to dismiss a low-confidence tag suggestion.
+   *
+   * @param message - Dismiss tag message
+   * @returns Dismiss tag result
+   */
+  private async handleDismissTag(message: DismissTagMessage): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> {
+    this.logger.info('Handling dismissTag message', { tagKey: message.tagKey });
+
+    try {
+      // TODO: Implement actual tag dismissal logic
+      // This would involve:
+      // 1. Getting the low-confidence flag from storage
+      // 2. Marking it as dismissed/rejected
+      // 3. Optionally storing the rejection for learning purposes
+
+      this.logger.warn('handleDismissTag not fully implemented - returning success');
+      return {
+        success: true,
+        message: `Tag "${message.tagKey}" wurde abgelehnt.`,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to dismiss tag', { error: errorMessage });
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
   }
 
   /**

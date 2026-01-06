@@ -1,0 +1,653 @@
+/**
+ * Low-Confidence Indicators Styles
+ *
+ * Visual indicators for emails with low-confidence AI classifications.
+ * These styles are used in Thunderbird's email list and view panes to show
+ * which emails have been flagged for manual review due to low confidence.
+ *
+ * Indicator Types:
+ * - Icon indicators: Small icons in email list items
+ * - Badge indicators: Colored badges with confidence info
+ * - Notification banners: Temporary banners for new low-confidence emails
+ * - Border/frame indicators: Visual borders around flagged emails
+ *
+ * @module interfaces/shared/styles/indicators
+ */
+
+:root {
+  /* Low-confidence indicator colors */
+  --low-confidence-indicator-bg: #FFF3E0;
+  --low-confidence-indicator-border: #FFB74D;
+  --low-confidence-indicator-text: #E65100;
+
+  --very-low-confidence-indicator-bg: #FFEBEE;
+  --very-low-confidence-indicator-border: #EF5350;
+  --very-low-confidence-indicator-text: #C62828;
+
+  /* Flagged email indicator colors */
+  --flagged-email-bg: #FFF8E1;
+  --flagged-email-border: #FFD54F;
+  --flagged-email-icon: #FFA000;
+
+  /* Auto-tagged email indicator colors */
+  --auto-tagged-email-bg: #E8F5E9;
+  --auto-tagged-email-border: #81C784;
+  --auto-tagged-email-icon: #4CAF50;
+
+  /* Indicator sizing */
+  --indicator-icon-size: 16px;
+  --indicator-icon-size-small: 12px;
+  --indicator-icon-size-large: 20px;
+
+  /* Badge sizing */
+  --indicator-badge-padding: 3px 8px;
+  --indicator-badge-radius: 10px;
+  --indicator-badge-font-size: 11px;
+
+  /* Notification banner */
+  --notification-banner-bg: #FFF3E0;
+  --notification-banner-border: #FFB74D;
+  --notification-banner-text: #E65100;
+  --notification-banner-close: #757575;
+
+  /* Animation */
+  --indicator-transition: all 0.2s ease-in-out;
+  --indicator-pulse-duration: 2s;
+}
+
+/* ============================================================================
+   Base Indicator Styles
+   ============================================================================ */
+
+/**
+ * Low-confidence indicator - base class for all indicators
+ */
+.low-confidence-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--low-confidence-indicator-bg);
+  border: 1px solid var(--low-confidence-indicator-border);
+  color: var(--low-confidence-indicator-text);
+  border-radius: var(--indicator-badge-radius);
+  padding: var(--indicator-badge-padding);
+  font-size: var(--indicator-badge-font-size);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  transition: var(--indicator-transition);
+  cursor: help;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.low-confidence-indicator:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* ============================================================================
+   Icon Indicators
+   ============================================================================ */
+
+/**
+ * Icon-only indicator for compact display in email list
+ */
+.indicator-icon {
+  width: var(--indicator-icon-size);
+  height: var(--indicator-icon-size);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--flagged-email-icon);
+}
+
+.indicator-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+/* Small variant */
+.indicator-icon.indicator-small {
+  width: var(--indicator-icon-size-small);
+  height: var(--indicator-icon-size-small);
+}
+
+/* Large variant */
+.indicator-icon.indicator-large {
+  width: var(--indicator-icon-size-large);
+  height: var(--indicator-icon-size-large);
+}
+
+/* ============================================================================
+   Confidence Level Indicators
+   ============================================================================ */
+
+/**
+ * Very low confidence (< 50%) - red/warning style
+ */
+.low-confidence-indicator.confidence-very-low {
+  background-color: var(--very-low-confidence-indicator-bg);
+  border-color: var(--very-low-confidence-indicator-border);
+  color: var(--very-low-confidence-indicator-text);
+}
+
+.low-confidence-indicator.confidence-very-low.indicator-icon {
+  color: var(--very-low-confidence-indicator-text);
+}
+
+/**
+ * Low confidence (50-69%) - orange/caution style
+ */
+.low-confidence-indicator.confidence-low {
+  background-color: var(--low-confidence-indicator-bg);
+  border-color: var(--low-confidence-indicator-border);
+  color: var(--low-confidence-indicator-text);
+}
+
+.low-confidence-indicator.confidence-low.indicator-icon {
+  color: var(--low-confidence-indicator-text);
+}
+
+/**
+ * Medium confidence (70-79%) - yellow/notice style
+ */
+.low-confidence-indicator.confidence-medium {
+  background-color: #FFF9C4;
+  border-color: #FDD835;
+  color: #F57F17;
+}
+
+.low-confidence-indicator.confidence-medium.indicator-icon {
+  color: #F57F17;
+}
+
+/* ============================================================================
+   Email Classification Indicators
+   ============================================================================ */
+
+/**
+ * Flagged email - requires manual review
+ */
+.email-flagged {
+  position: relative;
+}
+
+/* Border indicator for flagged emails in list view */
+.email-flagged::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--flagged-email-border);
+  border-radius: 2px 0 0 2px;
+}
+
+/* Background tint for flagged emails */
+.email-flagged.email-row {
+  background-color: var(--flagged-email-bg);
+  border-left: 3px solid var(--flagged-email-border);
+}
+
+/**
+ * Auto-tagged email - processed automatically
+ */
+.email-auto-tagged {
+  position: relative;
+}
+
+/* Border indicator for auto-tagged emails in list view */
+.email-auto-tagged::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--auto-tagged-email-border);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Background tint for auto-tagged emails */
+.email-auto-tagged.email-row {
+  background-color: var(--auto-tagged-email-bg);
+  border-right: 3px solid var(--auto-tagged-email-border);
+}
+
+/* ============================================================================
+   Badge Indicators
+   ============================================================================ */
+
+/**
+ * Badge indicator with confidence percentage
+ */
+.indicator-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.indicator-badge .badge-text {
+  font-size: var(--indicator-badge-font-size);
+  font-weight: 500;
+}
+
+.indicator-badge .badge-score {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* ============================================================================
+   Notification Banner
+   ============================================================================ */
+
+/**
+ * Notification banner for new low-confidence emails
+ * Shown temporarily when a low-confidence email is detected
+ */
+.low-confidence-notification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--notification-banner-bg);
+  border: 1px solid var(--notification-banner-border);
+  border-radius: 6px;
+  color: var(--notification-banner-text);
+  font-size: 13px;
+  margin: 8px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: var(--indicator-transition);
+}
+
+.low-confidence-notification.notification-new {
+  animation: slideDown 0.3s ease-out;
+}
+
+.low-confidence-notification .notification-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.low-confidence-notification .notification-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.low-confidence-notification .notification-message {
+  flex: 1;
+}
+
+.low-confidence-notification .notification-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.low-confidence-notification .notification-close {
+  background: none;
+  border: none;
+  color: var(--notification-banner-close);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--indicator-transition);
+}
+
+.low-confidence-notification .notification-close:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #424242;
+}
+
+/* ============================================================================
+   Placement Variants
+   ============================================================================ */
+
+/**
+ * Indicator in email list (thread pane)
+ */
+.indicator-in-list {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/**
+ * Indicator in email view (message display)
+ */
+.indicator-in-view {
+  margin: 8px 0;
+  width: fit-content;
+}
+
+/**
+ * Indicator in header area
+ */
+.indicator-in-header {
+  display: inline-flex;
+  margin-right: 12px;
+  vertical-align: middle;
+}
+
+/* ============================================================================
+   Visibility Control
+   ============================================================================ */
+
+/**
+ * Hide all indicators (configurable setting)
+ */
+body.indicators-hidden .low-confidence-indicator,
+body.indicators-hidden .indicator-icon,
+body.indicators-hidden .indicator-badge {
+  display: none !important;
+}
+
+body.indicators-hidden .email-flagged::before,
+body.indicators-hidden .email-flagged.email-row,
+body.indicators-hidden .email-auto-tagged::after,
+body.indicators-hidden .email-auto-tagged.email-row {
+  background: none !important;
+  border: none !important;
+}
+
+/**
+ * Show only icon indicators
+ */
+body.indicators-icons-only .indicator-badge {
+  display: none !important;
+}
+
+/**
+ * Show only badges, hide icons
+ */
+body.indicators-badges-only .indicator-icon {
+  display: none !important;
+}
+
+/**
+ * Hide notifications
+ */
+body.indicators-no-notifications .low-confidence-notification {
+  display: none !important;
+}
+
+/* ============================================================================
+   Thunderbird Integration
+   ============================================================================ */
+
+/**
+ * Integration with Thunderbird's email list (thread pane)
+ * These classes target Thunderbird's DOM structure
+ */
+
+/* Indicator in thread tree row */
+.trth-row[data-flagged="true"] {
+  border-left: 3px solid var(--flagged-email-border);
+  background-color: var(--flagged-email-bg);
+}
+
+.trth-row[data-auto-tagged="true"] {
+  border-right: 3px solid var(--auto-tagged-email-border);
+  background-color: var(--auto-tagged-email-bg);
+}
+
+/* Indicator in subject column */
+.trth-row .subject-column .low-confidence-indicator {
+  margin-left: 8px;
+}
+
+/* Indicator in correspondent column */
+.trth-row .correspondentcol-column .low-confidence-indicator {
+  margin-left: 6px;
+}
+
+/**
+ * Integration with Thunderbird's message display
+ */
+.message-header-container .low-confidence-indicator {
+  margin: 4px 8px;
+}
+
+/* ============================================================================
+   Animations
+   ============================================================================ */
+
+/**
+ * Pulse animation for new indicators
+ */
+@keyframes indicatorPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+.low-confidence-indicator.pulse {
+  animation: indicatorPulse var(--indicator-pulse-duration) ease-in-out;
+}
+
+/**
+ * Fade in animation
+ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.low-confidence-indicator.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/**
+ * Slide down animation for notifications
+ */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   Accessibility Enhancements
+   ============================================================================ */
+
+/**
+ * High contrast mode support
+ */
+@media (prefers-contrast: high) {
+  .low-confidence-indicator {
+    border-width: 2px;
+  }
+
+  .low-confidence-indicator.confidence-very-low {
+    border-color: #B71C1C;
+  }
+
+  .low-confidence-indicator.confidence-low {
+    border-color: #E65100;
+  }
+
+  .low-confidence-indicator.confidence-medium {
+    border-color: #F9A825;
+  }
+
+  .trth-row[data-flagged="true"] {
+    border-left-width: 4px;
+  }
+
+  .trth-row[data-auto-tagged="true"] {
+    border-right-width: 4px;
+  }
+}
+
+/**
+ * Reduced motion support
+ */
+@media (prefers-reduced-motion: reduce) {
+  .low-confidence-indicator {
+    transition: none;
+  }
+
+  .low-confidence-indicator:hover {
+    transform: none;
+  }
+
+  .low-confidence-indicator.pulse {
+    animation: none;
+  }
+
+  .low-confidence-indicator.fade-in {
+    animation: none;
+  }
+
+  .low-confidence-notification.notification-new {
+    animation: none;
+  }
+}
+
+/**
+ * Focus visible styles for keyboard navigation
+ */
+.low-confidence-indicator:focus-visible {
+  outline: 2px solid var(--low-confidence-indicator-border);
+  outline-offset: 2px;
+}
+
+.indicator-icon:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ============================================================================
+   Responsive Design
+   ============================================================================ */
+
+/**
+ * Adjustments for smaller screens
+ */
+@media (max-width: 768px) {
+  :root {
+    --indicator-icon-size: 14px;
+    --indicator-badge-padding: 2px 6px;
+    --indicator-badge-font-size: 10px;
+  }
+
+  .low-confidence-notification {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .low-confidence-notification .notification-content {
+    gap: 8px;
+  }
+
+  .low-confidence-notification .notification-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+/* ============================================================================
+   Utility Classes
+   ============================================================================ */
+
+/**
+ * Hidden utility class
+ */
+.indicator-hidden {
+  display: none !important;
+}
+
+/**
+ * Visible utility class (overrides hiding)
+ */
+.indicator-visible {
+  display: inline-flex !important;
+}
+
+/**
+ * Small indicator variant
+ */
+.indicator-small {
+  --indicator-icon-size: 12px;
+  --indicator-badge-padding: 2px 6px;
+  --indicator-badge-font-size: 10px;
+}
+
+/**
+ * Large indicator variant
+ */
+.indicator-large {
+  --indicator-icon-size: 20px;
+  --indicator-badge-padding: 4px 10px;
+  --indicator-badge-font-size: 12px;
+}
+
+/**
+ * Subtle indicator (lighter styling)
+ */
+.indicator-subtle {
+  background-color: transparent !important;
+  border: 1px dashed currentColor !important;
+  opacity: 0.7;
+}
+
+/**
+ * Prominent indicator (bolder styling)
+ */
+.indicator-prominent {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-weight: 600;
+}
+
+/* ============================================================================
+   Dark Mode Support (optional)
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --low-confidence-indicator-bg: #3E2723;
+    --low-confidence-indicator-border: #FFB74D;
+    --low-confidence-indicator-text: #FFCC80;
+
+    --very-low-confidence-indicator-bg: #3E2723;
+    --very-low-confidence-indicator-border: #EF5350;
+    --very-low-confidence-indicator-text: #EF9A9A;
+
+    --flagged-email-bg: #3E2723;
+    --flagged-email-border: #FFD54F;
+    --flagged-email-icon: #FFB74D;
+
+    --auto-tagged-email-bg: #1B5E20;
+    --auto-tagged-email-border: #81C784;
+    --auto-tagged-email-icon: #A5D6A7;
+
+    --notification-banner-bg: #3E2723;
+    --notification-banner-border: #FFB74D;
+    --notification-banner-text: #FFCC80;
+  }
+}

@@ -9,6 +9,9 @@ This Thunderbird MailExtension provides a powerful and flexible framework for AI
 ## Key Features
 
 - **Multi-Provider LLM Support**: Integrates with local models via Ollama and cloud-based models from OpenAI, Google Gemini, Anthropic Claude, Mistral, and DeepSeek.
+- **Confidence Score Display**: Shows confidence scores (0-100%) alongside each tag suggestion, providing transparency into AI classification certainty.
+- **Configurable Confidence Thresholds**: Allows users to set global and per-tag minimum confidence thresholds, ensuring tags are only applied when the AI is sufficiently confident.
+- **Low-Confidence Flagging**: Flags emails with low-confidence classifications for manual review, giving users control over borderline cases.
 - **Dynamic Email Analysis**: Intelligently extracts headers, text content (converting HTML to plain text), and attachment details for efficient and accurate analysis by the LLM.
 - **Fully Configurable Tagging**: Allows users to define their own custom tags, colors, and LLM prompts for a completely personalized email classification system.
 - **Privacy-Focused**: Gives users the choice between maximum privacy with a local Ollama instance or the power of cloud-based models, with clear privacy notices for each.
@@ -34,6 +37,21 @@ The Custom Tags tab is where you can define the categories for email analysis. Y
 
 ![Custom Tags](doc/screenshots/settings-tags.png)
 _The interface for managing custom tags._
+
+### Confidence Thresholds
+
+The Confidence Thresholds settings allow you to control when tags are automatically applied based on the AI's certainty level. This feature helps prevent incorrect classifications by only applying tags when the AI is confident enough.
+
+**Global Threshold**: Set a default confidence threshold (0-100%) that applies to all tags. The default is 70%. Tags with confidence below this threshold will not be automatically applied.
+
+**Per-Tag Override**: Override the global threshold for specific tags. For example, you might require a higher confidence (e.g., 85%) for important tags like "Urgent" while allowing lower confidence (e.g., 60%) for less critical tags.
+
+**Visual Indicators**:
+- Green badge (≥80%): High confidence
+- Yellow badge (70-79%): Medium confidence
+- Red badge (<70%): Low confidence
+
+**Manual Review**: Emails with tags below your confidence threshold are flagged for manual review. You can access these via the "Manual Review" (Manuelle Überprüfung) tab in the options page, where you can choose to apply or dismiss each tag suggestion.
 
 ### Usage
 

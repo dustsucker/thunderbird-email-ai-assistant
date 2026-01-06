@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Low-Confidence Indicators Demo</title>
+  <link rel="stylesheet" href="indicators.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+
+    .demo-section {
+      background: white;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 24px;
+    }
+
+    h2 {
+      color: #555;
+      margin-top: 0;
+      margin-bottom: 16px;
+      border-bottom: 2px solid #4CAF50;
+      padding-bottom: 8px;
+    }
+
+    .demo-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px;
+      margin: 8px 0;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+    }
+
+    .demo-label {
+      font-weight: 600;
+      min-width: 200px;
+      color: #333;
+    }
+
+    .demo-indicators {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    /* Simulated email list */
+    .email-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .email-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      border-bottom: 1px solid #e0e0e0;
+      transition: background-color 0.2s;
+    }
+
+    .email-item:hover {
+      background-color: #f9f9f9;
+    }
+
+    .email-subject {
+      flex: 1;
+      margin-right: 16px;
+    }
+
+    .email-sender {
+      width: 200px;
+      color: #666;
+    }
+
+    /* Control panel */
+    .control-panel {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding: 16px;
+      background: #f9f9f9;
+      border-radius: 4px;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-group label {
+      font-weight: 500;
+    }
+
+    button {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:hover {
+      background: #f0f0f0;
+    }
+
+    .code-block {
+      background: #f5f5f5;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 12px;
+      margin: 8px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+    }
+
+    .notification-demo {
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎨 Low-Confidence Indicators Demo</h1>
+  <p>Demonstration of visual indicators for emails with low-confidence AI classifications.</p>
+
+  <!-- Icon Indicators Section -->
+  <div class="demo-section">
+    <h2>1. Icon Indicators</h2>
+    <p>Compact icons for use in email lists and thread panes.</p>
+
+    <div class="demo-row">
+      <div class="demo-label">Very Low Confidence (&lt;50%):</div>
+      <div class="demo-indicators">
+        <span class="low-confidence-indicator indicator-icon confidence-very-low">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>
+        </span>
+        <span class="low-confidence-indicator indicator-icon confidence-very-low indicator-small">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>
+        </span>
+        <span class="low-confidence-indicator indicator-icon confidence-very-low indicator-large">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>
+        </span>
+        <span style="font-size: 12px; color: #666;">(normal, small, large)</span>
+      </div>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">Low Confidence (50-69%):</div>
+      <div class="demo-indicators">
+        <span class="low-confidence-indicator indicator-icon confidence-low">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">Medium Confidence (70-79%):</div>
+      <div class="demo-indicators">
+        <span class="low-confidence-indicator indicator-icon confidence-medium">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">With Animation:</div>
+      <div class="demo-indicators">
+        <span class="low-confidence-indicator indicator-icon confidence-very-low pulse">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>
+        </span>
+        <span style="font-size: 12px; color: #666;">(pulsing animation)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Badge Indicators Section -->
+  <div class="demo-section">
+    <h2>2. Badge Indicators</h2>
+    <p>Badges with confidence percentages and labels.</p>
+
+    <div class="demo-row">
+      <div class="demo-label">Very Low Confidence:</div>
+      <div class="demo-indicators">
+        <span class="low-confidence-indicator confidence-very-low">
+          <span class="badge-text">Very Low</span>
+          <span class="badge-score">35%</span>
+        </span>
+        <span class="low-confidence-indicator confidence-very-low indicator-small">
+          <span class="badge-text">Very Low</span>
+          <span class="badge-score">35%</span>
+        </span>
+        <span class="low-confidence-indicator confidence-very-low indicator-large">
+          <span class="badge-text">Very Low</span>
+          <span class="badge-score">35%</span>
+        </span>
+        <span style="font-size: 12px; color: #666;">(normal, small, large)</span>
+      </div>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">Low Confidence:</div>
+      <div class="demo-indicators">
+        <span class="low-confidence-indicator confidence-low">
+          <span class="badge-text">Low</span>
+          <span class="badge-score">65%</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">Medium Confidence:</div>
+      <div class="demo-indicators">
+        <span class="low-confidence-indicator confidence-medium">
+          <span class="badge-text">Medium</span>
+          <span class="badge-score">75%</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">Style Variants:</div>
+      <div class="demo-indicators">
+        <span class="low-confidence-indicator confidence-low indicator-subtle">
+          <span class="badge-text">Low</span>
+          <span class="badge-score">65%</span>
+        </span>
+        <span style="font-size: 12px; color: #666;">subtle</span>
+
+        <span class="low-confidence-indicator confidence-low indicator-prominent">
+          <span class="badge-text">Low</span>
+          <span class="badge-score">65%</span>
+        </span>
+        <span style="font-size: 12px; color: #666;">prominent</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email List Integration Section -->
+  <div class="demo-section">
+    <h2>3. Email List Integration</h2>
+    <p>Simulated Thunderbird email list with indicators.</p>
+
+    <div class="control-panel">
+      <div class="control-group">
+        <label><input type="checkbox" id="showIndicators" checked> Show Indicators</label>
+      </div>
+      <div class="control-group">
+        <label><input type="checkbox" id="showIcons" checked> Show Icons</label>
+      </div>
+      <div class="control-group">
+        <label><input type="checkbox" id="showBadges" checked> Show Badges</label>
+      </div>
+      <div class="control-group">
+        <label><input type="checkbox" id="showBorders" checked> Show Borders</label>
+      </div>
+    </div>
+
+    <ul class="email-list" id="emailList">
+      <li class="email-item email-auto-tagged" data-auto-tagged="true">
+        <span class="email-sender">john@example.com</span>
+        <span class="email-subject">
+          Project Update - Q4 Report
+          <span class="low-confidence-indicator indicator-icon confidence-medium indicator-in-list" style="margin-left: 8px;">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z"/></svg>
+          </span>
+        </span>
+        <span class="low-confidence-indicator confidence-medium indicator-in-list">
+          <span class="badge-text">Medium</span>
+          <span class="badge-score">78%</span>
+        </span>
+      </li>
+
+      <li class="email-item email-flagged" data-flagged="true">
+        <span class="email-sender">support@service.com</span>
+        <span class="email-subject">
+          URGENT: Account Verification Required
+          <span class="low-confidence-indicator indicator-icon confidence-very-low indicator-in-list pulse" style="margin-left: 8px;">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>
+          </span>
+        </span>
+        <span class="low-confidence-indicator confidence-very-low indicator-in-list">
+          <span class="badge-text">Very Low</span>
+          <span class="badge-score">35%</span>
+        </span>
+      </li>
+
+      <li class="email-item email-flagged" data-flagged="true">
+        <span class="email-sender">newsletter@tech.io</span>
+        <span class="email-subject">
+          Weekly Tech Digest
+          <span class="low-confidence-indicator indicator-icon confidence-low indicator-in-list" style="margin-left: 8px;">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+          </span>
+        </span>
+        <span class="low-confidence-indicator confidence-low indicator-in-list">
+          <span class="badge-text">Low</span>
+          <span class="badge-score">62%</span>
+        </span>
+      </li>
+
+      <li class="email-item">
+        <span class="email-sender">manager@company.com</span>
+        <span class="email-subject">
+          Meeting Tomorrow at 3 PM
+        </span>
+        <span style="color: #999; font-size: 12px;">(normal email, no indicator)</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Notification Banner Section -->
+  <div class="demo-section">
+    <h2>4. Notification Banners</h2>
+    <p>Temporary banners shown when low-confidence emails are detected.</p>
+
+    <div class="demo-row">
+      <button onclick="showNotification('single')">Show Single Notification</button>
+      <button onclick="showNotification('multiple')">Show Multiple Notifications</button>
+    </div>
+
+    <div id="notificationContainer" class="notification-demo"></div>
+  </div>
+
+  <!-- Usage Example Section -->
+  <div class="demo-section">
+    <h2>5. Usage Examples</h2>
+
+    <h3>TypeScript/JavaScript</h3>
+    <div class="code-block">
+<pre><code>// Create an indicator component
+const indicator = new LowConfidenceIndicator();
+
+// Create an icon indicator
+const iconElement = indicator.createIcon(0.65, 'list');
+document.body.appendChild(iconElement);
+
+// Create a badge indicator
+const badgeElement = indicator.createBadge(0.75, 'view');
+document.body.appendChild(badgeElement);
+
+// Create with options
+const customIndicator = indicator.create({
+  confidence: 0.55,
+  type: 'badge',
+  placement: 'list',
+  tooltip: 'Low confidence - requires review',
+  animate: true,
+  isFlagged: true
+});
+
+// Mark an email as flagged
+indicator.markEmailAsFlagged(emailElement, true);
+
+// Create notification banner
+const banner = indicator.createNotificationBanner({
+  count: 3,
+  message: '3 emails require review',
+  actionText: 'Review Now',
+  onAction: () => console.log('Review clicked'),
+  autoDismiss: 5000
+});
+document.body.appendChild(banner);</code></pre>
+    </div>
+
+    <h3>HTML/CSS</h3>
+    <div class="code-block">
+<pre><code>&lt;!-- Icon indicator --&gt;
+&lt;span class="low-confidence-indicator indicator-icon confidence-very-low"&gt;
+  &lt;svg viewBox="0 0 24 24"&gt;
+    &lt;path d="M12 2L1 21h22L12 2z"/&gt;
+  &lt;/svg&gt;
+&lt;/span&gt;
+
+&lt;!-- Badge indicator --&gt;
+&lt;span class="low-confidence-indicator confidence-low"&gt;
+  &lt;span class="badge-text"&gt;Low&lt;/span&gt;
+  &lt;span class="badge-score"&gt;65%&lt;/span&gt;
+&lt;/span&gt;
+
+&lt;!-- Email row with border --&gt;
+&lt;div class="email-item email-flagged" data-flagged="true"&gt;
+  Email content here...
+&lt;/div&gt;</code></pre>
+    </div>
+
+    <h3>Visibility Control</h3>
+    <div class="code-block">
+<pre><code>// Set visibility configuration
+indicator.setVisibilityConfig({
+  showIndicators: true,
+  showIcons: true,
+  showBadges: true,
+  showNotifications: true
+});
+
+// Or control via body classes
+document.body.classList.add('indicators-hidden');         // Hide all
+document.body.classList.add('indicators-icons-only');     // Icons only
+document.body.classList.add('indicators-badges-only');    // Badges only
+document.body.classList.add('indicators-no-notifications'); // No notifications</code></pre>
+    </div>
+  </div>
+
+  <!-- Accessibility Section -->
+  <div class="demo-section">
+    <h2>6. Accessibility Features</h2>
+    <ul>
+      <li><strong>ARIA Labels:</strong> All indicators have proper aria-label describing confidence level and status</li>
+      <li><strong>Keyboard Navigation:</strong> Focus-visible styles for keyboard users</li>
+      <li><strong>High Contrast:</strong> Enhanced borders in high-contrast mode</li>
+      <li><strong>Reduced Motion:</strong> Animations respect prefers-reduced-motion</li>
+      <li><strong>Screen Reader Support:</strong> role="img" and descriptive labels for screen readers</li>
+    </ul>
+  </div>
+
+  <script>
+    // Control panel handlers
+    document.getElementById('showIndicators').addEventListener('change', (e) => {
+      document.body.classList.toggle('indicators-hidden', !e.target.checked);
+    });
+
+    document.getElementById('showIcons').addEventListener('change', (e) => {
+      document.body.classList.toggle('indicators-badges-only', !e.target.checked && document.getElementById('showBadges').checked);
+    });
+
+    document.getElementById('showBadges').addEventListener('change', (e) => {
+      document.body.classList.toggle('indicators-icons-only', !e.target.checked && document.getElementById('showIcons').checked);
+    });
+
+    document.getElementById('showBorders').addEventListener('change', (e) => {
+      const emails = document.querySelectorAll('.email-item');
+      emails.forEach(email => {
+        if (e.target.checked) {
+          email.style.borderLeft = '';
+          email.style.borderRight = '';
+          email.style.backgroundColor = '';
+        } else {
+          email.style.borderLeft = 'none';
+          email.style.borderRight = 'none';
+          email.style.backgroundColor = 'transparent';
+        }
+      });
+    });
+
+    // Notification demo
+    function showNotification(type) {
+      const container = document.getElementById('notificationContainer');
+      container.innerHTML = '';
+
+      if (type === 'single') {
+        const banner = createNotificationBanner('1 email flagged for manual review due to low confidence', 'Review Now');
+        container.appendChild(banner);
+      } else {
+        const banner1 = createNotificationBanner('3 emails flagged for manual review due to low confidence', 'Review All');
+        container.appendChild(banner1);
+
+        setTimeout(() => {
+          const banner2 = createNotificationBanner('New low-confidence email detected', 'View');
+          banner2.style.marginTop = '8px';
+          container.appendChild(banner2);
+        }, 100);
+      }
+    }
+
+    function createNotificationBanner(message, actionText) {
+      const banner = document.createElement('div');
+      banner.className = 'low-confidence-notification notification-new';
+      banner.setAttribute('role', 'alert');
+
+      banner.innerHTML = `
+        <div class="notification-content">
+          <div class="notification-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="notification-message">${message}</div>
+        </div>
+        <div class="notification-actions">
+          <button class="notification-action">${actionText}</button>
+          <button class="notification-close" onclick="this.closest('.low-confidence-notification').remove()">
+            <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+      `;
+
+      return banner;
+    }
+  </script>
+</body>
+</html>

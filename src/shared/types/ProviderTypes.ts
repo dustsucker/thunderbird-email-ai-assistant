@@ -3,6 +3,7 @@ export interface Tag {
   name: string;
   color: string;
   prompt?: string;
+  minConfidenceThreshold?: number;
 }
 
 export type HardcodedTagKey = 'is_scam' | 'spf_fail' | 'dkim_fail' | 'tagged' | 'email_ai_analyzed';
@@ -63,6 +64,28 @@ export interface ModelConcurrencyConfig {
 export interface AppConfig extends ProviderConfig, AnalysisFeatures {
   customTags: CustomTags;
   modelConcurrencyLimits?: ModelConcurrencyConfig[];
+  minConfidenceThreshold: number;
 }
 
 export interface DefaultConfig extends AppConfig {}
+
+export const DEFAULTS: Readonly<DefaultConfig> = {
+  provider: Provider.OLLAMA,
+  ollamaApiUrl: 'http://localhost:11434/api/generate',
+  ollamaModel: 'gemma3:27b',
+  openaiApiKey: '',
+  geminiApiKey: '',
+  claudeApiKey: '',
+  mistralApiKey: '',
+  deepseekApiKey: '',
+  zaiPaasApiKey: '',
+  zaiPaasModel: 'glm-4.5',
+  zaiCodingApiKey: '',
+  zaiCodingModel: 'glm-4.7',
+  customTags: [],
+  enableNotifications: true,
+  enableLogging: true,
+  model: undefined,
+  modelConcurrencyLimits: undefined,
+  minConfidenceThreshold: 70,
+} as const;

@@ -10,6 +10,7 @@ export interface Tag {
   name: string;
   color: string;
   prompt?: string;
+  minConfidenceThreshold?: number;
 }
 
 /**
@@ -97,7 +98,7 @@ export interface AnalysisFeatures {
 }
 
 /**
- * Complete application configuration
+ * Model concurrency configuration
  */
 export interface ModelConcurrencyConfig {
   provider: string;
@@ -105,9 +106,13 @@ export interface ModelConcurrencyConfig {
   concurrency: number;
 }
 
+/**
+ * Confidence threshold configuration
+ */
 export interface AppConfig extends ProviderConfig, AnalysisFeatures {
   customTags: CustomTags;
   modelConcurrencyLimits?: ModelConcurrencyConfig[];
+  minConfidenceThreshold: number;
 }
 
 /**
@@ -217,6 +222,7 @@ export const DEFAULTS: Readonly<DefaultConfig> = {
   enableLogging: true,
   model: undefined,
   modelConcurrencyLimits: undefined,
+  minConfidenceThreshold: 70,
 } as const;
 
 // ============================================================================
@@ -273,6 +279,13 @@ export function isValidColor(color: string): boolean {
   return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
 }
 
+/**
+ * Type guard to check if a confidence threshold value is valid
+ */
+export function isValidConfidenceThreshold(threshold: number): boolean {
+  return Number.isInteger(threshold) && threshold >= 0 && threshold <= 100;
+}
+
 const PROVIDER_DEFAULT_CONCURRENCY: Record<Provider, number> = {
   [Provider.OLLAMA]: 5,
   [Provider.OPENAI]: 10,
@@ -326,6 +339,66 @@ export function validateConcurrencyConfig(config: ModelConcurrencyConfig[]): str
     ) {
       errors.push(
         `Invalid concurrency value for ${entry.provider}/${entry.model}: ${entry.concurrency}. Must be a positive integer.`
+      );
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Validates the confidence threshold configuration
+ */
+export function validateConfidenceThreshold(threshold: number): string[] {
+  const errors: string[] = [];
+
+  if (!Number.isInteger(threshold)) {
+    errors.push(`Confidence threshold must be an integer, got: ${threshold}`);
+  }
+
+  if (threshold < 0 || threshold > 100) {
+    errors.push(
+      `Confidence threshold must be between 0 and 100, got: ${threshold}`
+    );
+  }
+
+  return errors;
+}
+
+/**
+ * Validates confidence thresholds for an array of custom tags
+ *
+ * @param customTags - Array of custom tag configurations to validate
+ * @returns Array of error messages (empty if all valid)
+ *
+ * @example
+ * const tags = [
+ *   { key: 'tag1', name: 'Tag 1', color: '#FF0000', minConfidenceThreshold: 75 },
+ *   { key: 'tag2', name: 'Tag 2', color: '#00FF00', minConfidenceThreshold: 101 },
+ * ];
+ * const errors = validateCustomTagsThresholds(tags);
+ * // Returns ["Tag 'tag2' has invalid threshold: 101. Must be an integer between 0 and 100"]
+ */
+export function validateCustomTagsThresholds(customTags: CustomTags): string[] {
+  const errors: string[] = [];
+
+  for (const tag of customTags) {
+    if (tag.minConfidenceThreshold === undefined) {
+      continue; // Undefined threshold is valid (uses global setting)
+    }
+
+    const threshold = tag.minConfidenceThreshold;
+
+    if (!Number.isInteger(threshold)) {
+      errors.push(
+        `Tag '${tag.key}' has invalid threshold: ${threshold}. Must be an integer between 0 and 100`
+      );
+      continue;
+    }
+
+    if (threshold < 0 || threshold > 100) {
+      errors.push(
+        `Tag '${tag.key}' has invalid threshold: ${threshold}. Must be an integer between 0 and 100`
       );
     }
   }

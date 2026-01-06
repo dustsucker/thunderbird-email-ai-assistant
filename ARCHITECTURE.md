@@ -6,8 +6,10 @@ The Thunderbird Email AI Assistant is a powerful and flexible Thunderbird MailEx
 
 **Key Features:**
 - Multi-provider LLM support (Ollama, OpenAI, Google Gemini, Anthropic Claude, Mistral, DeepSeek)
+- Confidence score display and configurable thresholds for transparent AI classifications
 - Dynamic email analysis with header, body, and attachment extraction
 - Fully configurable tagging system with custom tags and prompts
+- Low-confidence flagging and manual review workflow
 - Privacy-focused with local and cloud provider options
 - Secure configuration using Thunderbird's runtime permissions API
 

@@ -14,6 +14,8 @@
       <div class="tab-bar">
         <button class="tab-button active" data-tab="provider-settings">Provider</button>
         <button class="tab-button" data-tab="custom-tags">Benutzerdefinierte Tags</button>
+        <button class="tab-button" data-tab="analysis-results">Analyseergebnisse</button>
+        <button class="tab-button" data-tab="manual-review">Manuelle Überprüfung</button>
       </div>
 
       <div id="provider-settings" class="tab-content active">
@@ -32,6 +34,37 @@
               <option value="zai-coding">Zai Coding</option>
             </select>
           </div>
+
+          <div class="form-group">
+            <label for="min-confidence-threshold">
+              Minimales Konfidenz-Level: <span id="confidence-value">70</span>%
+            </label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <input
+                type="range"
+                id="min-confidence-threshold-slider"
+                name="min-confidence-threshold-slider"
+                min="0"
+                max="100"
+                value="70"
+                style="flex: 1;"
+              />
+              <input
+                type="number"
+                id="min-confidence-threshold"
+                name="min-confidence-threshold"
+                min="0"
+                max="100"
+                value="70"
+                style="width: 70px;"
+              />
+            </div>
+            <p class="help-text">
+              Tags werden nur angewendet, wenn das Konfidenz-Level dieses Wert erreicht oder überschreitet.
+              Ein höherer Wert bedeutet mehr Sicherheit, aber weniger automatisch angewendete Tags.
+            </p>
+          </div>
+
           <div class="provider-settings-container">
             <form id="provider-options-form">
               <div id="ollama-settings" class="provider-settings active">
@@ -278,6 +311,64 @@
           <button id="add-new-tag-btn" class="btn-primary">Neuen Tag hinzufügen</button>
         </section>
       </div>
+
+      <div id="analysis-results" class="tab-content">
+        <section class="analysis-results-section">
+          <div class="results-header-actions">
+            <h2>Letzte Analyseergebnisse</h2>
+            <button id="refresh-results-btn" class="btn-secondary">Aktualisieren</button>
+          </div>
+          <p class="help-text">
+            Zeigt die letzten 20 analysierten E-Mails mit ihren Tags und Konfidenz-Werten.
+            Die Konfidenz zeigt, wie sicher die KI bei der Klassifizierung war.
+          </p>
+          <div id="analysis-results-container"></div>
+        </section>
+      </div>
+
+      <div id="manual-review" class="tab-content">
+        <section class="manual-review-section">
+          <div class="review-header-actions">
+            <h2>Manuelle Überprüfung</h2>
+            <button id="refresh-review-btn" class="btn-secondary">Aktualisieren</button>
+          </div>
+          <p class="help-text">
+            Überprüfen Sie E-Mails, die aufgrund von niedriger Konfidenz zur manuellen Überprüfung markiert wurden.
+            Sie können Tags manuell anwenden oder entfernen.
+          </p>
+
+          <div class="review-filters">
+            <div class="filter-group">
+              <label for="review-sort-by">Sortieren nach:</label>
+              <select id="review-sort-by">
+                <option value="timestamp-desc">Neueste zuerst</option>
+                <option value="timestamp-asc">Älteste zuerst</option>
+                <option value="confidence-desc">Niedrigste Konfidenz zuerst</option>
+                <option value="confidence-asc">Höchste Konfidenz zuerst</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="review-filter-confidence">Konfidenz-Filter:</label>
+              <select id="review-filter-confidence">
+                <option value="all">Alle anzeigen</option>
+                <option value="very-low">Sehr niedrig (&lt;50%)</option>
+                <option value="low">Niedrig (50-69%)</option>
+                <option value="medium">Mittel (70-79%)</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="review-status-filter">Status:</label>
+              <select id="review-status-filter">
+                <option value="all">Alle</option>
+                <option value="pending">Ausstehend</option>
+                <option value="reviewed">Überprüft</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="manual-review-container"></div>
+        </section>
+      </div>
     </div>
 
     <div id="tag-modal" class="modal" style="display: none">
@@ -304,6 +395,20 @@
           <div class="form-group">
             <label for="tag-prompt">LLM-Prompt-Anweisung:</label>
             <textarea id="tag-prompt" rows="3" required></textarea>
+          </div>
+          <div class="form-group">
+            <label for="tag-threshold">Konfidenz-Schwellenwert überschreiben (optional):</label>
+            <input
+              type="number"
+              id="tag-threshold"
+              min="0"
+              max="100"
+              placeholder="Globale Einstellung verwenden"
+            />
+            <p class="help-text">
+              Wenn angegeben, wird dieser Schwellenwert statt des globalen Werts verwendet.
+              Gültiger Bereich: 0-100%.
+            </p>
           </div>
           <div class="form-group">
             <button type="submit" class="btn-primary">Tag speichern</button>

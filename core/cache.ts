@@ -17,6 +17,11 @@ interface AnalysisCacheEntry {
   emailHash: string;
   result: TagResponse;
   timestamp: number;
+  /**
+   * Per-tag confidence scores (0-1 range)
+   * Maps tag key to confidence score for that specific tag
+   */
+  tagConfidence?: Record<string, number>;
 }
 
 /**
@@ -55,7 +60,7 @@ const CACHE_TTL = 24 * 60 * 60 * 1000;
 /**
  * Database version
  */
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // ============================================================================
 // HASH FUNCTIONS
@@ -133,8 +138,11 @@ async function openDatabase(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event: IDBVersionChangeEvent): void => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion;
 
-      // Create object store with emailHash as key
+      logger.info('IndexedDB upgrade needed', { oldVersion, newVersion: DB_VERSION });
+
+      // Create object store with emailHash as key (initial schema)
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: 'emailHash' });
 
@@ -142,6 +150,50 @@ async function openDatabase(): Promise<IDBDatabase> {
         store.createIndex('timestamp', 'timestamp', { unique: false });
 
         logger.info('IndexedDB object store created', { storeName: STORE_NAME });
+      }
+
+      // Migration from version 1 to version 2: Add per-tag confidence scores
+      if (oldVersion < 2) {
+        logger.info('Migrating cache from v1 to v2: Adding tagConfidence field');
+
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const getRequest = store.openCursor();
+
+        getRequest.onsuccess = (cursorEvent: Event): void => {
+          const cursor = (cursorEvent.target as IDBRequest).result;
+
+          if (cursor) {
+            const entry = cursor.value as AnalysisCacheEntry;
+
+            // Add tagConfidence map populated with overall confidence for each tag
+            // This is a stopgap until AI providers return per-tag confidence scores
+            if (entry.result && entry.result.tags && Array.isArray(entry.result.tags)) {
+              const tagConfidence: Record<string, number> = {};
+              const overallConfidence = entry.result.confidence ?? 0.5;
+
+              for (const tag of entry.result.tags) {
+                tagConfidence[tag] = overallConfidence;
+              }
+
+              entry.tagConfidence = tagConfidence;
+
+              // Update the entry with new field
+              cursor.update(entry);
+            }
+
+            cursor.continue();
+          } else {
+            logger.info('Cache migration to v2 completed');
+          }
+        };
+
+        getRequest.onerror = (): void => {
+          const error = getRequest.error;
+          if (error) {
+            logger.error('Cache migration error', { error: error.message });
+          }
+        };
       }
     };
   });
@@ -273,6 +325,7 @@ export class AnalysisCache {
    *
    * @param emailHash - Hash of email content and headers
    * @param result - Analysis result to cache
+   * @param tagConfidence - Optional per-tag confidence scores (0-1 range)
    * @returns Promise resolving when cache is updated
    *
    * @example
@@ -282,18 +335,42 @@ export class AnalysisCache {
    *   confidence: 0.95,
    *   reasoning: 'Business email'
    * });
+   *
+   * // With per-tag confidence
+   * await cache.set('a591a6d40...', {
+   *   tags: ['is_business', 'is_urgent'],
+   *   confidence: 0.85,
+   *   reasoning: 'Business email requiring attention'
+   * }, {
+   *   'is_business': 0.95,
+   *   'is_urgent': 0.75
+   * });
    */
-  async set(emailHash: string, result: TagResponse): Promise<void> {
+  async set(emailHash: string, result: TagResponse, tagConfidence?: Record<string, number>): Promise<void> {
     try {
+      // Build tagConfidence map if not provided
+      // Use overall confidence for each tag as a fallback
+      const confidenceMap = tagConfidence ?? {};
+      if (result.tags && Array.isArray(result.tags)) {
+        const overallConfidence = result.confidence ?? 0.5;
+        for (const tag of result.tags) {
+          // Only set if not already provided (allow explicit override)
+          if (!(tag in confidenceMap)) {
+            confidenceMap[tag] = overallConfidence;
+          }
+        }
+      }
+
       const entry: AnalysisCacheEntry = {
         emailHash,
         result,
         timestamp: Date.now(),
+        tagConfidence: confidenceMap,
       };
 
       await executeTransaction('readwrite', (store) => store.put(entry));
 
-      logger.info('Cache entry stored', { emailHash });
+      logger.info('Cache entry stored', { emailHash, tagCount: result.tags?.length ?? 0 });
     } catch (error) {
       logger.error('Failed to store in cache', {
         emailHash,
@@ -440,6 +517,83 @@ export class AnalysisCache {
       return result !== null;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Retrieves full cache entry including per-tag confidence scores
+   *
+   * @param emailHash - Hash of email content and headers
+   * @returns Promise resolving to full cache entry or null if not found/expired
+   *
+   * @example
+   * const cache = new AnalysisCache();
+   * const entry = await cache.getWithDetails('a591a6d40...');
+   * if (entry) {
+   *   console.log('Tags:', entry.result.tags);
+   *   console.log('Per-tag confidence:', entry.tagConfidence);
+   *   console.log('Overall confidence:', entry.result.confidence);
+   * }
+   */
+  async getWithDetails(emailHash: string): Promise<AnalysisCacheEntry | null> {
+    try {
+      const entry = await executeTransaction<AnalysisCacheEntry | null>('readonly', (store) =>
+        store.get(emailHash)
+      );
+
+      if (!entry) {
+        this.missCount++;
+        logger.debug('Cache miss', { emailHash });
+        return null;
+      }
+
+      // Check if entry has expired
+      const now = Date.now();
+      const age = now - entry.timestamp;
+      const isExpired = age > CACHE_TTL;
+
+      if (isExpired) {
+        this.missCount++;
+        logger.debug('Cache entry expired', { emailHash, age, ttl: CACHE_TTL });
+
+        // Delete expired entry asynchronously
+        await this.delete(emailHash);
+
+        return null;
+      }
+
+      this.hitCount++;
+      logger.info('Cache hit with details', { emailHash, age, hasTagConfidence: !!entry.tagConfidence });
+
+      return entry;
+    } catch (error) {
+      logger.error('Failed to retrieve from cache', {
+        emailHash,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Gets per-tag confidence scores for a cached email
+   *
+   * @param emailHash - Hash of email content and headers
+   * @returns Promise resolving to map of tag to confidence score (0-1 range), or null if not found
+   *
+   * @example
+   * const cache = new AnalysisCache();
+   * const tagConfidence = await cache.getTagConfidence('a591a6d40...');
+   * if (tagConfidence) {
+   *   console.log('is_business confidence:', tagConfidence['is_business']);
+   * }
+   */
+  async getTagConfidence(emailHash: string): Promise<Record<string, number> | null> {
+    try {
+      const entry = await this.getWithDetails(emailHash);
+      return entry?.tagConfidence ?? null;
+    } catch {
+      return null;
     }
   }
 }

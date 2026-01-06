@@ -13,6 +13,22 @@ export interface Attachment {
 }
 
 /**
+ * Low confidence flag information
+ */
+export interface LowConfidenceFlag {
+	/** Tag key that was below threshold */
+	tagKey: string;
+	/** Confidence score (0-1 range) */
+	confidence: number;
+	/** Threshold that was not met (0-100 range) */
+	threshold: number;
+	/** Threshold type (custom or global) */
+	thresholdType: 'custom' | 'global';
+	/** Reasoning explaining why classification was low confidence */
+	reasoning: string;
+}
+
+/**
  * Email Entity
  * Represents an email with business logic for tagging and querying
  */
@@ -25,6 +41,8 @@ export class Email {
 	readonly attachments: readonly Attachment[];
 	readonly tags: Set<string>;
 	readonly timestamp: Date;
+	/** Low confidence flags for tags that didn't meet threshold */
+	private lowConfidenceFlags: Map<string, LowConfidenceFlag>;
 
 	constructor({
 		id,
@@ -57,6 +75,7 @@ export class Email {
 		this.attachments = attachments;
 		this.tags = new Set(tags);
 		this.timestamp = timestamp;
+		this.lowConfidenceFlags = new Map();
 	}
 
 	/**
@@ -224,6 +243,84 @@ export class Email {
 			hasAttachments: this.hasAttachments(),
 			tags: this.getTags(),
 			timestamp: this.timestamp.toISOString(),
+			hasLowConfidenceFlags: this.hasLowConfidenceFlags(),
+			lowConfidenceFlagCount: this.getLowConfidenceFlagCount(),
 		};
+	}
+
+	/**
+	 * Adds a low confidence flag for a tag
+	 *
+	 * @param flag - Low confidence flag information
+	 * @throws {Error} If flag data is invalid
+	 */
+	flagLowConfidence(flag: LowConfidenceFlag): void {
+		if (!flag.tagKey || flag.tagKey.trim().length === 0) {
+			throw new Error('Tag key cannot be empty');
+		}
+		if (flag.confidence < 0 || flag.confidence > 1) {
+			throw new Error('Confidence must be between 0 and 1');
+		}
+		if (flag.threshold < 0 || flag.threshold > 100) {
+			throw new Error('Threshold must be between 0 and 100');
+		}
+		if (!flag.reasoning || flag.reasoning.trim().length === 0) {
+			throw new Error('Reasoning cannot be empty');
+		}
+
+		this.lowConfidenceFlags.set(flag.tagKey, flag);
+	}
+
+	/**
+	 * Checks if email has any low confidence flags
+	 *
+	 * @returns True if email has low confidence flags
+	 */
+	hasLowConfidenceFlags(): boolean {
+		return this.lowConfidenceFlags.size > 0;
+	}
+
+	/**
+	 * Gets all low confidence flags
+	 *
+	 * @returns Array of low confidence flags
+	 */
+	getLowConfidenceFlags(): LowConfidenceFlag[] {
+		return Array.from(this.lowConfidenceFlags.values());
+	}
+
+	/**
+	 * Gets low confidence flag for a specific tag
+	 *
+	 * @param tagKey - Tag key to get flag for
+	 * @returns Low confidence flag or undefined if not found
+	 */
+	getLowConfidenceFlag(tagKey: string): LowConfidenceFlag | undefined {
+		return this.lowConfidenceFlags.get(tagKey);
+	}
+
+	/**
+	 * Removes a low confidence flag
+	 *
+	 * @param tagKey - Tag key to remove flag for
+	 */
+	removeLowConfidenceFlag(tagKey: string): void {
+		this.lowConfidenceFlags.delete(tagKey);
+	}
+
+	/**
+	 * Clears all low confidence flags
+	 */
+	clearLowConfidenceFlags(): void {
+		this.lowConfidenceFlags.clear();
+	}
+
+	/**
+	 * Gets count of low confidence flags
+	 *
+	 * @returns Number of low confidence flags
+	 */
+	getLowConfidenceFlagCount(): number {
+		return this.lowConfidenceFlags.size;
 	}
 }

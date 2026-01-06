@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confidence Badge Component Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background-color: #f5f7fa;
+    }
+
+    .demo-section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .demo-section h2 {
+      margin-top: 0;
+      color: #1a1a1a;
+      border-bottom: 2px solid #e9ecef;
+      padding-bottom: 10px;
+    }
+
+    .demo-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .demo-label {
+      font-weight: 600;
+      min-width: 150px;
+      color: #2c3e50;
+    }
+
+    .demo-badges {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tag-demo {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      background-color: #3498DB;
+      color: white;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      gap: 8px;
+    }
+
+    /* Import the confidence badge styles */
+    /* In production, this would be: <link rel="stylesheet" href="confidence.css"> */
+  </style>
+  <link rel="stylesheet" href="../styles/confidence.css">
+</head>
+<body>
+  <h1 style="text-align: center; color: #1a1a1a;">Confidence Badge Component Demo</h1>
+  <p style="text-align: center; color: #666;">Visual demonstration of confidence score display options</p>
+
+  <!-- Display Modes Demo -->
+  <div class="demo-section">
+    <h2>Display Modes</h2>
+
+    <div class="demo-row">
+      <span class="demo-label">Compact (Default):</span>
+      <div class="demo-badges" id="compact-badges"></div>
+    </div>
+
+    <div class="demo-row">
+      <span class="demo-label">Detailed:</span>
+      <div class="demo-badges" id="detailed-badges"></div>
+    </div>
+
+    <div class="demo-row">
+      <span class="demo-label">Minimal:</span>
+      <div class="demo-badges" id="minimal-badges"></div>
+    </div>
+  </div>
+
+  <!-- Confidence Levels Demo -->
+  <div class="demo-section">
+    <h2>Confidence Levels</h2>
+
+    <div class="demo-row">
+      <span class="demo-label">High (>= 80%):</span>
+      <div class="demo-badges" id="high-badges"></div>
+    </div>
+
+    <div class="demo-row">
+      <span class="demo-label">Medium (70-79%):</span>
+      <div class="demo-badges" id="medium-badges"></div>
+    </div>
+
+    <div class="demo-row">
+      <span class="demo-label">Low (< 70%):</span>
+      <div class="demo-badges" id="low-badges"></div>
+    </div>
+  </div>
+
+  <!-- Integration with Tags Demo -->
+  <div class="demo-section">
+    <h2>Integration with Tags</h2>
+
+    <div class="demo-row">
+      <span class="demo-label">Tag + High Confidence:</span>
+      <div class="demo-badges" id="tag-high"></div>
+    </div>
+
+    <div class="demo-row">
+      <span class="demo-label">Tag + Medium Confidence:</span>
+      <div class="demo-badges" id="tag-medium"></div>
+    </div>
+
+    <div class="demo-row">
+      <span class="demo-label">Tag + Low Confidence:</span>
+      <div class="demo-badges" id="tag-low"></div>
+    </div>
+  </div>
+
+  <!-- Size Variants Demo -->
+  <div class="demo-section">
+    <h2>Size Variants</h2>
+
+    <div class="demo-row">
+      <span class="demo-label">Small:</span>
+      <div class="demo-badges" id="small-badges"></div>
+    </div>
+
+    <div class="demo-row">
+      <span class="demo-label">Regular:</span>
+      <div class="demo-badges" id="regular-badges"></div>
+    </div>
+
+    <div class="demo-row">
+      <span class="demo-label">Large:</span>
+      <div class="demo-badges" id="large-badges"></div>
+    </div>
+  </div>
+
+  <!-- Accessibility Demo -->
+  <div class="demo-section">
+    <h2>Accessibility Features</h2>
+    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+      All badges include proper ARIA attributes for screen readers. Use browser dev tools to inspect.
+    </p>
+
+    <div class="demo-row">
+      <span class="demo-label">With ARIA Labels:</span>
+      <div class="demo-badges" id="aria-badges"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Mock the confidenceUtils for demo purposes
+    const confidenceToPercentage = (confidence) => Math.round(confidence * 100);
+
+    const getConfidenceLevel = (confidence) => {
+      const percentage = confidenceToPercentage(confidence);
+      if (percentage >= 80) return 'high';
+      if (percentage >= 70) return 'medium';
+      return 'low';
+    };
+
+    const getConfidenceColor = (confidence) => {
+      const level = getConfidenceLevel(confidence);
+      const colors = {
+        high: '#4CAF50',
+        medium: '#FFC107',
+        low: '#F44336'
+      };
+      return colors[level];
+    };
+
+    // ConfidenceBadge class (simplified for demo)
+    class ConfidenceBadge {
+      create({ confidence, mode = 'compact', cssClass = '', tooltip }) {
+        const percentage = confidenceToPercentage(confidence);
+        const level = getConfidenceLevel(confidence);
+        const color = getConfidenceColor(confidence);
+
+        const badge = document.createElement('span');
+        badge.className = `confidence-badge confidence-${level} ${mode} ${cssClass}`.trim();
+        badge.style.backgroundColor = color;
+
+        // ARIA attributes
+        badge.setAttribute('role', 'status');
+        badge.setAttribute('aria-live', 'polite');
+        badge.setAttribute('aria-label', `Confidence: ${percentage}%`);
+
+        if (tooltip) {
+          badge.setAttribute('title', tooltip);
+        }
+
+        // Content based on mode
+        switch (mode) {
+          case 'compact':
+            badge.textContent = `${percentage}%`;
+            break;
+          case 'detailed':
+            const label = level.charAt(0).toUpperCase() + level.slice(1);
+            badge.textContent = `${percentage}% ${label}`;
+            break;
+          case 'minimal':
+            badge.textContent = '';
+            break;
+        }
+
+        return badge;
+      }
+
+      createCompact(confidence) {
+        return this.create({ confidence, mode: 'compact' });
+      }
+
+      createDetailed(confidence) {
+        return this.create({ confidence, mode: 'detailed' });
+      }
+
+      createMinimal(confidence) {
+        return this.create({ confidence, mode: 'minimal' });
+      }
+    }
+
+    // Demo setup
+    const badge = new ConfidenceBadge();
+
+    // Display modes
+    const compactContainer = document.getElementById('compact-badges');
+    [0.95, 0.75, 0.55].forEach(conf => {
+      compactContainer.appendChild(badge.createCompact(conf));
+    });
+
+    const detailedContainer = document.getElementById('detailed-badges');
+    [0.95, 0.75, 0.55].forEach(conf => {
+      detailedContainer.appendChild(badge.createDetailed(conf));
+    });
+
+    const minimalContainer = document.getElementById('minimal-badges');
+    [0.95, 0.75, 0.55].forEach(conf => {
+      minimalContainer.appendChild(badge.createMinimal(conf));
+    });
+
+    // Confidence levels
+    const highContainer = document.getElementById('high-badges');
+    [0.80, 0.85, 0.90, 0.95, 1.0].forEach(conf => {
+      highContainer.appendChild(badge.createCompact(conf));
+    });
+
+    const mediumContainer = document.getElementById('medium-badges');
+    [0.70, 0.72, 0.75, 0.78].forEach(conf => {
+      mediumContainer.appendChild(badge.createCompact(conf));
+    });
+
+    const lowContainer = document.getElementById('low-badges');
+    [0.50, 0.60, 0.65, 0.68].forEach(conf => {
+      lowContainer.appendChild(badge.createCompact(conf));
+    });
+
+    // Tag integration
+    const createTagWithBadge = (tagName, confidence) => {
+      const tag = document.createElement('span');
+      tag.className = 'tag-demo';
+      tag.textContent = tagName;
+      tag.appendChild(badge.createCompact(confidence));
+      return tag;
+    };
+
+    document.getElementById('tag-high').appendChild(createTagWithBadge('Important', 0.92));
+    document.getElementById('tag-medium').appendChild(createTagWithBadge('Work', 0.75));
+    document.getElementById('tag-low').appendChild(createTagWithBadge('Spam', 0.65));
+
+    // Size variants
+    const smallContainer = document.getElementById('small-badges');
+    [0.95, 0.75, 0.55].forEach(conf => {
+      const b = badge.create({ confidence, mode: 'compact', cssClass: 'small' });
+      smallContainer.appendChild(b);
+    });
+
+    const regularContainer = document.getElementById('regular-badges');
+    [0.95, 0.75, 0.55].forEach(conf => {
+      regularContainer.appendChild(badge.createCompact(conf));
+    });
+
+    const largeContainer = document.getElementById('large-badges');
+    [0.95, 0.75, 0.55].forEach(conf => {
+      const b = badge.create({ confidence, mode: 'compact', cssClass: 'large' });
+      largeContainer.appendChild(b);
+    });
+
+    // Accessibility
+    const ariaContainer = document.getElementById('aria-badges');
+    [0.95, 0.75, 0.55].forEach(conf => {
+      const b = badge.create({
+        confidence,
+        mode: 'detailed',
+        tooltip: 'AI confidence score for this classification'
+      });
+      ariaContainer.appendChild(b);
+    });
+  </script>
+</body>
+</html>

@@ -144,6 +144,7 @@ export class AppConfigService {
     enableLogging: true,
     model: undefined,
     modelConcurrencyLimits: undefined,
+    minConfidenceThreshold: 70,
   };
 
   // ==========================================================================
