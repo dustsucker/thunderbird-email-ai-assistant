@@ -59,6 +59,7 @@ import { EventBus } from '@/domain/events/EventBus';
 import { SettingsForm } from './SettingsForm';
 import { TagManagementUI } from './TagManagementUI';
 import { BatchAnalysisUI } from './BatchAnalysisUI';
+import { AnalysisResultsUI } from './AnalysisResultsUI';
 
 // ============================================================================
 // DOM Element Interfaces
@@ -131,6 +132,7 @@ class OptionsScript {
   private settingsForm: SettingsForm | null = null;
   private tagManagementUI: TagManagementUI | null = null;
   private batchAnalysisUI: BatchAnalysisUI | null = null;
+  private analysisResultsUI: AnalysisResultsUI | null = null;
   private logger: ILogger | null = null;
   private eventBus: EventBus | null = null;
   private isInitialized = false;
@@ -173,12 +175,14 @@ class OptionsScript {
       this.settingsForm = container.resolve<SettingsForm>(SettingsForm);
       this.tagManagementUI = container.resolve<TagManagementUI>(TagManagementUI);
       this.batchAnalysisUI = container.resolve<BatchAnalysisUI>(BatchAnalysisUI);
+      this.analysisResultsUI = container.resolve<AnalysisResultsUI>(AnalysisResultsUI);
 
       // Step 5: Initialize UI components
       this.initializeTabs();
       await this.initializeSettingsForm();
       await this.initializeTagManagement();
       await this.initializeBatchAnalysis();
+      await this.initializeAnalysisResults();
       await this.initializeCacheManagement();
 
       // Step 6: Setup runtime message listeners
@@ -251,6 +255,7 @@ class OptionsScript {
     container.registerSingleton('SettingsForm', SettingsForm);
     container.registerSingleton('TagManagementUI', TagManagementUI);
     container.registerSingleton('BatchAnalysisUI', BatchAnalysisUI);
+    container.registerSingleton('AnalysisResultsUI', AnalysisResultsUI);
 
     startupLogger.info('UI components registered');
     startupLogger.info('DI container setup completed');
@@ -340,6 +345,38 @@ class OptionsScript {
     this.batchAnalysisUI.render();
 
     this.logger?.debug('Batch analysis UI initialized');
+  }
+
+  /**
+   * Initializes analysis results UI.
+   */
+  private async initializeAnalysisResults(): Promise<void> {
+    this.logger?.debug('Initializing analysis results UI');
+
+    if (!this.analysisResultsUI) {
+      throw new Error('Analysis results UI not resolved from DI container');
+    }
+
+    this.analysisResultsUI.render();
+
+    // Setup refresh button
+    const refreshBtn = document.getElementById('refresh-results-btn') as HTMLButtonElement;
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        try {
+          refreshBtn.disabled = true;
+          refreshBtn.textContent = 'Wird geladen...';
+          await this.analysisResultsUI!.refresh();
+        } catch (error) {
+          this.logger?.error('Failed to refresh analysis results', { error });
+        } finally {
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = 'Aktualisieren';
+        }
+      });
+    }
+
+    this.logger?.debug('Analysis results UI initialized');
   }
 
   /**

@@ -13,4 +13,5 @@
 export { SettingsForm } from './SettingsForm';
 export { TagManagementUI } from './TagManagementUI';
 export { BatchAnalysisUI } from './BatchAnalysisUI';
+export { AnalysisResultsUI } from './AnalysisResultsUI';
 export { OptionsScript } from './OptionsScript';

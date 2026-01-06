@@ -293,6 +293,18 @@ function isGetCacheStatsMessage(message: unknown): message is GetCacheStatsMessa
   );
 }
 
+/**
+ * Type guard for GetAnalysisResults messages
+ */
+function isGetAnalysisResultsMessage(message: unknown): message is { action: 'getAnalysisResults'; limit?: number } {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'action' in message &&
+    (message as Record<string, unknown>).action === 'getAnalysisResults'
+  );
+}
+
 // ============================================================================
 // Service Implementation
 // ============================================================================
@@ -554,6 +566,13 @@ export class MessageHandler {
         if (isGetCacheStatsMessage(message)) {
           this.logger.info('[DEBUG-MessageHandler] Routing to handleGetCacheStats');
           const result = await this.handleGetCacheStats();
+          sendResponse(result);
+          return;
+        }
+
+        if (isGetAnalysisResultsMessage(message)) {
+          this.logger.info('[DEBUG-MessageHandler] Routing to handleGetAnalysisResults');
+          const result = await this.handleGetAnalysisResults(message);
           sendResponse(result);
           return;
         }
@@ -843,6 +862,44 @@ export class MessageHandler {
       totalEntries: 0,
       hitRate: 0,
     };
+  }
+
+  /**
+   * Handles get analysis results message.
+   *
+   * @param message - Message containing optional limit parameter
+   * @returns Analysis results from cache
+   */
+  private async handleGetAnalysisResults(message?: unknown): Promise<{
+    success: boolean;
+    results?: Array<{
+      cacheKey: string;
+      timestamp: number;
+      tags: string[];
+      confidence: number;
+      tagConfidence?: Record<string, number>;
+      reasoning: string;
+    }>;
+    error?: string;
+  }> {
+    this.logger.info('Handling getAnalysisResults message');
+
+    try {
+      // TODO: Integrate with AnalysisCache to get actual results
+      // For now, return empty results - UI will show "No analysis results" message
+      this.logger.warn('getAnalysisResults not fully implemented - returning empty results');
+      return {
+        success: true,
+        results: [],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to get analysis results', { error: errorMessage });
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
   }
 
   /**

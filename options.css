@@ -676,3 +676,209 @@ button:disabled {
 .error-display-overlay.severity-info .error-display-header h3 {
   color: var(--primary-color);
 }
+
+/* ============================================================================
+   Analysis Results Section Styles
+   ============================================================================ */
+
+.analysis-results-section {
+  padding: var(--spacing-lg);
+}
+
+.results-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.results-header-actions h2 {
+  margin: 0;
+}
+
+.analysis-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.analysis-result-item {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  transition: box-shadow var(--transition-normal);
+}
+
+.analysis-result-item:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.result-date {
+  font-size: 0.9em;
+  color: var(--color-gray-600);
+  font-weight: 500;
+}
+
+.confidence-badge-overall {
+  font-weight: 600;
+}
+
+.result-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.result-tag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--color-gray-100);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--color-gray-300);
+  font-size: 0.9em;
+  cursor: help;
+  transition: all var(--transition-normal);
+}
+
+.result-tag:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.result-tag.tag-below-threshold {
+  background-color: #fff3cd;
+  border-color: var(--color-warning);
+}
+
+.result-tag.tag-below-threshold .tag-name {
+  color: #856404;
+}
+
+.tag-confidence-badge {
+  font-size: 0.85em;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+}
+
+.tag-confidence-badge.confidence-high {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.tag-confidence-badge.confidence-medium {
+  background-color: var(--color-warning);
+  color: var(--color-text-primary);
+}
+
+.tag-confidence-badge.confidence-low {
+  background-color: var(--color-danger);
+  color: white;
+}
+
+.tag-name {
+  font-weight: 500;
+}
+
+/* Tooltip styles */
+.tag-tooltip {
+  visibility: hidden;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-gray-700);
+  color: var(--color-white);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  white-space: nowrap;
+  max-width: 300px;
+  white-space: normal;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  pointer-events: none;
+  box-shadow: var(--shadow-md);
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+
+.tag-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--color-gray-700);
+}
+
+.result-tag:hover .tag-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+.result-reasoning {
+  margin-top: var(--spacing-sm);
+}
+
+.reasoning-toggle {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.9em;
+  text-decoration: underline;
+}
+
+.reasoning-toggle:hover {
+  color: var(--color-primary-dark);
+}
+
+.reasoning-content {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--color-gray-100);
+  border-radius: var(--border-radius-sm);
+  border-left: 3px solid var(--color-primary);
+}
+
+.reasoning-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 0.9em;
+  color: var(--color-text-secondary);
+}
+
+.no-tags {
+  color: var(--color-gray-600);
+  font-style: italic;
+}
+
+.analysis-results-empty,
+.analysis-results-error {
+  text-align: center;
+  padding: var(--spacing-2xl);
+  color: var(--color-gray-600);
+}
+
+.analysis-results-error {
+  color: var(--color-danger);
+}

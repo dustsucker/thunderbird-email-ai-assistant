@@ -14,6 +14,7 @@
       <div class="tab-bar">
         <button class="tab-button active" data-tab="provider-settings">Provider</button>
         <button class="tab-button" data-tab="custom-tags">Benutzerdefinierte Tags</button>
+        <button class="tab-button" data-tab="analysis-results">Analyseergebnisse</button>
       </div>
 
       <div id="provider-settings" class="tab-content active">
@@ -307,6 +308,20 @@
           </p>
           <div id="tag-list-container"></div>
           <button id="add-new-tag-btn" class="btn-primary">Neuen Tag hinzufügen</button>
+        </section>
+      </div>
+
+      <div id="analysis-results" class="tab-content">
+        <section class="analysis-results-section">
+          <div class="results-header-actions">
+            <h2>Letzte Analyseergebnisse</h2>
+            <button id="refresh-results-btn" class="btn-secondary">Aktualisieren</button>
+          </div>
+          <p class="help-text">
+            Zeigt die letzten 20 analysierten E-Mails mit ihren Tags und Konfidenz-Werten.
+            Die Konfidenz zeigt, wie sicher die KI bei der Klassifizierung war.
+          </p>
+          <div id="analysis-results-container"></div>
         </section>
       </div>
     </div>
