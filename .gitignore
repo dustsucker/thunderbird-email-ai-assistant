@@ -25,3 +25,18 @@ sign.bash
 
 # Auto Claude data directory
 .auto-claude/
+
+# Claude settings
+.claude_settings.json
+
+# Compiled JavaScript (TypeScript output)
+background.js
+options.js
+
+# Source maps and bundle licenses
+*.js.map
+*.LICENSE.txt
+
+# Test reports and worktrees
+.test-summary.md
+.worktrees/
