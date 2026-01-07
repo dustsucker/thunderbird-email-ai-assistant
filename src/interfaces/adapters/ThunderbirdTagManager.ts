@@ -192,13 +192,15 @@ export class ThunderbirdTagManager implements ITagManager {
    * @inheritdoc
    */
   async createTag(name: string, color?: string, sortKey?: string): Promise<ThunderbirdTag> {
-    this.logger.debug('Creating new tag', { name, color, sortKey });
+    this.logger.info('[TAG-MANAGER] Starting tag creation', { name, color, sortKey });
 
     if (!name || name.trim().length === 0) {
+      this.logger.error('[TAG-MANAGER] Tag name is required');
       throw new Error('Tag name is required');
     }
 
     if (color && !/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)) {
+      this.logger.error('[TAG-MANAGER] Invalid color format', { color });
       throw new Error(`Invalid color format: ${color}. Must be hex color (e.g., #FF0000)`);
     }
 
@@ -206,7 +208,7 @@ export class ThunderbirdTagManager implements ITagManager {
     const baseKey = sortKey || name.toLowerCase().replace(/\s+/g, '_');
     // Use internal key with _ma_ prefix for Thunderbird API
     const internalKey = TAG_KEY_PREFIX + baseKey;
-    this.logger.debug('[TAG-CREATE] Creating tag with parameters', {
+    this.logger.info('[TAG-MANAGER] Creating tag with parameters', {
       baseKey,
       internalKey,
       name,
@@ -216,38 +218,59 @@ export class ThunderbirdTagManager implements ITagManager {
 
     try {
       // Check if tag already exists to avoid duplicates
+      this.logger.debug('[TAG-MANAGER] Checking if tag already exists', { internalKey });
       const existingTag = await this.getTag(internalKey);
       if (existingTag) {
-        this.logger.warn('Tag already exists, returning existing', {
+        this.logger.warn('[TAG-MANAGER] Tag already exists, returning existing', {
           internalKey,
           name: existingTag.tag,
         });
         return existingTag;
       }
+      this.logger.debug('[TAG-MANAGER] Tag does not exist, proceeding with creation', {
+        internalKey,
+      });
 
       // Create tag with default color if not provided
       const tagColor = color || '#9E9E9E';
+      this.logger.info('[TAG-MANAGER] Calling Thunderbird API messenger.messages.tags.create()', {
+        internalKey,
+        name,
+        color: tagColor,
+      });
       const createdTag = await messenger.messages.tags.create(internalKey, name, tagColor);
-      this.logger.debug('[TAG-CREATE] Tag created from Thunderbird API', {
+
+      this.logger.info('[TAG-MANAGER] Tag created from Thunderbird API', {
         returnedKey: createdTag.key,
         returnedName: createdTag.tag,
         returnedColor: createdTag.color,
+        ordinal: createdTag.ordinal,
       });
 
       if (!isThunderbirdTag(createdTag)) {
+        this.logger.error('[TAG-MANAGER] Invalid tag object returned from Thunderbird API', {
+          createdTag,
+        });
         throw new Error('Invalid tag object returned from Thunderbird API');
       }
 
-      this.logger.info('Tag created successfully', {
+      this.logger.info('[TAG-MANAGER] Tag created successfully', {
         baseKey,
         internalKey: createdTag.key,
         name,
         color: tagColor,
+        ordinal: createdTag.ordinal,
       });
       return createdTag;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to create tag', { name, baseKey, error: errorMessage });
+      this.logger.error('[TAG-MANAGER] Failed to create tag', {
+        name,
+        baseKey,
+        internalKey,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw new Error(`Failed to create tag '${name}': ${errorMessage}`);
     }
   }
@@ -256,19 +279,30 @@ export class ThunderbirdTagManager implements ITagManager {
    * @inheritdoc
    */
   async updateTag(id: string, updates: TagUpdateOptions): Promise<ThunderbirdTag> {
-    this.logger.debug('Updating tag', { id, updates });
+    this.logger.info('[TAG-MANAGER] Starting tag update', { id, updates });
 
     try {
       // Find the tag key if ID is not a key
+      this.logger.debug('[TAG-MANAGER] Looking up tag for update', { id });
       const tag = await this.getTagById(id);
       if (!tag) {
+        this.logger.error('[TAG-MANAGER] Tag not found for update', { id });
         throw new Error(`Tag '${id}' not found`);
       }
+      this.logger.debug('[TAG-MANAGER] Tag found for update', {
+        id,
+        key: tag.key,
+        currentName: tag.tag,
+        currentColor: tag.color,
+      });
 
       // Prepare update data
       const updateData: { color?: string; tag?: string } = {};
       if (updates.color !== undefined) {
         if (!/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(updates.color)) {
+          this.logger.error('[TAG-MANAGER] Invalid color format for update', {
+            color: updates.color,
+          });
           throw new Error(
             `Invalid color format: ${updates.color}. Must be hex color (e.g., #FF0000)`
           );
@@ -277,23 +311,44 @@ export class ThunderbirdTagManager implements ITagManager {
       }
       if (updates.name !== undefined) {
         if (updates.name.trim().length === 0) {
+          this.logger.error('[TAG-MANAGER] Tag name cannot be empty');
           throw new Error('Tag name cannot be empty');
         }
         updateData.tag = updates.name;
       }
+      this.logger.debug('[TAG-MANAGER] Prepared update data', { updateData });
 
       // Update the tag
+      this.logger.info('[TAG-MANAGER] Calling Thunderbird API messenger.messages.tags.update()', {
+        key: tag.key,
+        updateData,
+      });
       const updatedTag = await messenger.messages.tags.update(tag.key, updateData);
 
+      this.logger.info('[TAG-MANAGER] Tag updated from Thunderbird API', {
+        key: updatedTag.key,
+        name: updatedTag.tag,
+        color: updatedTag.color,
+        ordinal: updatedTag.ordinal,
+      });
+
       if (!isThunderbirdTag(updatedTag)) {
+        this.logger.error('[TAG-MANAGER] Invalid tag object returned from Thunderbird API', {
+          updatedTag,
+        });
         throw new Error('Invalid tag object returned from Thunderbird API');
       }
 
-      this.logger.info('Tag updated successfully', { key: tag.key, updates });
+      this.logger.info('[TAG-MANAGER] Tag updated successfully', { key: tag.key, updates });
       return updatedTag;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to update tag', { id, updates, error: errorMessage });
+      this.logger.error('[TAG-MANAGER] Failed to update tag', {
+        id,
+        updates,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw new Error(`Failed to update tag '${id}': ${errorMessage}`);
     }
   }
@@ -302,20 +357,35 @@ export class ThunderbirdTagManager implements ITagManager {
    * @inheritdoc
    */
   async deleteTag(id: string): Promise<void> {
-    this.logger.debug('Deleting tag', { id });
+    this.logger.info('[TAG-MANAGER] Starting tag deletion', { id });
 
     try {
       // Find the tag key if ID is not a key
+      this.logger.debug('[TAG-MANAGER] Looking up tag for deletion', { id });
       const tag = await this.getTagById(id);
       if (!tag) {
+        this.logger.error('[TAG-MANAGER] Tag not found for deletion', { id });
         throw new Error(`Tag '${id}' not found`);
       }
+      this.logger.debug('[TAG-MANAGER] Tag found for deletion', {
+        id,
+        key: tag.key,
+        name: tag.tag,
+      });
 
+      this.logger.info('[TAG-MANAGER] Calling Thunderbird API messenger.messages.tags.delete()', {
+        key: tag.key,
+      });
       await messenger.messages.tags.delete(tag.key);
-      this.logger.info('Tag deleted successfully', { key: tag.key, name: tag.tag });
+
+      this.logger.info('[TAG-MANAGER] Tag deleted successfully', { key: tag.key, name: tag.tag });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to delete tag', { id, error: errorMessage });
+      this.logger.error('[TAG-MANAGER] Failed to delete tag', {
+        id,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw new Error(`Failed to delete tag '${id}': ${errorMessage}`);
     }
   }

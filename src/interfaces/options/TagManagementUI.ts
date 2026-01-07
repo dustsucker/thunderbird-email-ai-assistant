@@ -169,35 +169,77 @@ export class TagManagementUI {
    * @throws Error if tag creation fails
    */
   async createTag(tag: ICustomTag): Promise<void> {
-    this.logger.debug('Creating new tag', { key: tag.key });
+    this.logger.info('[TAG-UI] Starting tag creation', {
+      key: tag.key,
+      name: tag.name,
+      color: tag.color,
+      prompt: tag.prompt,
+    });
 
     // Validate tag
     const validationError = this.validateTag(tag, this.currentTags.length);
     if (validationError) {
+      this.logger.error('[TAG-UI] Tag validation failed', { key: tag.key, error: validationError });
       throw new Error(validationError);
     }
+    this.logger.debug('[TAG-UI] Tag validation passed', { key: tag.key });
 
     // Add to current tags
     this.currentTags.push(tag);
+    this.logger.debug('[TAG-UI] Tag added to local array', {
+      key: tag.key,
+      totalTags: this.currentTags.length,
+    });
 
     // Save to ConfigRepository
     try {
+      this.logger.info('[TAG-UI] Saving tags to ConfigRepository', {
+        tagCount: this.currentTags.length,
+        tags: this.currentTags.map((t) => t.key).join(', '),
+      });
+
       await this.configRepository.setCustomTags(this.currentTags);
 
+      this.logger.info('[TAG-UI] Tags saved to ConfigRepository successfully', {
+        tagCount: this.currentTags.length,
+      });
+
       // Create in Thunderbird
-      await this.tagManager.createTag(tag.name, tag.color);
+      this.logger.info('[TAG-UI] Creating tag in Thunderbird', {
+        name: tag.name,
+        color: tag.color,
+        key: tag.key,
+      });
+
+      const thunderbirdTag = await this.tagManager.createTag(tag.name, tag.color, tag.key);
+
+      this.logger.info('[TAG-UI] Tag created in Thunderbird successfully', {
+        key: tag.key,
+        thunderbirdKey: thunderbirdTag.key,
+        name: thunderbirdTag.tag,
+        color: thunderbirdTag.color,
+      });
 
       // Update UI
       if (this.elements) {
         this.renderTagList();
       }
 
-      this.logger.info('Tag created successfully', { key: tag.key, name: tag.name });
+      this.logger.info('[TAG-UI] Tag creation completed successfully', {
+        key: tag.key,
+        name: tag.name,
+        internalKey: thunderbirdTag.key,
+      });
     } catch (error) {
       // Rollback on error
       this.currentTags.pop();
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to create tag', { error: errorMessage });
+      this.logger.error('[TAG-UI] Failed to create tag', {
+        key: tag.key,
+        name: tag.name,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw new Error(`Failed to create tag: ${errorMessage}`);
     }
   }
@@ -210,44 +252,84 @@ export class TagManagementUI {
    * @throws Error if tag update fails
    */
   async updateTag(key: string, updates: ICustomTag): Promise<void> {
-    this.logger.debug('Updating tag', { key });
+    this.logger.info('[TAG-UI] Starting tag update', {
+      key,
+      updates: { name: updates.name, color: updates.color },
+    });
 
     // Find tag index
     const index = this.currentTags.findIndex((tag) => tag.key === key);
 
     if (index === -1) {
+      this.logger.error('[TAG-UI] Tag not found for update', { key });
       throw new Error(`Tag with key '${key}' not found`);
     }
 
     const oldTag = this.currentTags[index];
+    this.logger.debug('[TAG-UI] Found tag to update', {
+      key,
+      oldName: oldTag.name,
+    });
 
     // Validate updated tag
     const validationError = this.validateTag(updates, index);
     if (validationError) {
+      this.logger.error('[TAG-UI] Tag validation failed for update', {
+        key,
+        error: validationError,
+      });
       throw new Error(validationError);
     }
+    this.logger.debug('[TAG-UI] Tag validation passed for update', { key });
 
     // Update tag
     this.currentTags[index] = updates;
 
     // Save to ConfigRepository
     try {
+      this.logger.info('[TAG-UI] Saving updated tags to ConfigRepository', {
+        key,
+        tagCount: this.currentTags.length,
+      });
+
       await this.configRepository.setCustomTags(this.currentTags);
 
+      this.logger.info('[TAG-UI] Tags saved to ConfigRepository successfully', { key });
+
       // Update in Thunderbird
-      await this.tagManager.updateTag(key, { name: updates.name, color: updates.color });
+      this.logger.info('[TAG-UI] Updating tag in Thunderbird', {
+        key,
+        name: updates.name,
+        color: updates.color,
+      });
+
+      const thunderbirdTag = await this.tagManager.updateTag(key, {
+        name: updates.name,
+        color: updates.color,
+      });
+
+      this.logger.info('[TAG-UI] Tag updated in Thunderbird successfully', {
+        key,
+        thunderbirdKey: thunderbirdTag.key,
+        name: thunderbirdTag.tag,
+        color: thunderbirdTag.color,
+      });
 
       // Update UI
       if (this.elements) {
         this.renderTagList();
       }
 
-      this.logger.info('Tag updated successfully', { key });
+      this.logger.info('[TAG-UI] Tag update completed successfully', { key });
     } catch (error) {
       // Rollback on error
       this.currentTags[index] = oldTag;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to update tag', { error: errorMessage });
+      this.logger.error('[TAG-UI] Failed to update tag', {
+        key,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw new Error(`Failed to update tag: ${errorMessage}`);
     }
   }
@@ -259,38 +341,62 @@ export class TagManagementUI {
    * @throws Error if tag deletion fails
    */
   async deleteTag(key: string): Promise<void> {
-    this.logger.debug('Deleting tag', { key });
+    this.logger.info('[TAG-UI] Starting tag deletion', { key });
 
     // Find tag index
     const index = this.currentTags.findIndex((tag) => tag.key === key);
 
     if (index === -1) {
+      this.logger.error('[TAG-UI] Tag not found for deletion', { key });
       throw new Error(`Tag with key '${key}' not found`);
     }
 
     const tag = this.currentTags[index];
+    this.logger.debug('[TAG-UI] Found tag to delete', {
+      key,
+      name: tag.name,
+    });
 
     // Remove from current tags
     this.currentTags.splice(index, 1);
+    this.logger.debug('[TAG-UI] Tag removed from local array', {
+      key,
+      remainingTags: this.currentTags.length,
+    });
 
     // Save to ConfigRepository
     try {
+      this.logger.info('[TAG-UI] Saving tags after deletion to ConfigRepository', {
+        key,
+        tagCount: this.currentTags.length,
+      });
+
       await this.configRepository.setCustomTags(this.currentTags);
 
+      this.logger.info('[TAG-UI] Tags saved to ConfigRepository successfully', { key });
+
       // Delete from Thunderbird
+      this.logger.info('[TAG-UI] Deleting tag from Thunderbird', { key });
+
       await this.tagManager.deleteTag(key);
+
+      this.logger.info('[TAG-UI] Tag deleted from Thunderbird successfully', { key });
 
       // Update UI
       if (this.elements) {
         this.renderTagList();
       }
 
-      this.logger.info('Tag deleted successfully', { key });
+      this.logger.info('[TAG-UI] Tag deletion completed successfully', { key });
     } catch (error) {
       // Rollback on error
       this.currentTags.splice(index, 0, tag);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to delete tag', { error: errorMessage });
+      this.logger.error('[TAG-UI] Failed to delete tag', {
+        key,
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw new Error(`Failed to delete tag: ${errorMessage}`);
     }
   }
@@ -446,7 +552,9 @@ export class TagManagementUI {
         if (confirm(`Are you sure you want to delete the tag '${key}'?`)) {
           this.deleteTag(key).catch((error) => {
             this.logger.error('Failed to delete tag', { key, error });
-            alert(`Failed to delete tag: ${error instanceof Error ? error.message : String(error)}`);
+            alert(
+              `Failed to delete tag: ${error instanceof Error ? error.message : String(error)}`
+            );
           });
         }
       }
@@ -460,7 +568,10 @@ export class TagManagementUI {
    * Validates form data and creates or updates the tag.
    */
   private async handleTagFormSubmit(): Promise<void> {
+    this.logger.info('[TAG-UI] Form submit handler triggered');
+
     if (!this.elements) {
+      this.logger.error('[TAG-UI] Form elements not initialized');
       return;
     }
 
@@ -470,7 +581,20 @@ export class TagManagementUI {
     const color = this.elements.tagColor.value.trim();
     const prompt = this.elements.tagPrompt.value.trim();
 
+    this.logger.info('[TAG-UI] Form data extracted', {
+      index,
+      name,
+      key,
+      color,
+      hasPrompt: !!prompt,
+    });
+
     if (!name || !key || !color) {
+      this.logger.warn('[TAG-UI] Required fields missing', {
+        name: !!name,
+        key: !!key,
+        color: !!color,
+      });
       alert('Please fill in all required fields');
       return;
     }
@@ -482,17 +606,28 @@ export class TagManagementUI {
       prompt: prompt || undefined,
     };
 
+    this.logger.info('[TAG-UI] Tag object created', {
+      tag: { ...tag, prompt: tag.prompt ? 'present' : 'absent' },
+    });
+
     try {
       if (index === -1) {
+        this.logger.info('[TAG-UI] Form mode: CREATE new tag');
         // Create new tag
         await this.createTag(tag);
       } else {
+        this.logger.info('[TAG-UI] Form mode: UPDATE existing tag', { index });
         // Update existing tag
         await this.updateTag(key, tag);
       }
 
       this.closeModal();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('[TAG-UI] Form submission failed', {
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       alert(error instanceof Error ? error.message : String(error));
     }
   }

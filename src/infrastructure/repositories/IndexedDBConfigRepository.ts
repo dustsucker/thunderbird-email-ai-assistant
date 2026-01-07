@@ -189,28 +189,42 @@ export class IndexedDBConfigRepository implements IConfigRepository {
   // === Custom Tags ===
 
   async getCustomTags(): Promise<ICustomTag[]> {
+    this.logger.info('[CONFIG-REPO] Retrieving custom tags from storage');
+
     try {
       const data = await this.storage.get(STORAGE_KEYS.CUSTOM_TAGS);
       const customTags = (data[STORAGE_KEYS.CUSTOM_TAGS] as ICustomTag[]) || [];
 
-      this.logger.debug(`Retrieved ${customTags.length} custom tags`);
+      this.logger.info('[CONFIG-REPO] Custom tags retrieved successfully', {
+        count: customTags.length,
+        tags: customTags.map((t) => t.key).join(', '),
+      });
 
       return customTags;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to get custom tags', { error: message });
+      this.logger.error('[CONFIG-REPO] Failed to get custom tags', { error: message });
       throw new Error(`Failed to get custom tags: ${message}`);
     }
   }
 
   async setCustomTags(tags: ICustomTag[]): Promise<void> {
+    this.logger.info('[CONFIG-REPO] Saving custom tags to storage', {
+      count: tags.length,
+      tags: tags.map((t) => t.key).join(', '),
+    });
+
     try {
       await this.storage.set({ [STORAGE_KEYS.CUSTOM_TAGS]: tags });
 
-      this.logger.debug(`Saved ${tags.length} custom tags`);
+      this.logger.info('[CONFIG-REPO] Custom tags saved successfully', { count: tags.length });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to save custom tags', { error: message, tagCount: tags.length });
+      this.logger.error('[CONFIG-REPO] Failed to save custom tags', {
+        error: message,
+        tagCount: tags.length,
+        tags: tags.map((t) => t.key).join(', '),
+      });
       throw new Error(`Failed to save custom tags: ${message}`);
     }
   }
