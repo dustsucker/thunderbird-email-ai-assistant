@@ -42,6 +42,7 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "@thomaschampagne/naive-bayes": "^1.0.0",
     "html-to-text": "^9.0.5",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0"
