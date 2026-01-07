@@ -451,7 +451,9 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
   const zaiCodingApiKey = getElementById<HTMLInputElement>('zaiCodingApiKey');
   const zaiCodingModel = getElementById<HTMLSelectElement>('zaiCodingModel');
   const minConfidenceThreshold = getElementById<HTMLInputElement>('min-confidence-threshold');
-  const minConfidenceThresholdSlider = getElementById<HTMLInputElement>('min-confidence-threshold-slider');
+  const minConfidenceThresholdSlider = getElementById<HTMLInputElement>(
+    'min-confidence-threshold-slider'
+  );
   const confidenceValue = getElementById<HTMLSpanElement>('confidence-value');
 
   if (!providerSelect || !generalForm || !generalStatusMessage || !statusMessage) {
@@ -658,7 +660,8 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
     elements.providerSelect.value = appConfig.defaultProvider || DEFAULTS.provider;
 
     // Load min confidence threshold
-    const minConfidenceThreshold = appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
+    const minConfidenceThreshold =
+      appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
     if (elements.minConfidenceThreshold) {
       elements.minConfidenceThreshold.value = minConfidenceThreshold.toString();
     }
@@ -1750,7 +1753,11 @@ function initializeOptionsPage(): void {
     });
 
     // Confidence threshold slider synchronization
-    if (elements.minConfidenceThresholdSlider && elements.minConfidenceThreshold && elements.confidenceValue) {
+    if (
+      elements.minConfidenceThresholdSlider &&
+      elements.minConfidenceThreshold &&
+      elements.confidenceValue
+    ) {
       elements.minConfidenceThresholdSlider.addEventListener('input', (e) => {
         const target = e.target as HTMLInputElement;
         elements.minConfidenceThreshold!.value = target.value;
@@ -1822,8 +1829,7 @@ function initializeOptionsPage(): void {
     ])
       .then(([tags, data]) => {
         const appConfig = (data as AppSettingsStorage).appConfig || {};
-        const globalThreshold =
-          appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
+        const globalThreshold = appConfig.minConfidenceThreshold ?? DEFAULTS.minConfidenceThreshold;
 
         currentCustomTags = tags;
         renderTagList(elements.tagListContainer, currentCustomTags, globalThreshold);
@@ -1862,6 +1868,71 @@ function initializeOptionsPage(): void {
         logger.error('Failed to handle tag form submit', { error });
       });
     });
+
+    // Save custom tags button handler
+    const saveCustomTagsBtn = document.getElementById('save-custom-tags-btn');
+    const customTagsStatusMessage = document.getElementById('custom-tags-status-message');
+    if (saveCustomTagsBtn && customTagsStatusMessage) {
+      saveCustomTagsBtn.addEventListener('click', async () => {
+        try {
+          await saveCustomTags(currentCustomTags);
+          setStatusMessage(customTagsStatusMessage as HTMLSpanElement, 'Tags gespeichert!');
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.error('Failed to save custom tags', { error: errorMessage });
+          setStatusMessage(customTagsStatusMessage as HTMLSpanElement, `Fehler: ${errorMessage}`);
+        }
+      });
+    }
+
+    // Save analysis results button handler (acts as refresh)
+    const saveAnalysisResultsBtn = document.getElementById('save-analysis-results-btn');
+    const analysisResultsStatusMessage = document.getElementById('analysis-results-status-message');
+    if (saveAnalysisResultsBtn && analysisResultsStatusMessage) {
+      saveAnalysisResultsBtn.addEventListener('click', async () => {
+        try {
+          // Trigger refresh of analysis results
+          const refreshBtn = document.getElementById('refresh-results-btn') as HTMLButtonElement;
+          if (refreshBtn) {
+            refreshBtn.click();
+          }
+          setStatusMessage(
+            analysisResultsStatusMessage as HTMLSpanElement,
+            'Analyseergebnisse aktualisiert!'
+          );
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.error('Failed to save analysis results', { error: errorMessage });
+          setStatusMessage(
+            analysisResultsStatusMessage as HTMLSpanElement,
+            `Fehler: ${errorMessage}`
+          );
+        }
+      });
+    }
+
+    // Save manual review button handler (acts as refresh)
+    const saveManualReviewBtn = document.getElementById('save-manual-review-btn');
+    const manualReviewStatusMessage = document.getElementById('manual-review-status-message');
+    if (saveManualReviewBtn && manualReviewStatusMessage) {
+      saveManualReviewBtn.addEventListener('click', async () => {
+        try {
+          // Trigger refresh of manual review
+          const refreshBtn = document.getElementById('refresh-review-btn') as HTMLButtonElement;
+          if (refreshBtn) {
+            refreshBtn.click();
+          }
+          setStatusMessage(
+            manualReviewStatusMessage as HTMLSpanElement,
+            'Manuelle Überprüfung aktualisiert!'
+          );
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.error('Failed to save manual review', { error: errorMessage });
+          setStatusMessage(manualReviewStatusMessage as HTMLSpanElement, `Fehler: ${errorMessage}`);
+        }
+      });
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to initialize options page', { error: errorMessage });

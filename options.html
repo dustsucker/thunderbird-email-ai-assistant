@@ -39,7 +39,7 @@
             <label for="min-confidence-threshold">
               Minimales Konfidenz-Level: <span id="confidence-value">70</span>%
             </label>
-            <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px">
               <input
                 type="range"
                 id="min-confidence-threshold-slider"
@@ -47,7 +47,7 @@
                 min="0"
                 max="100"
                 value="70"
-                style="flex: 1;"
+                style="flex: 1"
               />
               <input
                 type="number"
@@ -56,12 +56,13 @@
                 min="0"
                 max="100"
                 value="70"
-                style="width: 70px;"
+                style="width: 70px"
               />
             </div>
             <p class="help-text">
-              Tags werden nur angewendet, wenn das Konfidenz-Level dieses Wert erreicht oder überschreitet.
-              Ein höherer Wert bedeutet mehr Sicherheit, aber weniger automatisch angewendete Tags.
+              Tags werden nur angewendet, wenn das Konfidenz-Level dieses Wert erreicht oder
+              überschreitet. Ein höherer Wert bedeutet mehr Sicherheit, aber weniger automatisch
+              angewendete Tags.
             </p>
           </div>
 
@@ -308,7 +309,11 @@
             im Prompt für die LLM verwendet.
           </p>
           <div id="tag-list-container"></div>
-          <button id="add-new-tag-btn" class="btn-primary">Neuen Tag hinzufügen</button>
+          <div class="form-group form-actions">
+            <button id="add-new-tag-btn" class="btn-primary">Neuen Tag hinzufügen</button>
+            <button id="save-custom-tags-btn" class="btn-primary">Tags speichern</button>
+            <span id="custom-tags-status-message"></span>
+          </div>
         </section>
       </div>
 
@@ -319,10 +324,14 @@
             <button id="refresh-results-btn" class="btn-secondary">Aktualisieren</button>
           </div>
           <p class="help-text">
-            Zeigt die letzten 20 analysierten E-Mails mit ihren Tags und Konfidenz-Werten.
-            Die Konfidenz zeigt, wie sicher die KI bei der Klassifizierung war.
+            Zeigt die letzten 20 analysierten E-Mails mit ihren Tags und Konfidenz-Werten. Die
+            Konfidenz zeigt, wie sicher die KI bei der Klassifizierung war.
           </p>
           <div id="analysis-results-container"></div>
+          <div class="form-group form-actions">
+            <button id="save-analysis-results-btn" class="btn-primary">Speichern</button>
+            <span id="analysis-results-status-message"></span>
+          </div>
         </section>
       </div>
 
@@ -333,8 +342,8 @@
             <button id="refresh-review-btn" class="btn-secondary">Aktualisieren</button>
           </div>
           <p class="help-text">
-            Überprüfen Sie E-Mails, die aufgrund von niedriger Konfidenz zur manuellen Überprüfung markiert wurden.
-            Sie können Tags manuell anwenden oder entfernen.
+            Überprüfen Sie E-Mails, die aufgrund von niedriger Konfidenz zur manuellen Überprüfung
+            markiert wurden. Sie können Tags manuell anwenden oder entfernen.
           </p>
 
           <div class="review-filters">
@@ -367,6 +376,10 @@
           </div>
 
           <div id="manual-review-container"></div>
+          <div class="form-group form-actions">
+            <button id="save-manual-review-btn" class="btn-primary">Speichern</button>
+            <span id="manual-review-status-message"></span>
+          </div>
         </section>
       </div>
     </div>
@@ -406,8 +419,8 @@
               placeholder="Globale Einstellung verwenden"
             />
             <p class="help-text">
-              Wenn angegeben, wird dieser Schwellenwert statt des globalen Werts verwendet.
-              Gültiger Bereich: 0-100%.
+              Wenn angegeben, wird dieser Schwellenwert statt des globalen Werts verwendet. Gültiger
+              Bereich: 0-100%.
             </p>
           </div>
           <div class="form-group">
