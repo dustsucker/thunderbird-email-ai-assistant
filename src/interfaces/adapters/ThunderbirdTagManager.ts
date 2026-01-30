@@ -5,6 +5,7 @@ import {
   TagUpdateOptions,
 } from '../../infrastructure/interfaces/ITagManager';
 import { ILogger } from '../../infrastructure/interfaces/ILogger';
+import { IConfigRepository, ICustomTag } from '../../infrastructure/interfaces/IConfigRepository';
 import { HARDCODED_TAGS, TAG_KEY_PREFIX } from '../../../core/config';
 
 // ============================================================================
@@ -73,6 +74,10 @@ function isThunderbirdTagArray(value: unknown): value is ThunderbirdTag[] {
  * Map from defined tag keys to internal Thunderbird tag keys (with _ma_ prefix)
  * Thunderbird internally prefixes all tag keys with "_ma_", so we need to map
  * our defined keys to the internal keys for all operations.
+ *
+ * @deprecated This static map only includes hardcoded tags. Use buildTagKeyMap()
+ * for dynamic mapping that includes custom tags. Will be removed in favor of
+ * convertToInternalKey() and convertToInternalKeys() methods.
  */
 const TAG_KEY_MAP: Record<string, string> = {
   is_scam: TAG_KEY_PREFIX + HARDCODED_TAGS.is_scam.key,
@@ -105,8 +110,45 @@ export class ThunderbirdTagManager implements ITagManager {
   // Constructor
   // ==========================================================================
 
-  constructor(@inject('ILogger') private readonly logger: ILogger) {
+  constructor(
+    @inject('ILogger') private readonly logger: ILogger,
+    @inject('IConfigRepository') private readonly configRepository: IConfigRepository
+  ) {
     this.logger.debug('ThunderbirdTagManager initialized');
+  }
+
+  // ==========================================================================
+  // Dynamic Tag Key Mapping
+  // ==========================================================================
+
+  /**
+   * Builds a dynamic tag key map from all known tags (hardcoded + custom).
+   * Maps each tag key to its internal Thunderbird key with _ma_ prefix.
+   *
+   * @returns Map from tag key to internal Thunderbird key
+   */
+  async buildTagKeyMap(): Promise<Record<string, string>> {
+    const tagKeyMap: Record<string, string> = {};
+
+    // Add hardcoded tags
+    for (const tag of Object.values(HARDCODED_TAGS)) {
+      tagKeyMap[tag.key] = TAG_KEY_PREFIX + tag.key;
+    }
+
+    // Add custom tags from config repository
+    try {
+      const customTags: ICustomTag[] = await this.configRepository.getCustomTags();
+      for (const tag of customTags) {
+        tagKeyMap[tag.key] = TAG_KEY_PREFIX + tag.key;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to get custom tags for tag key map', { error: errorMessage });
+      // Continue with hardcoded tags only
+    }
+
+    this.logger.debug('Built dynamic tag key map', { tagCount: Object.keys(tagKeyMap).length });
+    return tagKeyMap;
   }
 
   // ==========================================================================
