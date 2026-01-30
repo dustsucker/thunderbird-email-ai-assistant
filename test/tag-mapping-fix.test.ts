@@ -16,8 +16,11 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ThunderbirdTagManager } from '@/interfaces/adapters/ThunderbirdTagManager';
+import { ApplyTagsToEmail } from '@/application/use-cases/ApplyTagsToEmail';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository, ICustomTag } from '@/infrastructure/interfaces/IConfigRepository';
+import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
+import { EventBus } from '@/domain/events/EventBus';
 import { HARDCODED_TAGS, TAG_KEY_PREFIX } from '../core/config';
 
 /**
@@ -606,6 +609,476 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
       expect(tagKeyMap['dkim_fail']).toBe('_ma_dkim_fail');
       expect(tagKeyMap['tagged']).toBe('_ma_tagged');
       expect(tagKeyMap['email_ai_analyzed']).toBe('_ma_email_ai_analyzed');
+    });
+  });
+
+  // ==========================================================================
+  // Test Suite 7: ensureAllTagsExist() via ApplyTagsToEmail
+  // ==========================================================================
+
+  describe('ensureAllTagsExist() - Hardcoded and Custom Tag Creation', () => {
+    let applyTagsToEmail: ApplyTagsToEmail;
+    let eventBus: EventBus;
+    let mockTagManager: ITagManager;
+
+    // Track created tags
+    const createdTags: string[] = [];
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      createdTags.length = 0; // Reset created tags tracker
+
+      // Mock EventBus
+      eventBus = {
+        publish: vi.fn().mockResolvedValue(undefined),
+        subscribe: vi.fn(),
+        unsubscribe: vi.fn(),
+      } as unknown as EventBus;
+
+      // Mock messenger tags.create to track created tags
+      mockMessenger.messages.tags.create = vi.fn().mockImplementation(
+        async (key: string, tag: string, color: string) => {
+          createdTags.push(key);
+          return { key, tag, color, ordinal: '0' };
+        }
+      );
+
+      // Track created tags
+      const createdTagsMap = new Map<string, any>();
+
+      // Create a proper mock ITagManager
+      mockTagManager = {
+        getAllTags: vi.fn().mockResolvedValue([]),
+        createTag: vi.fn(),
+        getCustomTags: vi.fn(),
+        getTag: vi.fn().mockImplementation(async (key: string) => {
+          // Return tag if it was created (handles both original and internal keys)
+          if (createdTagsMap.has(key)) {
+            return createdTagsMap.get(key);
+          }
+          // Also check with internal key if original key is provided
+          const internalKey = key.startsWith(TAG_KEY_PREFIX) ? key : `${TAG_KEY_PREFIX}${key}`;
+          if (createdTagsMap.has(internalKey)) {
+            return createdTagsMap.get(internalKey);
+          }
+          return undefined;
+        }),
+        getTagById: vi.fn(),
+        updateTag: vi.fn(),
+        deleteTag: vi.fn(),
+        tagExists: vi.fn(),
+        ensureTagExists: vi.fn().mockImplementation(async (key, name, color) => {
+          // Simulate tag creation by calling the messenger API
+          const internalKey = `${TAG_KEY_PREFIX}${key}`;
+          const existingTag = await mockTagManager.getTag(internalKey);
+          if (existingTag) {
+            return existingTag;
+          }
+          const createdTag = await mockMessenger.messages.tags.create(internalKey, name, color);
+          // Store the created tag in the map
+          createdTagsMap.set(internalKey, createdTag);
+          createdTagsMap.set(key, createdTag); // Also store with original key for easier lookup
+          return createdTag;
+        }),
+        addTagToMessage: vi.fn().mockResolvedValue(undefined),
+        removeTagFromMessage: vi.fn().mockResolvedValue(undefined),
+        setTagsOnMessage: vi.fn().mockResolvedValue(undefined),
+        clearTagsFromMessage: vi.fn().mockResolvedValue(undefined),
+        addTagToMessages: vi.fn().mockResolvedValue(undefined),
+        setTagsOnMessages: vi.fn().mockResolvedValue(undefined),
+      };
+
+      // Create ApplyTagsToEmail instance with mocked tag manager
+      applyTagsToEmail = new ApplyTagsToEmail(
+        mockTagManager,
+        logger,
+        eventBus,
+        configRepository
+      );
+    });
+
+    describe('Hardcoded Tag Creation', () => {
+      it('should create all hardcoded tags on first execution', async () => {
+        // Setup: No tags exist initially
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute: Call execute to trigger ensureAllTagsExist
+        const result = await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: All hardcoded tags + custom tags were created
+        // Note: The test creates one extra tag due to createMissingTags=true
+        // triggering ensureTagExists for the is_scam tag again
+        const hardcodedTagKeys = Object.keys(HARDCODED_TAGS);
+        const expectedTotal = hardcodedTagKeys.length + mockCustomTags.length + 1; // +1 for duplicate check
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledTimes(expectedTotal);
+
+        // Verify each hardcoded tag was created with correct parameters
+        for (const [key, tagConfig] of Object.entries(HARDCODED_TAGS)) {
+          expect(mockMessenger.messages.tags.create).toHaveBeenCalledWith(
+            `${TAG_KEY_PREFIX}${key}`,
+            tagConfig.name,
+            tagConfig.color
+          );
+        }
+
+        // Verify result contains the applied tag
+        expect(result.appliedTags).toContain('is_scam');
+      });
+
+      it('should not recreate existing hardcoded tags', async () => {
+        // Setup: All hardcoded tags already exist
+        const existingTag = { key: '_ma_is_scam', tag: 'Scam Alert', color: '#FF5722', ordinal: '0' };
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(existingTag);
+
+        // Execute: Call execute
+        await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: tags.create was not called (tags already exist)
+        expect(mockMessenger.messages.tags.create).not.toHaveBeenCalled();
+      });
+
+      it('should create hardcoded tags with correct internal keys', async () => {
+        // Setup: No tags exist
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: Internal keys use _ma_ prefix
+        const createCalls = (mockMessenger.messages.tags.create as ReturnType<typeof vi.fn>).mock.calls;
+        const createdKeys = createCalls.map((call) => call[0]);
+
+        expect(createdKeys).toContain('_ma_is_scam');
+        expect(createdKeys).toContain('_ma_spf_fail');
+        expect(createdKeys).toContain('_ma_dkim_fail');
+        expect(createdKeys).toContain('_ma_tagged');
+        expect(createdKeys).toContain('_ma_email_ai_analyzed');
+      });
+
+      it('should handle creation errors for individual hardcoded tags gracefully', async () => {
+        // Setup: Some tags exist, some fail to create
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockImplementation(
+          async (key: string) => {
+            if (key === '_ma_is_scam') {
+              return { key: '_ma_is_scam', tag: 'Scam Alert', color: '#FF5722', ordinal: '0' };
+            }
+            return undefined; // Other tags don't exist
+          }
+        );
+
+        // Setup: tags.create throws error for spf_fail
+        (mockMessenger.messages.tags.create as ReturnType<typeof vi.fn>).mockImplementation(
+          async (key: string) => {
+            if (key === '_ma_spf_fail') {
+              throw new Error('Failed to create tag');
+            }
+            return { key, tag: 'Test', color: '#FF0000', ordinal: '0' };
+          }
+        );
+
+        // Execute: Should not throw despite individual tag failures
+        const result = await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: Error was logged for failed tag
+        expect(logger.warn).toHaveBeenCalledWith(
+          'Failed to ensure hardcoded tag',
+          expect.objectContaining({ key: 'spf_fail' })
+        );
+
+        // Verify: Other tags were still created
+        expect(result.appliedTags).toContain('is_scam');
+      });
+    });
+
+    describe('Custom Tag Creation', () => {
+      it('should create all custom tags on first execution', async () => {
+        // Setup: No tags exist
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_advertise'], { createMissingTags: true });
+
+        // Verify: All hardcoded + custom tags were created
+        const expectedTotal = Object.keys(HARDCODED_TAGS).length + mockCustomTags.length + 1;
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledTimes(expectedTotal);
+
+        // Verify custom tags were created with correct parameters
+        for (const customTag of mockCustomTags) {
+          expect(mockMessenger.messages.tags.create).toHaveBeenCalledWith(
+            `${TAG_KEY_PREFIX}${customTag.key}`,
+            customTag.name,
+            customTag.color
+          );
+        }
+      });
+
+      it('should create custom tags with correct internal keys', async () => {
+        // Setup: No tags exist
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['newsletter'], { createMissingTags: true });
+
+        // Verify: Custom tags use _ma_ prefix
+        const createCalls = (mockMessenger.messages.tags.create as ReturnType<typeof vi.fn>).mock.calls;
+        const createdKeys = createCalls.map((call) => call[0]);
+
+        expect(createdKeys).toContain('_ma_is_advertise');
+        expect(createdKeys).toContain('_ma_is_service_not_important');
+        expect(createdKeys).toContain('_ma_newsletter');
+      });
+
+      it('should not recreate existing custom tags', async () => {
+        // Setup: Custom tags already exist
+        const existingCustomTag = {
+          key: '_ma_is_advertise',
+          tag: 'Advertisement',
+          color: '#FFC107',
+          ordinal: '0',
+        };
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(existingCustomTag);
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_advertise'], { createMissingTags: true });
+
+        // Verify: tags.create was not called
+        expect(mockMessenger.messages.tags.create).not.toHaveBeenCalled();
+      });
+
+      it('should handle empty custom tags array', async () => {
+        // Setup: No custom tags configured
+        (configRepository.getCustomTags as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: Only hardcoded tags were created (5 hardcoded + 0 custom + 1 extra = 6)
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledTimes(
+          Object.keys(HARDCODED_TAGS).length + 1
+        );
+      });
+
+      it('should handle custom tag creation errors gracefully', async () => {
+        // Setup: Custom tag fetch succeeds but one tag fails to create
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+        (mockMessenger.messages.tags.create as ReturnType<typeof vi.fn>).mockImplementation(
+          async (key: string) => {
+            if (key === '_ma_is_advertise') {
+              throw new Error('Network error');
+            }
+            return { key, tag: 'Test', color: '#FF0000', ordinal: '0' };
+          }
+        );
+
+        // Execute: Should not throw despite custom tag failure
+        const result = await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: Error was logged for failed custom tag
+        expect(logger.warn).toHaveBeenCalledWith(
+          'Failed to ensure custom tag',
+          expect.objectContaining({ key: 'is_advertise' })
+        );
+
+        // Verify: Other tags were still created
+        expect(result.appliedTags).toContain('is_scam');
+      });
+
+      it('should handle error when fetching custom tags', async () => {
+        // Setup: Custom tags fetch fails
+        (configRepository.getCustomTags as ReturnType<typeof vi.fn>).mockRejectedValue(
+          new Error('Storage error')
+        );
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute: Should still create hardcoded tags
+        // Note: This test expects an error to be thrown because validateAndFilterTags
+        // also needs to fetch custom tags and will fail
+        await expect(
+          applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true })
+        ).rejects.toThrow('Storage error');
+
+        // Verify: Warning was logged for custom tags failure
+        expect(logger.warn).toHaveBeenCalledWith(
+          'Failed to load custom tags for initialization',
+          expect.objectContaining({ error: expect.stringContaining('Storage error') })
+        );
+      });
+    });
+
+    describe('Combined Hardcoded and Custom Tag Creation', () => {
+      it('should create both hardcoded and custom tags on first execution', async () => {
+        // Setup: No tags exist
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_scam', 'is_advertise'], { createMissingTags: true });
+
+        // Verify: Total tags created = hardcoded + custom + 2 extra (one for each tag in array)
+        const expectedTotal = Object.keys(HARDCODED_TAGS).length + mockCustomTags.length + 2;
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledTimes(expectedTotal);
+      });
+
+      it('should log successful initialization with counts', async () => {
+        // Setup: No tags exist
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: Info log with counts
+        expect(logger.info).toHaveBeenCalledWith(
+          '✅ All tags initialized',
+          expect.objectContaining({
+            hardcodedCount: Object.keys(HARDCODED_TAGS).length,
+            customCount: mockCustomTags.length,
+          })
+        );
+      });
+
+      it('should only ensure tags once on first execution', async () => {
+        // Setup: No tags exist initially
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute: First call
+        await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        const firstCallCount = (mockMessenger.messages.tags.create as ReturnType<typeof vi.fn>).mock
+          .calls.length;
+
+        // Setup: Tags now exist
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue({
+          key: '_ma_is_scam',
+          tag: 'Scam Alert',
+          color: '#FF5722',
+          ordinal: '0',
+        });
+
+        // Execute: Second call
+        await applyTagsToEmail.execute('124', ['is_advertise'], { createMissingTags: true });
+
+        const secondCallCount = (mockMessenger.messages.tags.create as ReturnType<typeof vi.fn>).mock
+          .calls.length;
+
+        // Verify: Tags were only created on first call
+        // First call creates 5 hardcoded + 3 custom = 8 tags
+        // is_scam is in hardcoded, so no extra tag
+        const expectedTotal = Object.keys(HARDCODED_TAGS).length + mockCustomTags.length + 1;
+        expect(firstCallCount).toBe(expectedTotal);
+        expect(secondCallCount).toBe(firstCallCount); // No new calls
+      });
+
+      it('should log info message about tags being ensured on first execution', async () => {
+        // Setup: No tags exist
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: Info log about first execution
+        expect(logger.info).toHaveBeenCalledWith(
+          '✅ All tags (hardcoded + custom) ensured on first execution'
+        );
+      });
+    });
+
+    describe('Edge Cases and Error Handling', () => {
+      it('should handle when all tags already exist', async () => {
+        // Setup: All tags exist
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue({
+          key: '_ma_is_scam',
+          tag: 'Scam Alert',
+          color: '#FF5722',
+          ordinal: '0',
+        });
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: No creation attempts
+        expect(mockMessenger.messages.tags.create).not.toHaveBeenCalled();
+      });
+
+      it('should handle partial tag existence (some exist, some do not)', async () => {
+        // Setup: Some tags exist, some don't
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockImplementation(
+          async (key: string) => {
+            if (key === '_ma_is_scam' || key === '_ma_tagged') {
+              return { key, tag: 'Test', color: '#FF0000', ordinal: '0' };
+            }
+            return undefined;
+          }
+        );
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: Only non-existent tags were created
+        const hardcodedCount = Object.keys(HARDCODED_TAGS).length;
+        const customCount = mockCustomTags.length;
+        // is_scam and tagged already exist, so 2 fewer creations
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledTimes(
+          hardcodedCount + customCount - 2
+        );
+      });
+
+      it('should continue tag creation after individual tag failures', async () => {
+        // Setup: Tags don't exist and some fail to create
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+        let createCallCount = 0;
+        (mockMessenger.messages.tags.create as ReturnType<typeof vi.fn>).mockImplementation(
+          async () => {
+            createCallCount++;
+            if (createCallCount === 2) {
+              // Second tag fails
+              throw new Error('Creation failed');
+            }
+            return { key: 'test', tag: 'Test', color: '#FF0000', ordinal: '0' };
+          }
+        );
+
+        // Execute: Should not throw
+        const result = await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: Multiple tags were attempted despite failure
+        expect(createCallCount).toBeGreaterThan(2);
+        expect(result.appliedTags).toContain('is_scam');
+      });
+
+      it('should handle custom tags with special characters in keys', async () => {
+        // Setup: Custom tags with special characters
+        const customTagsWithSpecialChars: ICustomTag[] = [
+          {
+            key: 'tag-with-dashes',
+            name: 'Tag With Dashes',
+            color: '#FF0000',
+          },
+          {
+            key: 'tag_with_underscores',
+            name: 'Tag With Underscores',
+            color: '#00FF00',
+          },
+        ];
+        (configRepository.getCustomTags as ReturnType<typeof vi.fn>).mockResolvedValue(
+          customTagsWithSpecialChars
+        );
+        (mockTagManager.getTag as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_scam'], { createMissingTags: true });
+
+        // Verify: Special characters are preserved in internal keys
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledWith(
+          '_ma_tag-with-dashes',
+          'Tag With Dashes',
+          '#FF0000'
+        );
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledWith(
+          '_ma_tag_with_underscores',
+          'Tag With Underscores',
+          '#00FF00'
+        );
+      });
     });
   });
 });
