@@ -19,6 +19,7 @@ import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { AnalyzeEmail } from './AnalyzeEmail';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
+import { EmailAnalysisTracker } from '../services/EmailAnalysisTracker';
 
 // ============================================================================
 // Type Definitions
@@ -151,6 +152,7 @@ export class AnalyzeBatchEmails {
   private readonly queue: IQueue;
   private readonly logger: ILogger;
   private readonly configRepository: IConfigRepository;
+  private readonly emailAnalysisTracker: EmailAnalysisTracker;
 
   // Batch state
   private isProcessing = false;
@@ -172,12 +174,14 @@ export class AnalyzeBatchEmails {
     @inject(AnalyzeEmail) analyzeEmail: AnalyzeEmail,
     @inject('IQueue') queue: IQueue,
     @inject('ILogger') logger: ILogger,
-    @inject('IConfigRepository') configRepository: IConfigRepository
+    @inject('IConfigRepository') configRepository: IConfigRepository,
+    @inject(EmailAnalysisTracker) emailAnalysisTracker: EmailAnalysisTracker
   ) {
     this.analyzeEmail = analyzeEmail;
     this.queue = queue;
     this.logger = logger;
     this.configRepository = configRepository;
+    this.emailAnalysisTracker = emailAnalysisTracker;
     this.logger.debug('AnalyzeBatchEmails use case initialized');
   }
 
