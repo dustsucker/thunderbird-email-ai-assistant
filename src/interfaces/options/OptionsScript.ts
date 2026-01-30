@@ -37,6 +37,7 @@ import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { TagService } from '@/domain/services/TagService';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
 import { RateLimiterService } from '@/application/services/RateLimiterService';
+import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 
 // ============================================================================
 // Use Cases
@@ -231,6 +232,7 @@ class OptionsScript {
     container.registerSingleton('TagService', TagService);
     container.registerSingleton('AppConfigService', AppConfigService);
     container.registerSingleton('RateLimiterService', RateLimiterService);
+    container.registerSingleton('EmailAnalysisTracker', EmailAnalysisTracker);
 
     startupLogger.info('Services registered');
 
