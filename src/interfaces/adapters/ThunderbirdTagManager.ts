@@ -151,6 +151,42 @@ export class ThunderbirdTagManager implements ITagManager {
     return tagKeyMap;
   }
 
+  /**
+   * Converts a single tag key to its internal Thunderbird key with _ma_ prefix.
+   *
+   * This method uses the dynamic tag key map for known tags (hardcoded + custom),
+   * and applies the _ma_ prefix as fallback for unknown tags.
+   *
+   * @param key - The tag key to convert (e.g., 'is_scam', 'is_advertise', 'unknown_tag')
+   * @returns The internal Thunderbird key (e.g., '_ma_is_scam', '_ma_is_advertise', '_ma_unknown_tag')
+   *
+   * @example
+   * ```typescript
+   * // Known tag (hardcoded or custom)
+   * const key1 = await tagManager.convertToInternalKey('is_scam');
+   * // Returns: '_ma_is_scam'
+   *
+   * // Unknown tag (fallback)
+   * const key2 = await tagManager.convertToInternalKey('unknown_tag');
+   * // Returns: '_ma_unknown_tag'
+   * ```
+   */
+  async convertToInternalKey(key: string): Promise<string> {
+    // Build dynamic tag key map
+    const tagKeyMap = await this.buildTagKeyMap();
+
+    // Check if key exists in dynamic map
+    if (tagKeyMap[key]) {
+      this.logger.debug('Converted tag key using dynamic map', { key, internalKey: tagKeyMap[key] });
+      return tagKeyMap[key];
+    }
+
+    // Fallback: apply _ma_ prefix for unknown tags
+    const internalKey = TAG_KEY_PREFIX + key;
+    this.logger.debug('Converted unknown tag key using fallback prefix', { key, internalKey });
+    return internalKey;
+  }
+
   // ==========================================================================
   // Read Tags
   // ==========================================================================

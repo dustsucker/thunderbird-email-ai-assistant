@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "010-confidence-score-display-and-threshold-configurati",
+  "spec": "011-tag-mapping-and-creation-fix",
   "state": "building",
   "subtasks": {
-    "completed": 10,
-    "total": 19,
+    "completed": 1,
+    "total": 14,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "",
-    "id": 0,
-    "total": 0
+    "current": "Dynamic Tag Mapping Infrastructure",
+    "id": null,
+    "total": 3
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 9,
-    "started_at": "2026-01-06T07:24:51.171271"
+    "number": 2,
+    "started_at": "2026-01-30T17:12:59.001053"
   },
-  "last_update": "2026-01-06T08:41:00.054069"
+  "last_update": "2026-01-30T17:15:45.387274"
 }

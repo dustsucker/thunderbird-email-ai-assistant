@@ -128,11 +128,23 @@
     "zsh"
   ],
   "stack_commands": [
+    "composer",
     "eslint",
+    "ipython",
+    "jupyter",
     "node",
+    "notebook",
     "npm",
     "npx",
+    "pdb",
+    "php",
+    "pip",
+    "pip3",
+    "pipx",
     "prettier",
+    "pudb",
+    "python",
+    "python3",
     "ts-node",
     "tsc",
     "tsx",
@@ -150,8 +162,10 @@
   "custom_commands": [],
   "detected_stack": {
     "languages": [
+      "python",
       "javascript",
-      "typescript"
+      "typescript",
+      "php"
     ],
     "package_managers": [
       "npm"
@@ -190,7 +204,8 @@
       "build.bash"
     ]
   },
-  "project_dir": "/home/titus/Projects/thunderbird-email-ai-assistant/.auto-claude/worktrees/tasks/010-confidence-score-display-and-threshold-configurati",
-  "created_at": "2026-01-05T20:04:29.727748",
-  "project_hash": "19a54413934b3b953e65f59ac7936a0f"
+  "project_dir": "/home/titus/Projects/thunderbird-email-ai-assistant",
+  "created_at": "2026-01-30T17:07:42.562442",
+  "project_hash": "7cf1bc7dff09c2f935bfc667d6f89752",
+  "inherited_from": "/home/titus/Projects/thunderbird-email-ai-assistant"
 }
