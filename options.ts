@@ -1538,6 +1538,7 @@ async function loadCustomTags(): Promise<CustomTags> {
 async function saveCustomTags(customTags: CustomTags): Promise<void> {
   try {
     await messenger.storage.local.set({ customTags });
+    await ensureTagsExist();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Error saving custom tags', { error: errorMessage });
