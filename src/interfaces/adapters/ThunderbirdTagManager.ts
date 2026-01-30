@@ -655,7 +655,7 @@ export class ThunderbirdTagManager implements ITagManager {
 
     try {
       // Convert defined key to internal key (with _ma_ prefix) for checking
-      const internalKey = TAG_KEY_MAP[key] || key;
+      const internalKey = await this.convertToInternalKey(key);
 
       // Check if tag already exists
       const existingTag = await this.getTag(internalKey);
@@ -702,7 +702,7 @@ export class ThunderbirdTagManager implements ITagManager {
 
     try {
       // Convert defined key to internal key (with _ma_ prefix)
-      const internalKey = TAG_KEY_MAP[tagKey] || tagKey;
+      const internalKey = await this.convertToInternalKey(tagKey);
 
       // Verify tag exists
       const tagExists = await this.tagExists(internalKey);
