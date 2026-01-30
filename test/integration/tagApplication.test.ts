@@ -27,6 +27,7 @@ import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 import { EventBus } from '@/domain/events/EventBus';
 import type { Tag } from '@/shared/types/ProviderTypes';
+import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 
 /**
  * NOTE: This test file must be run as part of the full test suite (npm test)
@@ -47,6 +48,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
   let contentExtractor: EmailContentExtractor;
   let eventBus: EventBus;
   let configRepository: IConfigRepository;
+  let analysisTracker: EmailAnalysisTracker;
   let analyzeEmail: AnalyzeEmail;
   let mockProvider: IProvider;
 
@@ -216,6 +218,14 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
     // Create real EmailContentExtractor
     contentExtractor = new EmailContentExtractor(logger);
 
+    // Mock EmailAnalysisTracker
+    analysisTracker = {
+      wasAnalyzed: vi.fn().mockResolvedValue(false),
+      markAnalyzed: vi.fn().mockResolvedValue(undefined),
+      clearAnalysis: vi.fn().mockResolvedValue(undefined),
+      getAnalyzedCount: vi.fn().mockResolvedValue(0),
+    } as unknown as EmailAnalysisTracker;
+
     // Create AnalyzeEmail use case instance
     analyzeEmail = new AnalyzeEmail(
       mailReader,
@@ -226,7 +236,8 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       contentExtractor,
       eventBus,
       configRepository,
-      queue
+      queue,
+      analysisTracker
     );
   });
 

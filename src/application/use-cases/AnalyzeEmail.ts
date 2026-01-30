@@ -260,6 +260,19 @@ export class AnalyzeEmail {
               lowConfidenceFlagCount: lowConfidenceFlags.length,
             });
 
+            // Mark email as analyzed
+            try {
+              await this.analysisTracker.markAnalyzed(messageIdNum);
+              this.logger.debug('✅ Email marked as analyzed', { messageId });
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              this.logger.warn('⚠️  Failed to mark email as analyzed', {
+                messageId,
+                error: errorMessage,
+              });
+              // Non-fatal error, continue execution
+            }
+
             // Store low-confidence flags from cache
             if (lowConfidenceFlags.length > 0) {
               await this.storeLowConfidenceFlags(cacheKey, lowConfidenceFlags);
@@ -336,6 +349,19 @@ export class AnalyzeEmail {
         this.logger.debug('✅ Step 9 complete: Tags applied', {
           lowConfidenceFlagCount: lowConfidenceFlags.length,
         });
+
+        // Mark email as analyzed
+        try {
+          await this.analysisTracker.markAnalyzed(messageIdNum);
+          this.logger.debug('✅ Email marked as analyzed', { messageId });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          this.logger.warn('⚠️  Failed to mark email as analyzed', {
+            messageId,
+            error: errorMessage,
+          });
+          // Non-fatal error, continue execution
+        }
       } else {
         this.logger.debug('⏭️  Skipping tag application (applyTags=false)');
       }

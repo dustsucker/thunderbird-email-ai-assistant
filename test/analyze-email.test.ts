@@ -10,6 +10,7 @@ import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 import { EventBus } from '@/domain/events/EventBus';
+import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 
 describe('AnalyzeEmail - Logging Tests', () => {
   let logger: ILogger;
@@ -21,6 +22,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
   let contentExtractor: EmailContentExtractor;
   let eventBus: EventBus;
   let configRepository: IConfigRepository;
+  let analysisTracker: EmailAnalysisTracker;
   let analyzeEmail: AnalyzeEmail;
 
   const mockEmail: IEmailMessage = {
@@ -161,6 +163,13 @@ describe('AnalyzeEmail - Logging Tests', () => {
       }),
     };
 
+    analysisTracker = {
+      wasAnalyzed: vi.fn().mockResolvedValue(false),
+      markAnalyzed: vi.fn().mockResolvedValue(undefined),
+      clearAnalysis: vi.fn().mockResolvedValue(undefined),
+      getAnalyzedCount: vi.fn().mockResolvedValue(0),
+    } as unknown as EmailAnalysisTracker;
+
     analyzeEmail = new AnalyzeEmail(
       mailReader,
       tagManager,
@@ -170,7 +179,8 @@ describe('AnalyzeEmail - Logging Tests', () => {
       contentExtractor,
       eventBus,
       configRepository,
-      queue
+      queue,
+      analysisTracker
     );
   });
 
