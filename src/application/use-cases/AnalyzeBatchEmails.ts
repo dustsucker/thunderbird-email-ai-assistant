@@ -552,6 +552,13 @@ export class AnalyzeBatchEmails {
     });
 
     try {
+      // Check if email was already analyzed
+      const messageIdNum = parseInt(messageId, 10);
+      if (await this.emailAnalysisTracker.wasAnalyzed(messageIdNum)) {
+        this.logger.info('⏭️  Skipping already-analyzed email', { messageId });
+        return;
+      }
+
       // Analyze the email
       this.logger.debug('➡️  Calling analyzeEmail.execute()');
       const result = await this.analyzeEmail.execute(messageId, providerSettings);
