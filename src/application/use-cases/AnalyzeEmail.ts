@@ -197,6 +197,23 @@ export class AnalyzeEmail {
     });
 
     try {
+      // Check if email was already analyzed (skip if header exists)
+      this.logger.debug('🔍 Checking if email was already analyzed');
+      const messageIdNum = parseInt(messageId, 10);
+      if (isNaN(messageIdNum)) {
+        throw new Error(`Invalid message ID: ${messageId}`);
+      }
+
+      const wasAnalyzed = await this.analysisTracker.wasAnalyzed(messageIdNum);
+      if (wasAnalyzed) {
+        this.logger.info('⏭️ Skipping already-analyzed email', { messageId });
+        return {
+          tags: [],
+          confidence: 0,
+          reasoning: '',
+        };
+      }
+
       // Step 1: Retrieve email from Thunderbird
       this.logger.debug('➡️  Step 1: Retrieving email from Thunderbird');
       const email = await this.retrieveEmail(messageId);
