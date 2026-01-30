@@ -246,6 +246,9 @@ class BackgroundScript {
       this.logger = container.resolve<ILogger>('ILogger');
       this.logger.info('Background script initialization started');
 
+      // Step 2.5: Ensuring all custom tags exist
+      await ensureTagsExist();
+
       // Step 3: Resolve background services
       this.eventListener = container.resolve<EmailEventListener>(EmailEventListener);
       this.messageHandler = container.resolve<MessageHandler>(MessageHandler);
