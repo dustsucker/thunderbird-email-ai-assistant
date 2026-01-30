@@ -202,9 +202,18 @@ export class EmailAnalysisTracker {
         throw new Error('messenger API not available');
       }
 
-      // TODO: Implementation will be added in subtask-2-3
-      // For now, log as stub
-      this.logger.debug('markAnalyzed() not yet implemented', { messageId });
+      // Attempt to write header via modifyPermanent API
+      const headerWriteSuccess = await this.tryWriteHeader(messenger, messageId);
+
+      if (headerWriteSuccess) {
+        this.logger.info('✅ Email marked as analyzed via header', { messageId });
+        return;
+      }
+
+      // Fallback to storage.local if header write failed
+      this.logger.debug('Header write failed, using fallback storage', { messageId });
+      await this.writeToFallbackStorage(messenger, messageId);
+      this.logger.info('✅ Email marked as analyzed via fallback storage', { messageId });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('❌ Failed to mark email as analyzed', {
@@ -241,5 +250,73 @@ export class EmailAnalysisTracker {
    */
   private getStorageKey(messageId: number): string {
     return `${STORAGE_KEY_PREFIX}${messageId}`;
+  }
+
+  /**
+   * Attempts to write the X-AI-Analyzed header via modifyPermanent API.
+   *
+   * @param messenger - Messenger API instance
+   * @param messageId - Thunderbird message ID
+   * @returns Promise resolving to true if header write succeeded
+   */
+  private async tryWriteHeader(
+    messenger: MessengerWithModify,
+    messageId: number
+  ): Promise<boolean> {
+    this.logger.debug('Attempting to write analysis header', { messageId });
+
+    try {
+      // Check if modifyPermanent API is available
+      if (!messenger.messages.modifyPermanent) {
+        this.logger.debug('modifyPermanent API not available', { messageId });
+        return false;
+      }
+
+      // Attempt to write the header
+      await messenger.messages.modifyPermanent(messageId, {
+        headers: {
+          [ANALYSIS_HEADER_NAME]: ANALYSIS_HEADER_VALUE,
+        },
+      });
+
+      this.logger.debug('Analysis header written successfully', { messageId });
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.debug('Failed to write analysis header', {
+        messageId,
+        error: errorMessage,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Writes the analysis status to fallback storage.local.
+   *
+   * @param messenger - Messenger API instance
+   * @param messageId - Thunderbird message ID
+   * @returns Promise that resolves when the write is complete
+   * @throws {Error} If storage write fails
+   */
+  private async writeToFallbackStorage(
+    messenger: MessengerWithModify,
+    messageId: number
+  ): Promise<void> {
+    this.logger.debug('Writing to fallback storage', { messageId });
+
+    try {
+      const storageKey = this.getStorageKey(messageId);
+      await messenger.storage.local.set({ [storageKey]: ANALYSIS_HEADER_VALUE });
+
+      this.logger.debug('Fallback storage write successful', { messageId, storageKey });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to write to fallback storage', {
+        messageId,
+        error: errorMessage,
+      });
+      throw new Error(`Failed to write to fallback storage: ${errorMessage}`);
+    }
   }
 }
