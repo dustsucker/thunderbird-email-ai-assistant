@@ -1081,4 +1081,483 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
       });
     });
   });
+
+  // ==========================================================================
+  // Test Suite 8: Integration - Tag Application Flow with Custom Tags
+  // ==========================================================================
+
+  describe('Integration - Tag Application Flow with Custom Tags', () => {
+    let applyTagsToEmail: ApplyTagsToEmail;
+    let eventBus: EventBus;
+    let mockTagManager: ITagManager;
+    let existingTags: Map<string, any>;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+
+      // Track existing tags
+      existingTags = new Map();
+
+      // Mock EventBus
+      eventBus = {
+        publish: vi.fn().mockResolvedValue(undefined),
+        subscribe: vi.fn(),
+        unsubscribe: vi.fn(),
+      } as unknown as EventBus;
+
+      // Mock messenger API
+      mockMessenger.messages.listTags = vi.fn().mockResolvedValue([]);
+      mockMessenger.messages.tags.create = vi.fn().mockImplementation(
+        async (key: string, tag: string, color: string) => {
+          const createdTag = { key, tag, color, ordinal: '0' };
+          existingTags.set(key, createdTag);
+          return createdTag;
+        }
+      );
+      mockMessenger.messages.addTags = vi.fn().mockResolvedValue(undefined);
+
+      // Create a proper mock ITagManager
+      mockTagManager = {
+        getAllTags: vi.fn().mockResolvedValue([]),
+        createTag: vi.fn(),
+        getCustomTags: vi.fn(),
+        getTag: vi.fn().mockImplementation(async (key: string) => {
+          // Try to get by key as-is first (for internal key lookups)
+          if (existingTags.has(key)) {
+            return existingTags.get(key);
+          }
+          // Try with internal key prefix (for original key lookups)
+          const internalKey = key.startsWith(TAG_KEY_PREFIX) ? key : `${TAG_KEY_PREFIX}${key}`;
+          if (existingTags.has(internalKey)) {
+            return existingTags.get(internalKey);
+          }
+          // Not found
+          return undefined;
+        }),
+        getTagById: vi.fn(),
+        updateTag: vi.fn(),
+        deleteTag: vi.fn(),
+        tagExists: vi.fn().mockImplementation(async (key: string) => {
+          // Check if tag exists (handles both original and internal keys)
+          if (existingTags.has(key)) {
+            return true;
+          }
+          const internalKey = key.startsWith(TAG_KEY_PREFIX) ? key : `${TAG_KEY_PREFIX}${key}`;
+          return existingTags.has(internalKey);
+        }),
+        ensureTagExists: vi.fn().mockImplementation(async (key, name, color) => {
+          const internalKey = `${TAG_KEY_PREFIX}${key}`;
+          // Check if already exists (using getTag which handles both key types)
+          const existing = await mockTagManager.getTag(key);
+          if (existing) {
+            return existing;
+          }
+          // Create new tag
+          const created = await mockMessenger.messages.tags.create(internalKey, name, color);
+          existingTags.set(internalKey, created);
+          existingTags.set(key, created); // Also store with original key for easier lookup
+          return created;
+        }),
+        addTagToMessage: vi.fn().mockResolvedValue(undefined),
+        removeTagFromMessage: vi.fn().mockResolvedValue(undefined),
+        setTagsOnMessage: vi.fn().mockImplementation(async (messageId: number, tagKeys: string[]) => {
+          // Convert tag keys to internal keys
+          const internalKeys = tagKeys.map((key) => {
+            return key.startsWith(TAG_KEY_PREFIX) ? key : `${TAG_KEY_PREFIX}${key}`;
+          });
+
+          // Apply tags via messenger API
+          await mockMessenger.messages.addTags(messageId, internalKeys);
+
+          // Return success (actual implementation doesn't return anything)
+          return undefined;
+        }),
+        clearTagsFromMessage: vi.fn().mockResolvedValue(undefined),
+        addTagToMessages: vi.fn().mockResolvedValue(undefined),
+        setTagsOnMessages: vi.fn().mockResolvedValue(undefined),
+      };
+
+      // Create ApplyTagsToEmail instance
+      applyTagsToEmail = new ApplyTagsToEmail(
+        mockTagManager,
+        logger,
+        eventBus,
+        configRepository
+      );
+    });
+
+    describe('Custom Tag Application Flow', () => {
+      it('should apply custom tags using correct internal keys', async () => {
+        // Execute: Apply custom tags (ensureAllTagsExist will create them on first run)
+        const result = await applyTagsToEmail.execute('123', ['is_advertise', 'newsletter'], {
+          createMissingTags: false,
+        });
+
+        // Verify: Tags were applied with correct internal keys
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(
+          123,
+          ['_ma_is_advertise', '_ma_newsletter']
+        );
+
+        // Verify: Result includes applied tags
+        expect(result.appliedTags).toEqual(['is_advertise', 'newsletter']);
+      });
+
+      it('should create custom tags if they do not exist and createMissingTags is true', async () => {
+        // Note: ensureAllTagsExist already creates all custom tags on first run
+        // This test verifies the behavior when createMissingTags is explicitly true
+
+        // Execute: Apply custom tags with auto-create (they will be created by ensureAllTagsExist)
+        const result = await applyTagsToEmail.execute('123', ['is_advertise', 'newsletter'], {
+          createMissingTags: true,
+        });
+
+        // Verify: Custom tags were created by ensureAllTagsExist
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledWith(
+          '_ma_is_advertise',
+          'Advertisement',
+          '#FFC107'
+        );
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledWith(
+          '_ma_newsletter',
+          'Newsletter',
+          '#2196F3'
+        );
+
+        // Verify: Tags were applied after creation
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(
+          123,
+          ['_ma_is_advertise', '_ma_newsletter']
+        );
+
+        // Verify: Result indicates success
+        expect(result.appliedTags).toEqual(['is_advertise', 'newsletter']);
+      });
+
+      it('should apply mix of hardcoded and custom tags in single operation', async () => {
+        // Execute: Apply mix of hardcoded and custom tags (ensureAllTagsExist creates all)
+        const result = await applyTagsToEmail.execute(
+          '123',
+          ['is_scam', 'is_advertise', 'tagged'],
+          { createMissingTags: false }
+        );
+
+        // Verify: All tags applied with correct internal keys
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(
+          123,
+          ['_ma_is_scam', '_ma_is_advertise', '_ma_tagged']
+        );
+
+        // Verify: All tags in result
+        expect(result.appliedTags).toEqual(['is_scam', 'is_advertise', 'tagged']);
+      });
+
+      it('should filter out invalid tags not defined in HARDCODED_TAGS or custom tags', async () => {
+        // Execute: Try to apply valid and invalid tags
+        const result = await applyTagsToEmail.execute(
+          '123',
+          ['is_advertise', 'undefined_tag_xyz'],
+          { createMissingTags: false }
+        );
+
+        // Verify: Only valid tag was applied, invalid was filtered out
+        expect(result.appliedTags).toEqual(['is_advertise']);
+        expect(result.skippedTags).toEqual(['undefined_tag_xyz']);
+
+        // Verify: Only valid tag was sent to messenger API
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, ['_ma_is_advertise']);
+      });
+
+      it('should filter out empty tag keys', async () => {
+        // Execute: Try to apply empty tag key
+        const result = await applyTagsToEmail.execute('123', [''], {
+          createMissingTags: false,
+        });
+
+        // Verify: Empty tag was filtered out
+        expect(result.appliedTags).toEqual([]);
+        expect(result.skippedTags).toEqual(['']);
+
+        // Verify: addTags was called with empty array (implementation still calls it)
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, []);
+      });
+    });
+
+    describe('Tag Key Mapping in Application Flow', () => {
+      it('should correctly map custom tag keys during application', async () => {
+        // Execute: Apply using original key (ensureAllTagsExist creates all tags)
+        const result = await applyTagsToEmail.execute(
+          '123',
+          ['is_service_not_important'],
+          { createMissingTags: false }
+        );
+
+        // Verify: Applied using internal key
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(
+          123,
+          ['_ma_is_service_not_important']
+        );
+        expect(result.appliedTags).toEqual(['is_service_not_important']);
+      });
+
+      it('should handle custom tag with underscore in key', async () => {
+        // Mock custom tags with underscore
+        const customTagsWithUnderscore: ICustomTag[] = [
+          {
+            key: 'my_custom_tag',
+            name: 'My Custom Tag',
+            color: '#FF0000',
+            prompt: 'Test custom tag',
+          },
+        ];
+        (configRepository.getCustomTags as ReturnType<typeof vi.fn>).mockResolvedValue(
+          customTagsWithUnderscore
+        );
+
+        // Execute
+        const result = await applyTagsToEmail.execute('123', ['my_custom_tag'], {
+          createMissingTags: false,
+        });
+
+        // Verify: Correct mapping
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, ['_ma_my_custom_tag']);
+        expect(result.appliedTags).toEqual(['my_custom_tag']);
+      });
+
+      it('should apply tags using original keys in result regardless of internal mapping', async () => {
+        // Execute
+        const result = await applyTagsToEmail.execute('123', ['is_advertise', 'newsletter'], {
+          createMissingTags: false,
+        });
+
+        // Verify: Result uses original keys, not internal keys
+        expect(result.appliedTags).toEqual(['is_advertise', 'newsletter']);
+        expect(result.appliedTags).not.toContain('_ma_is_advertise');
+        expect(result.appliedTags).not.toContain('_ma_newsletter');
+      });
+    });
+
+    describe('Error Handling in Application Flow', () => {
+      it('should handle tag application failure gracefully', async () => {
+        // Setup: addTags throws error
+        mockMessenger.messages.addTags = vi.fn().mockRejectedValue(new Error('API Error'));
+
+        // Execute: Should throw error (ApplyTagsToEmail propagates errors)
+        await expect(
+          applyTagsToEmail.execute('123', ['is_advertise'], {
+            createMissingTags: false,
+          })
+        ).rejects.toThrow('Failed to apply tags to message 123');
+
+        // Verify: Error logged
+        expect(logger.error).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to apply tags'),
+          expect.objectContaining({
+            messageId: '123',
+            error: expect.stringContaining('API Error'),
+          })
+        );
+      });
+
+      it('should throw error when tag application fails', async () => {
+        // Setup: addTags throws error
+        mockMessenger.messages.addTags = vi.fn().mockRejectedValue(new Error('Network Error'));
+
+        // Execute: Should throw error
+        await expect(
+          applyTagsToEmail.execute('123', ['is_advertise', 'newsletter'], {
+            createMissingTags: false,
+          })
+        ).rejects.toThrow('Failed to apply tags to message 123');
+      });
+
+      it('should handle duplicate tag keys gracefully', async () => {
+        // Execute: Apply duplicate tags
+        const result = await applyTagsToEmail.execute(
+          '123',
+          ['is_advertise', 'is_advertise'],
+          { createMissingTags: false }
+        );
+
+        // Verify: Duplicates are handled (deduplicated in result)
+        expect(mockMessenger.messages.addTags).toHaveBeenCalled();
+        expect(result.appliedTags).toContain('is_advertise');
+        // Note: Implementation may deduplicate, so we just verify the tag was applied
+      });
+    });
+
+    describe('Tag Creation and Application Combined Flow', () => {
+      it('should ensure all tags exist on first execution', async () => {
+        // Execute: First call ensures all hardcoded and custom tags
+        const result = await applyTagsToEmail.execute('123', ['is_advertise'], {
+          createMissingTags: false,
+        });
+
+        // Verify: All tags were created (check specific ones, order doesn't matter)
+        const createCalls = (mockMessenger.messages.tags.create as ReturnType<typeof vi.fn>).mock
+          .calls;
+        const createdKeys = createCalls.map((call) => call[0]);
+
+        // Check that hardcoded tags were created
+        expect(createdKeys).toContain('_ma_is_scam');
+        expect(createdKeys).toContain('_ma_spf_fail');
+        expect(createdKeys).toContain('_ma_dkim_fail');
+
+        // Check that custom tags were created
+        expect(createdKeys).toContain('_ma_is_advertise');
+        expect(createdKeys).toContain('_ma_newsletter');
+
+        // Verify: Tag applied
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, ['_ma_is_advertise']);
+        expect(result.appliedTags).toEqual(['is_advertise']);
+      });
+
+      it('should create multiple custom tags then apply all in same operation', async () => {
+        // Execute: Multiple custom tags
+        const result = await applyTagsToEmail.execute(
+          '123',
+          ['is_advertise', 'newsletter', 'is_service_not_important'],
+          { createMissingTags: false }
+        );
+
+        // Verify: All custom tags created by ensureAllTagsExist
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledWith(
+          '_ma_is_advertise',
+          'Advertisement',
+          '#FFC107'
+        );
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledWith(
+          '_ma_newsletter',
+          'Newsletter',
+          '#2196F3'
+        );
+        expect(mockMessenger.messages.tags.create).toHaveBeenCalledWith(
+          '_ma_is_service_not_important',
+          'Service Info',
+          '#9E9E9E'
+        );
+
+        // Verify: All applied
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(
+          123,
+          ['_ma_is_advertise', '_ma_newsletter', '_ma_is_service_not_important']
+        );
+
+        // Verify: Result
+        expect(result.appliedTags).toHaveLength(3);
+      });
+
+      it('should not recreate tags on subsequent executions', async () => {
+        // Execute: First call creates all tags
+        await applyTagsToEmail.execute('123', ['is_advertise'], { createMissingTags: false });
+
+        const firstCallCount = (mockMessenger.messages.tags.create as ReturnType<typeof vi.fn>).mock
+          .calls.length;
+
+        // Execute: Second call should not recreate tags
+        await applyTagsToEmail.execute('124', ['newsletter'], { createMissingTags: false });
+
+        const secondCallCount = (mockMessenger.messages.tags.create as ReturnType<typeof vi.fn>).mock
+          .calls.length;
+
+        // Verify: Tags only created on first call
+        expect(firstCallCount).toBeGreaterThan(0);
+        expect(secondCallCount).toBe(firstCallCount); // No new creations
+      });
+    });
+
+    describe('Event Publishing in Application Flow', () => {
+      it('should publish event when custom tags applied successfully', async () => {
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_advertise'], {
+          createMissingTags: false,
+        });
+
+        // Verify: Event published with correct structure
+        expect(eventBus.publish).toHaveBeenCalledWith(
+          expect.objectContaining({
+            eventType: 'TagApplied',
+            messageId: '123',
+            appliedTags: ['is_advertise'],
+          })
+        );
+      });
+
+      it('should publish event with both hardcoded and custom tags', async () => {
+        // Execute
+        await applyTagsToEmail.execute('123', ['is_scam', 'is_advertise'], {
+          createMissingTags: false,
+        });
+
+        // Verify: Event includes both tag types
+        expect(eventBus.publish).toHaveBeenCalledWith(
+          expect.objectContaining({
+            eventType: 'TagApplied',
+            appliedTags: ['is_scam', 'is_advertise'],
+          })
+        );
+      });
+
+      it('should publish event with skipped tags when invalid tags provided', async () => {
+        // Execute with valid and invalid tags
+        await applyTagsToEmail.execute('123', ['is_advertise', 'undefined_tag_xyz'], {
+          createMissingTags: false,
+        });
+
+        // Verify: Event includes applied and skipped tags
+        expect(eventBus.publish).toHaveBeenCalledWith(
+          expect.objectContaining({
+            eventType: 'TagApplied',
+            appliedTags: ['is_advertise'],
+            skippedTags: ['undefined_tag_xyz'],
+          })
+        );
+      });
+    });
+
+    describe('Performance and Efficiency', () => {
+      it('should handle large number of custom tags efficiently', async () => {
+        // Setup: Create many custom tags
+        const manyCustomTags: ICustomTag[] = [];
+        for (let i = 0; i < 50; i++) {
+          manyCustomTags.push({
+            key: `custom_tag_${i}`,
+            name: `Custom Tag ${i}`,
+            color: '#FF0000',
+            prompt: `Test prompt ${i}`,
+          });
+        }
+        (configRepository.getCustomTags as ReturnType<typeof vi.fn>).mockResolvedValue(
+          manyCustomTags
+        );
+
+        // Execute: Apply many tags (first call creates all, second call tests efficiency)
+        const tagKeys = manyCustomTags.map((tag) => tag.key).slice(0, 10); // Test with 10 tags
+        const startTime = Date.now();
+        const result = await applyTagsToEmail.execute('123', tagKeys, {
+          createMissingTags: false,
+        });
+        const endTime = Date.now();
+
+        // Verify: All tags applied
+        expect(result.appliedTags).toHaveLength(10);
+
+        // Verify: Completed in reasonable time (< 2 seconds)
+        expect(endTime - startTime).toBeLessThan(2000);
+      });
+
+      it('should batch tag operations efficiently', async () => {
+        // Execute: Apply multiple tags in single operation
+        const tagKeys = ['is_advertise', 'newsletter', 'is_service_not_important'];
+        await applyTagsToEmail.execute('123', tagKeys, { createMissingTags: false });
+
+        // Verify: Single batch call to addTags
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledTimes(1);
+        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(
+          123,
+          ['_ma_is_advertise', '_ma_newsletter', '_ma_is_service_not_important']
+        );
+      });
+    });
+  });
 });
