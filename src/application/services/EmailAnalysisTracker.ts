@@ -63,11 +63,15 @@ interface MessengerWithModify {
 }
 
 interface BrowserApi {
-  messenger?: MessengerWithModify;
+  browser?: {
+    messenger?: MessengerWithModify;
+  };
 }
 
 interface ChromeApi {
-  messenger?: MessengerWithModify;
+  chrome?: {
+    messenger?: MessengerWithModify;
+  };
 }
 
 // ============================================================================
@@ -148,10 +152,20 @@ export class EmailAnalysisTracker {
         throw new Error('messenger API not available');
       }
 
-      // TODO: Implementation will be added in subtask-2-2
-      // For now, return false as stub
-      this.logger.debug('wasAnalyzed() not yet implemented', { messageId });
-      return false;
+      // Retrieve full message to access headers
+      const fullMessage = await messenger.messages.getFull(messageId);
+
+      // Check if X-AI-Analyzed header exists and equals 'true'
+      const headerValues = fullMessage.headers[ANALYSIS_HEADER_NAME];
+      const hasAnalyzedHeader = headerValues?.length > 0 && headerValues[0] === ANALYSIS_HEADER_VALUE;
+
+      this.logger.debug('Analysis status check complete', {
+        messageId,
+        hasAnalyzedHeader,
+        headerPresent: headerValues?.length > 0,
+      });
+
+      return hasAnalyzedHeader;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('❌ Failed to check analysis status', {
