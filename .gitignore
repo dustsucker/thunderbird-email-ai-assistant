@@ -40,3 +40,9 @@ options.js
 # Test reports and worktrees
 .test-summary.md
 .worktrees/
+
+# Auto Claude generated files
+.auto-claude-security.json
+.auto-claude-status
+.security-key
+logs/security/
