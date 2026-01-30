@@ -3,23 +3,23 @@
   "spec": "015-fix-newly-created-tags-are-not-created-synced-in-t",
   "state": "building",
   "subtasks": {
-    "completed": 2,
+    "completed": 4,
     "total": 7,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Options Page Tag Synchronization",
+    "current": "Integration and Testing",
     "id": null,
-    "total": 1
+    "total": 3
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 3,
+    "number": 5,
     "started_at": "2026-01-30T20:20:43.093095"
   },
-  "last_update": "2026-01-30T20:24:12.192137"
+  "last_update": "2026-01-30T20:29:30.399744"
 }
