@@ -1,0 +1,2280 @@
+
+> spam_filter@1.0.0 test
+> vitest run
+
+[dotenv@17.2.3] injecting env (5) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+
+[1m[46m RUN [49m[22m [36mv4.0.16 [39m[90m/home/titus/Projects/thunderbird-email-ai-assistant/.auto-claude/worktrees/tasks/015-fix-newly-created-tags-are-not-created-synced-in-t[39m
+
+ [31m❯[39m test/interfaces/options/options-form-validation.test.ts [2m([22m[2m50 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 35[2mms[22m[39m
+       [32m✓[39m should accept valid threshold values (0-100)[32m 2[2mms[22m[39m
+       [32m✓[39m should reject values below 0[32m 0[2mms[22m[39m
+       [32m✓[39m should reject values above 100[32m 0[2mms[22m[39m
+       [32m✓[39m should reject non-integer values[32m 1[2mms[22m[39m
+       [32m✓[39m should reject NaN values[32m 0[2mms[22m[39m
+       [32m✓[39m should reject Infinity[32m 0[2mms[22m[39m
+       [32m✓[39m should parse valid integer input correctly[32m 0[2mms[22m[39m
+       [32m✓[39m should handle empty string as undefined[32m 0[2mms[22m[39m
+       [32m✓[39m should handle whitespace in input[32m 1[2mms[22m[39m
+       [32m✓[39m should reject decimal string input[32m 0[2mms[22m[39m
+       [32m✓[39m should accept 0 as minimum threshold[32m 0[2mms[22m[39m
+       [32m✓[39m should accept 100 as maximum threshold[32m 0[2mms[22m[39m
+       [32m✓[39m should accept 70 as default threshold[32m 0[2mms[22m[39m
+       [32m✓[39m should handle values at 1[32m 0[2mms[22m[39m
+       [32m✓[39m should handle values at 99[32m 0[2mms[22m[39m
+       [32m✓[39m should validate tag with no threshold override[32m 0[2mms[22m[39m
+       [32m✓[39m should validate tag with valid threshold override[32m 0[2mms[22m[39m
+       [32m✓[39m should reject tag with threshold below 0[32m 0[2mms[22m[39m
+       [32m✓[39m should reject tag with threshold above 100[32m 0[2mms[22m[39m
+       [32m✓[39m should reject tag with non-integer threshold[32m 0[2mms[22m[39m
+       [32m✓[39m should provide descriptive error messages[32m 0[2mms[22m[39m
+       [32m✓[39m should accept empty threshold input (optional field)[32m 0[2mms[22m[39m
+       [32m✓[39m should accept valid threshold input[32m 0[2mms[22m[39m
+       [32m✓[39m should reject threshold below 0[32m 0[2mms[22m[39m
+       [32m✓[39m should reject threshold above 100[32m 1[2mms[22m[39m
+       [32m✓[39m should reject non-numeric threshold input[32m 0[2mms[22m[39m
+       [32m✓[39m should allow threshold of 0 (apply all tags)[32m 0[2mms[22m[39m
+       [32m✓[39m should allow threshold of 100 (only apply 100% confidence)[32m 0[2mms[22m[39m
+       [32m✓[39m should handle threshold equal to global default[32m 0[2mms[22m[39m
+       [32m✓[39m should save valid threshold to storage[32m 3[2mms[22m[39m
+       [32m✓[39m should use default threshold when input is invalid[32m 0[2mms[22m[39m
+       [32m✓[39m should use default threshold when input is empty[32m 0[2mms[22m[39m
+       [32m✓[39m should load threshold from storage[32m 0[2mms[22m[39m
+       [32m✓[39m should use default when threshold not in storage[32m 0[2mms[22m[39m
+       [32m✓[39m should handle missing appConfig in storage[32m 0[2mms[22m[39m
+       [32m✓[39m should save tag with threshold override[32m 1[2mms[22m[39m
+       [32m✓[39m should save tag without threshold override[32m 0[2mms[22m[39m
+       [32m✓[39m should save multiple tags with mixed thresholds[32m 0[2mms[22m[39m
+       [32m✓[39m should load tags with threshold overrides[32m 0[2mms[22m[39m
+       [32m✓[39m should load tags without threshold overrides[32m 1[2mms[22m[39m
+       [32m✓[39m should sync number input to slider[32m 3[2mms[22m[39m
+       [32m✓[39m should sync slider to number input[32m 1[2mms[22m[39m
+       [32m✓[39m should update confidence value display[32m 1[2mms[22m[39m
+       [32m✓[39m should show error for invalid threshold[32m 0[2mms[22m[39m
+       [32m✓[39m should show error for threshold below 0[32m 0[2mms[22m[39m
+       [32m✓[39m should show error for non-numeric threshold[32m 0[2mms[22m[39m
+       [32m✓[39m should handle complete threshold save/load cycle[32m 0[2mms[22m[39m
+[31m       [31m×[31m should handle threshold update[39m[32m 8[2mms[22m[39m
+       [32m✓[39m should use default when loading old config without threshold[32m 0[2mms[22m[39m
+       [32m✓[39m should migrate existing configs to include threshold[32m 0[2mms[22m[39m
+ [31m❯[39m test/config-repository.test.ts [2m([22m[2m20 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 41[2mms[22m[39m
+       [32m✓[39m should set and get provider settings[32m 6[2mms[22m[39m
+       [32m✓[39m should throw error when getting non-existent provider settings[32m 3[2mms[22m[39m
+       [32m✓[39m should get all provider settings[32m 1[2mms[22m[39m
+       [32m✓[39m should return empty object when no provider settings exist[32m 1[2mms[22m[39m
+       [32m✓[39m should overwrite existing provider settings[32m 1[2mms[22m[39m
+[31m       [31m×[31m should set and get custom tags[39m[32m 11[2mms[22m[39m
+       [32m✓[39m should return empty array when no custom tags exist[32m 1[2mms[22m[39m
+       [32m✓[39m should overwrite existing custom tags[32m 1[2mms[22m[39m
+       [32m✓[39m should handle empty custom tags array[32m 1[2mms[22m[39m
+       [32m✓[39m should set and get app config[32m 4[2mms[22m[39m
+       [32m✓[39m should throw error when app config does not exist[32m 1[2mms[22m[39m
+       [32m✓[39m should update existing app config[32m 1[2mms[22m[39m
+       [32m✓[39m should handle config without concurrency limits[32m 0[2mms[22m[39m
+       [32m✓[39m should clear all configuration data[32m 1[2mms[22m[39m
+       [32m✓[39m should handle storage errors gracefully[32m 1[2mms[22m[39m
+[31m       [31m×[31m should handle get errors gracefully[39m[32m 4[2mms[22m[39m
+       [32m✓[39m should preserve IProviderSettings type[32m 1[2mms[22m[39m
+       [32m✓[39m should preserve ICustomTag type[32m 0[2mms[22m[39m
+       [32m✓[39m should preserve IAppConfig type[32m 0[2mms[22m[39m
+       [32m✓[39m should throw error when browser API is not available[32m 0[2mms[22m[39m
+ [31m❯[39m test/interfaces/components/ConfidenceBadge.test.ts [2m([22m[2m44 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 53[2mms[22m[39m
+       [32m✓[39m should render compact badge with correct percentage[32m 14[2mms[22m[39m
+       [32m✓[39m should render detailed badge with percentage and label[32m 2[2mms[22m[39m
+       [32m✓[39m should render minimal badge with no text[32m 1[2mms[22m[39m
+       [32m✓[39m should round confidence percentage correctly[32m 1[2mms[22m[39m
+       [32m✓[39m should handle edge cases (0 and 1)[32m 1[2mms[22m[39m
+       [32m✓[39m should apply high confidence color (green) for >= 80%[32m 2[2mms[22m[39m
+       [32m✓[39m should apply medium confidence color (yellow) for 70-79%[32m 1[2mms[22m[39m
+       [32m✓[39m should apply low confidence color (red) for < 70%[32m 1[2mms[22m[39m
+[31m       [31m×[31m should handle boundary values correctly[39m[32m 9[2mms[22m[39m
+       [32m✓[39m should create compact mode with percentage only[32m 1[2mms[22m[39m
+       [32m✓[39m should create detailed mode with percentage and label[32m 0[2mms[22m[39m
+       [32m✓[39m should create minimal mode with no content[32m 0[2mms[22m[39m
+       [32m✓[39m should default to compact mode when not specified[32m 0[2mms[22m[39m
+       [32m✓[39m should respect showPercentage option[32m 0[2mms[22m[39m
+       [32m✓[39m should have role="status" attribute[32m 0[2mms[22m[39m
+       [32m✓[39m should have aria-live="polite" attribute[32m 0[2mms[22m[39m
+       [32m✓[39m should have descriptive aria-label[32m 0[2mms[22m[39m
+       [32m✓[39m should include threshold in aria-describedby when provided[32m 0[2mms[22m[39m
+       [32m✓[39m should indicate below threshold in aria-describedby[32m 0[2mms[22m[39m
+       [32m✓[39m should not have aria-describedby when threshold not provided[32m 0[2mms[22m[39m
+       [32m✓[39m should apply custom CSS class[32m 0[2mms[22m[39m
+       [32m✓[39m should add tooltip when provided[32m 0[2mms[22m[39m
+       [32m✓[39m should include threshold in options[32m 0[2mms[22m[39m
+       [32m✓[39m should update existing badge with new confidence[32m 2[2mms[22m[39m
+       [32m✓[39m should preserve display mode when updating without mode specified[32m 1[2mms[22m[39m
+[31m       [31m×[31m should allow changing display mode when updating[39m[32m 2[2mms[22m[39m
+       [32m✓[39m should infer mode from element if not provided[32m 1[2mms[22m[39m
+       [32m✓[39m should preserve custom CSS classes when updating[32m 1[2mms[22m[39m
+       [32m✓[39m should throw error for confidence > 1[32m 1[2mms[22m[39m
+       [32m✓[39m should throw error for confidence < 0[32m 0[2mms[22m[39m
+[31m       [31m×[31m should throw error for NaN confidence[39m[32m 1[2mms[22m[39m
+       [32m✓[39m should throw error for negative confidence[32m 0[2mms[22m[39m
+       [32m✓[39m should create badge with createConfidenceBadge function[32m 0[2mms[22m[39m
+       [32m✓[39m should default to compact mode in convenience function[32m 0[2mms[22m[39m
+       [32m✓[39m should create multiple badges with createConfidenceBadges[32m 1[2mms[22m[39m
+       [32m✓[39m should handle empty array in createConfidenceBadges[32m 1[2mms[22m[39m
+       [32m✓[39m should create badges with same mode in createConfidenceBadges[32m 1[2mms[22m[39m
+       [32m✓[39m should show correct label for high confidence[32m 0[2mms[22m[39m
+       [32m✓[39m should show correct label for medium confidence[32m 0[2mms[22m[39m
+       [32m✓[39m should show correct label for low confidence[32m 0[2mms[22m[39m
+       [32m✓[39m should capitalize first letter of label[32m 0[2mms[22m[39m
+       [32m✓[39m should work in DOM environment[32m 1[2mms[22m[39m
+       [32m✓[39m should handle multiple badges in same container[32m 0[2mms[22m[39m
+       [32m✓[39m should update badges while attached to DOM[32m 1[2mms[22m[39m
+ [31m❯[39m test/analyze-batch-emails.test.ts [2m([22m[2m7 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[32m 37[2mms[22m[39m
+[31m       [31m×[31m should log "Starting batch email analysis" with correct context[39m[32m 19[2mms[22m[39m
+[31m       [31m×[31m should include message count in log context[39m[32m 2[2mms[22m[39m
+[31m       [31m×[31m should include priority in log context[39m[32m 3[2mms[22m[39m
+[31m       [31m×[31m should use default priority if not specified[39m[32m 2[2mms[22m[39m
+[31m       [31m×[31m should log "Starting batch email analysis" as first log[39m[32m 3[2mms[22m[39m
+[31m       [31m×[31m should log starting message with concurrency in correct order[39m[32m 3[2mms[22m[39m
+[31m       [31m×[31m should log all context fields correctly[39m[32m 2[2mms[22m[39m
+ [31m❯[39m test/email-event-listener.test.ts [2m([22m[2m18 tests[22m[2m | [22m[31m8 failed[39m[2m)[22m[32m 53[2mms[22m[39m
+       [32m✓[39m should log "New mail event received" with correct context[32m 14[2mms[22m[39m
+       [32m✓[39m should include messageCount in log context[32m 4[2mms[22m[39m
+       [32m✓[39m should include folder details in log context[32m 1[2mms[22m[39m
+       [32m✓[39m should log as first info message in handler[32m 1[2mms[22m[39m
+[31m       [31m×[31m should call logQueueStatus after new mail event log[39m[32m 6[2mms[22m[39m
+[31m       [31m×[31m should log queue status with correct fields[39m[32m 6[2mms[22m[39m
+[31m       [31m×[31m should log queue status after "New mail event received"[39m[32m 6[2mms[22m[39m
+[31m       [31m×[31m should handle different queue stats correctly[39m[32m 2[2mms[22m[39m
+[31m       [31m×[31m should log "New email received" after queue status[39m[32m 2[2mms[22m[39m
+[31m       [31m×[31m should include folder and messageCount in log context[39m[32m 2[2mms[22m[39m
+       [32m✓[39m should log "New mail processing completed" after batch analysis[32m 1[2mms[22m[39m
+[31m       [31m×[31m should log all messages in correct order[39m[32m 2[2mms[22m[39m
+[31m       [31m×[31m should include all required context fields[39m[32m 2[2mms[22m[39m
+       [32m✓[39m should log when registering listeners[32m 1[2mms[22m[39m
+       [32m✓[39m should log when unregistering listeners[32m 1[2mms[22m[39m
+       [32m✓[39m should log when starting listener service[32m 1[2mms[22m[39m
+       [32m✓[39m should log when stopping listener service[32m 1[2mms[22m[39m
+       [32m✓[39m should warn if listeners already registered[32m 0[2mms[22m[39m
+ [31m❯[39m test/analyze-email.test.ts [2m([22m[2m8 tests[22m[2m | [22m[31m8 failed[39m[2m)[22m[32m 77[2mms[22m[39m
+[31m       [31m×[31m should log "Email analysis started" with correct context[39m[32m 30[2mms[22m[39m
+[31m       [31m×[31m should include providerId from provider settings in log context[39m[32m 6[2mms[22m[39m
+[31m       [31m×[31m should log start message as first info call[39m[32m 5[2mms[22m[39m
+[31m       [31m×[31m should call logQueueStatus after analysis start[39m[32m 5[2mms[22m[39m
+[31m       [31m×[31m should log queue status with correct fields[39m[32m 5[2mms[22m[39m
+[31m       [31m×[31m should log queue status after "Email analysis started"[39m[32m 10[2mms[22m[39m
+[31m       [31m×[31m should handle queue stats correctly[39m[32m 8[2mms[22m[39m
+[31m       [31m×[31m should log both start message and queue status in correct order[39m[32m 6[2mms[22m[39m
+ [31m❯[39m test/integration/tagApplication.test.ts [2m([22m[2m19 tests[22m[2m | [22m[31m7 failed[39m[2m)[22m[32m 90[2mms[22m[39m
+       [32m✓[39m should apply all tags when confidence meets all thresholds[32m 18[2mms[22m[39m
+       [32m✓[39m should apply tag when confidence exactly equals threshold[32m 2[2mms[22m[39m
+       [32m✓[39m should apply tag using global threshold when no override exists[32m 3[2mms[22m[39m
+[31m       [31m×[31m should not apply tags when confidence is below global threshold[39m[32m 9[2mms[22m[39m
+[31m       [31m×[31m should not apply tag when below custom threshold override[39m[32m 4[2mms[22m[39m
+[31m       [31m×[31m should not apply tag when below high custom threshold[39m[32m 3[2mms[22m[39m
+       [32m✓[39m should use custom threshold when defined[32m 3[2mms[22m[39m
+       [32m✓[39m should fall back to global threshold when no override exists[32m 3[2mms[22m[39m
+       [32m✓[39m should handle mix of tags with and without overrides[32m 8[2mms[22m[39m
+[31m       [31m×[31m should create low-confidence flags for tags below threshold[39m[32m 3[2mms[22m[39m
+       [32m✓[39m should include threshold type in low-confidence flags[32m 2[2mms[22m[39m
+       [32m✓[39m should handle storage errors gracefully when flagging low confidence[32m 5[2mms[22m[39m
+[31m       [31m×[31m should handle empty tag list[39m[32m 3[2mms[22m[39m
+       [32m✓[39m should handle confidence of 1.0 (100%)[32m 10[2mms[22m[39m
+[31m       [31m×[31m should handle confidence of 0.0 (0%)[39m[32m 2[2mms[22m[39m
+       [32m✓[39m should handle tag not in custom tags list[32m 3[2mms[22m[39m
+       [32m✓[39m should apply tags when skipTagApplication is false[32m 2[2mms[22m[39m
+       [32m✓[39m should apply cached tags with threshold checking[32m 2[2mms[22m[39m
+[31m       [31m×[31m should flag low-confidence from cached results[39m[32m 2[2mms[22m[39m
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mHappy Path - Single Tag Scenarios[2m > [22m[2mshould parse business email and tag it as is_business
+[22m[39m[2026-01-30T19:37:52.242Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mHappy Path - Single Tag Scenarios[2m > [22m[2mshould parse business email and tag it as is_business
+[22m[39m[2026-01-30T19:37:52.245Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m'{"tags":["is_business"],"confidence":0.9,"reasoning":"Email is work-related and contains business communication about partnership."}'[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:37:52.245Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_business'[39m ],
+  confidenceValue: [33m0.9[39m
+}
+[2026-01-30T19:37:52.246Z] [INFO] Email analysis completed
+Context: { tagCount: [33m1[39m, confidence: [33m0.9[39m }
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mHappy Path - Single Tag Scenarios[2m > [22m[2mshould parse advertisement email and tag it as is_advertise
+[22m[39m[2026-01-30T19:37:52.249Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mHappy Path - Single Tag Scenarios[2m > [22m[2mshould parse advertisement email and tag it as is_advertise
+[22m[39m[2026-01-30T19:37:52.250Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m'{"tags":["is_advertise"],"confidence":0.95,"reasoning":"Email contains promotional content with discount offers and calls to action."}'[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:37:52.250Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_advertise'[39m ],
+  confidenceValue: [33m0.95[39m
+}
+[2026-01-30T19:37:52.250Z] [INFO] Email analysis completed
+Context: { tagCount: [33m1[39m, confidence: [33m0.95[39m }
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mHappy Path - Single Tag Scenarios[2m > [22m[2mshould parse personal email and tag it as is_personal
+[22m[39m[2026-01-30T19:37:52.252Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mHappy Path - Single Tag Scenarios[2m > [22m[2mshould parse personal email and tag it as is_personal
+[22m[39m[2026-01-30T19:37:52.252Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m'{"tags":["is_personal"],"confidence":0.88,"reasoning":"Email is a personal message from a friend sharing weekend experiences."}'[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:37:52.253Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_personal'[39m ],
+  confidenceValue: [33m0.88[39m
+}
+[2026-01-30T19:37:52.253Z] [INFO] Email analysis completed
+Context: { tagCount: [33m1[39m, confidence: [33m0.88[39m }
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mHappy Path - Multiple Tags[2m > [22m[2mshould handle multiple tags correctly
+[22m[39m[2026-01-30T19:37:52.254Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mHappy Path - Multiple Tags[2m > [22m[2mshould handle multiple tags correctly
+[22m[39m[2026-01-30T19:37:52.254Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m'{"tags":["is_business","is_business_approach"],"confidence":0.85,"reasoning":"Email is a business approach from a company offering services."}'[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:37:52.254Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_business'[39m, [32m'is_business_approach'[39m ],
+  confidenceValue: [33m0.85[39m
+}
+[2026-01-30T19:37:52.254Z] [INFO] Email analysis completed
+Context: { tagCount: [33m2[39m, confidence: [33m0.85[39m }
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle email with empty body
+[22m[39m[2026-01-30T19:37:52.256Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle email with empty body
+[22m[39m[2026-01-30T19:37:52.256Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m'{"tags":[],"confidence":0.5,"reasoning":"Email has no content to analyze."}'[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:37:52.256Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [],
+  confidenceValue: [33m0.5[39m
+}
+[2026-01-30T19:37:52.256Z] [INFO] Email analysis completed
+Context: { tagCount: [33m0[39m, confidence: [33m0.5[39m }
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mEdge Cases[2m > [22m[2mshould validate confidence is within valid range
+[22m[39m[2026-01-30T19:37:52.258Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mEdge Cases[2m > [22m[2mshould validate confidence is within valid range
+[22m[39m[2026-01-30T19:37:52.258Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m'{"tags":["is_business"],"confidence":0.75,"reasoning":"Business email with professional tone."}'[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:37:52.258Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_business'[39m ],
+  confidenceValue: [33m0.75[39m
+}
+[2026-01-30T19:37:52.259Z] [INFO] Email analysis completed
+Context: { tagCount: [33m1[39m, confidence: [33m0.75[39m }
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mEdge Cases[2m > [22m[2mshould include reasoning in response
+[22m[39m[2026-01-30T19:37:52.259Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mEdge Cases[2m > [22m[2mshould include reasoning in response
+[22m[39m[2026-01-30T19:37:52.259Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m'{"tags":["is_business"],"confidence":0.8,"reasoning":"This is a detailed explanation of why this email was tagged."}'[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:37:52.260Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_business'[39m ],
+  confidenceValue: [33m0.8[39m
+}
+[2026-01-30T19:37:52.260Z] [INFO] Email analysis completed
+Context: { tagCount: [33m1[39m, confidence: [33m0.8[39m }
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mError Handling[2m > [22m[2mshould handle network timeout gracefully
+[22m[39m[2026-01-30T19:37:52.260Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+ [32m✓[39m test/tag-mapping-fix.test.ts [2m([22m[2m73 tests[22m[2m)[22m[32m 201[2mms[22m[39m
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag business email with is_business
+[22m[39m=== DEBUG: Test Config ===
+zaiModel: glm-4.7
+zaiVariant: coding
+zaiBaseUrl: https://api.z.ai/api/coding/paas/v4/chat/completions
+zaiApiKey (first 8 chars): 75840c57
+=========================
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag business email with is_business
+[22m[39m[LOG] ZaiPaaSProvider initialized
+[LOG] BaseProviderAdapter initialized {"providerId":"zai-paas"}
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag business email with is_business
+[22m[39m[LOG] Starting email analysis {"providerId":"zai-paas","tagCount":8,"hasBody":false}
+[2026-01-30T19:37:52.353Z] [INFO] Starting email analysis
+Context: { hasBody: [33mfalse[39m, attachmentCount: [33m0[39m, tagCount: [33m8[39m, model: [32m'glm-4.7'[39m }
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mError Handling[2m > [22m[2mshould handle network timeout gracefully
+[22m[39m[2026-01-30T19:37:52.363Z] [ERROR] Email analysis failed
+Context: {
+  error: [32m'Request timeout'[39m,
+  stack: [32m'Error: Request timeout\n'[39m +
+    [32m'    at Timeout._onTimeout (/home/titus/Projects/thunderbird-email-ai-assistant/.auto-claude/worktrees/tasks/015-fix-newly-created-tags-are-not-created-synced-in-t/test/mocks/MockProvider.ts:62:64)\n'[39m +
+    [32m'    at listOnTimeout (node:internal/timers:605:17)\n'[39m +
+    [32m'    at processTimers (node:internal/timers:541:7)'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mError Handling[2m > [22m[2mshould handle HTTP 5xx server errors
+[22m[39m[2026-01-30T19:37:52.369Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mError Handling[2m > [22m[2mshould handle HTTP 5xx server errors
+[22m[39m[2026-01-30T19:37:52.369Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m'{"tags":["work"],"confidence":0.9,"reasoning":"Mock reasoning"}'[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:37:52.370Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'work'[39m ],
+  confidenceValue: [33m0.9[39m
+}
+[2026-01-30T19:37:52.370Z] [INFO] Email analysis completed
+Context: { tagCount: [33m1[39m, confidence: [33m0.9[39m }
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mError Handling[2m > [22m[2mshould handle malformed JSON response
+[22m[39m[2026-01-30T19:37:52.370Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mError Handling[2m > [22m[2mshould handle malformed JSON response
+[22m[39m[2026-01-30T19:37:52.373Z] [ERROR] Email analysis failed
+Context: {
+  error: [32m'Invalid JSON'[39m,
+  stack: [32m'Error: Invalid JSON\n'[39m +
+    [32m'    at Object.json (/home/titus/Projects/thunderbird-email-ai-assistant/.auto-claude/worktrees/tasks/015-fix-newly-created-tags-are-not-created-synced-in-t/test/mocks/MockProvider.ts:76:17)\n'[39m +
+    [32m'    at MockProvider.analyze (/home/titus/Projects/thunderbird-email-ai-assistant/.auto-claude/worktrees/tasks/015-fix-newly-created-tags-are-not-created-synced-in-t/src/infrastructure/providers/BaseProvider.ts:414:43)'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mMockProvider Request Tracking[2m > [22m[2mshould track multiple requests
+[22m[39m[2026-01-30T19:37:52.375Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mMockProvider Request Tracking[2m > [22m[2mshould track multiple requests
+[22m[39m[2026-01-30T19:37:52.376Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m'{"tags":["is_business"],"confidence":0.9,"reasoning":"Test"}'[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:37:52.376Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_business'[39m ],
+  confidenceValue: [33m0.9[39m
+}
+[2026-01-30T19:37:52.376Z] [INFO] Email analysis completed
+Context: { tagCount: [33m1[39m, confidence: [33m0.9[39m }
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mMockProvider Request Tracking[2m > [22m[2mshould track multiple requests
+[22m[39m[2026-01-30T19:37:52.378Z] [INFO] Starting email analysis
+Context: {
+  hasBody: [33mfalse[39m,
+  attachmentCount: [33m0[39m,
+  tagCount: [33m8[39m,
+  model: [32m'test-model'[39m
+}
+
+[90mstdout[2m | test/e2e.test.ts[2m > [22m[2mE2E Email Tagging System[2m > [22m[2mMockProvider Request Tracking[2m > [22m[2mshould track multiple requests
+[22m[39m[2026-01-30T19:37:52.379Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m'{"tags":["is_business"],"confidence":0.9,"reasoning":"Test"}'[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:37:52.379Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_business'[39m ],
+  confidenceValue: [33m0.9[39m
+}
+[2026-01-30T19:37:52.379Z] [INFO] Email analysis completed
+Context: { tagCount: [33m1[39m, confidence: [33m0.9[39m }
+
+ [32m✓[39m test/e2e.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 150[2mms[22m[39m
+ [32m✓[39m test/config.test.ts [2m([22m[2m62 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould return null for non-existent entry
+[22m[39m[2026-01-30T19:37:52.630Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'nonexistent-hash'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle IndexedDB gracefully in test environment
+[22m[39m[2026-01-30T19:37:52.632Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'test-hash-123'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle IndexedDB gracefully in test environment
+[22m[39m[2026-01-30T19:37:52.633Z] [ERROR] Failed to store in cache
+Context: { emailHash: [32m'test-hash-123'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle IndexedDB gracefully in test environment
+[22m[39m[2026-01-30T19:37:52.633Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'test-hash-123'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle clear operation
+[22m[39m[2026-01-30T19:37:52.633Z] [ERROR] Failed to store in cache
+Context: { emailHash: [32m'test-hash-456'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle clear operation
+[22m[39m[2026-01-30T19:37:52.634Z] [ERROR] Failed to clear cache
+Context: { error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle delete operation
+[22m[39m[2026-01-30T19:37:52.634Z] [ERROR] Failed to store in cache
+Context: { emailHash: [32m'test-hash-789'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle delete operation
+[22m[39m[2026-01-30T19:37:52.634Z] [ERROR] Failed to delete from cache
+Context: { emailHash: [32m'test-hash-789'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle delete operation
+[22m[39m[2026-01-30T19:37:52.635Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'test-hash-789'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould track cache statistics
+[22m[39m[2026-01-30T19:37:52.635Z] [ERROR] Failed to get cache stats
+Context: { error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle has() method
+[22m[39m[2026-01-30T19:37:52.636Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'test-hash-has'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle has() method
+[22m[39m[2026-01-30T19:37:52.636Z] [ERROR] Failed to store in cache
+Context: { emailHash: [32m'test-hash-has'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould handle has() method
+[22m[39m[2026-01-30T19:37:52.636Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'test-hash-has'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould store per-tag confidence scores
+[22m[39m[2026-01-30T19:37:52.637Z] [ERROR] Failed to store in cache
+Context: { emailHash: [32m'test-hash-tagconf'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould store per-tag confidence scores
+[22m[39m[2026-01-30T19:37:52.637Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'test-hash-tagconf'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould populate tagConfidence with overall confidence if not provided
+[22m[39m[2026-01-30T19:37:52.637Z] [ERROR] Failed to store in cache
+Context: { emailHash: [32m'test-hash-autofill'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould populate tagConfidence with overall confidence if not provided
+[22m[39m[2026-01-30T19:37:52.637Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'test-hash-autofill'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould retrieve full cache entry with getWithDetails
+[22m[39m[2026-01-30T19:37:52.638Z] [ERROR] Failed to store in cache
+Context: { emailHash: [32m'test-hash-details'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould retrieve full cache entry with getWithDetails
+[22m[39m[2026-01-30T19:37:52.638Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'test-hash-details'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould return null for getTagConfidence when entry does not exist
+[22m[39m[2026-01-30T19:37:52.638Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'nonexistent-hash'[39m, error: [32m'indexedDB is not defined'[39m }
+
+[90mstdout[2m | core/cache.test.ts[2m > [22m[2mcache module[2m > [22m[2mAnalysisCache[2m > [22m[2mshould return null for getWithDetails when entry does not exist
+[22m[39m[2026-01-30T19:37:52.638Z] [ERROR] Failed to retrieve from cache
+Context: { emailHash: [32m'nonexistent-hash'[39m, error: [32m'indexedDB is not defined'[39m }
+
+ [32m✓[39m core/cache.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m test/shared/utils/confidenceUtils.test.ts [2m([22m[2m79 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m test/concurrency-integration.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m test/email-low-confidence.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m core/tags.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m test/rate-limiter.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 1263[2mms[22m[39m
+       [33m[2m✓[22m[39m should limit concurrent execution to configured limit [33m 503[2mms[22m[39m
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag business email with is_business
+[22m[39m[2026-01-30T19:38:05.861Z] [INFO] [LLM-EXTRACT-JSON] Extracted JSON:
+Context: {
+  startIdx: [33m8[39m,
+  endIdx: [33m379[39m,
+  length: [33m371[39m,
+  preview: [32m'{\n'[39m +
+    [32m'  "tags": [\n'[39m +
+    [32m'    "email_ai_analyzed",\n'[39m +
+    [32m'    "is_business_approach",\n'[39m +
+    [32m'    "is_business"\n'[39m +
+    [32m'  ],\n'[39m +
+    [32m'  "confidence": 0.9,\n'[39m +
+    [32m`  "reasoning": "The subject line 'Geschäftsangebot für Zusammenarbeit' (Business offer fo`[39m
+}
+[LOG] Z.ai PaaS analysis completed successfully {"model":"glm-4.7","usage":{"completion_tokens":1077,"completion_tokens_details":{"reasoning_tokens":982},"prompt_tokens":664,"prompt_tokens_details":{"cached_tokens":3},"total_tokens":1741}}
+[2026-01-30T19:38:05.862Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":["email_ai_analyzed","is_business_approach","is_business"],"confidence":0.9,"reasoning":"The subject line 'Geschäftsangebot für Zusammenarbeit' (Business offer for cooperation) clearly indicates a B2B cold outreach or sales proposal, fitting the definition of a business approach. It is also inherently business-related in nature."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:38:05.862Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'email_ai_analyzed'[39m, [32m'is_business_approach'[39m, [32m'is_business'[39m ],
+  confidenceValue: [33m0.9[39m
+}
+[2026-01-30T19:38:05.862Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":["email_ai_analyzed","is_business_approach","is_business"],"confidence":0.9,"reasoning":"The subject line 'Geschäftsangebot für Zusammenarbeit' (Business offer for cooperation) clearly indicates a B2B cold outreach or sales proposal, fitting the definition of a business approach. It is also inherently business-related in nature."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:38:05.862Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'email_ai_analyzed'[39m, [32m'is_business_approach'[39m, [32m'is_business'[39m ],
+  confidenceValue: [33m0.9[39m
+}
+[2026-01-30T19:38:05.863Z] [INFO] Email analysis completed
+Context: { tagCount: [33m3[39m, confidence: [33m0.9[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag business email with is_business
+[22m[39m[LOG] Email analysis completed {"providerId":"zai-paas","tagCount":3,"confidence":0.9}
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag advertisement email with is_advertise
+[22m[39m=== DEBUG: Test Config ===
+zaiModel: glm-4.7
+zaiVariant: coding
+zaiBaseUrl: https://api.z.ai/api/coding/paas/v4/chat/completions
+zaiApiKey (first 8 chars): 75840c57
+=========================
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag advertisement email with is_advertise
+[22m[39m[LOG] ZaiPaaSProvider initialized
+[LOG] BaseProviderAdapter initialized {"providerId":"zai-paas"}
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag advertisement email with is_advertise
+[22m[39m[LOG] Starting email analysis {"providerId":"zai-paas","tagCount":8,"hasBody":false}
+[2026-01-30T19:38:05.866Z] [INFO] Starting email analysis
+Context: { hasBody: [33mfalse[39m, attachmentCount: [33m0[39m, tagCount: [33m8[39m, model: [32m'glm-4.7'[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag advertisement email with is_advertise
+[22m[39m[2026-01-30T19:38:21.927Z] [INFO] [LLM-EXTRACT-JSON] Extracted JSON:
+Context: {
+  startIdx: [33m8[39m,
+  endIdx: [33m290[39m,
+  length: [33m282[39m,
+  preview: [32m'{\n'[39m +
+    [32m'  "tags": [\n'[39m +
+    [32m'    "email_ai_analyzed",\n'[39m +
+    [32m'    "is_advertise"\n'[39m +
+    [32m'  ],\n'[39m +
+    [32m'  "confidence": 0.95,\n'[39m +
+    [32m`  "reasoning": "The sender is 'Super Shop' using a newsletter address, and the subject line explicitly promotes a '`[39m
+}
+[LOG] Z.ai PaaS analysis completed successfully {"model":"glm-4.7","usage":{"completion_tokens":1242,"completion_tokens_details":{"reasoning_tokens":1156},"prompt_tokens":674,"prompt_tokens_details":{"cached_tokens":62},"total_tokens":1916}}
+[2026-01-30T19:38:21.928Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":["email_ai_analyzed","is_advertise"],"confidence":0.95,"reasoning":"The sender is 'Super Shop' using a newsletter address, and the subject line explicitly promotes a 'Mega Sale' with 'up to 70% discount', which clearly indicates an advertisement."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:38:21.928Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'email_ai_analyzed'[39m, [32m'is_advertise'[39m ],
+  confidenceValue: [33m0.95[39m
+}
+[2026-01-30T19:38:21.928Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":["email_ai_analyzed","is_advertise"],"confidence":0.95,"reasoning":"The sender is 'Super Shop' using a newsletter address, and the subject line explicitly promotes a 'Mega Sale' with 'up to 70% discount', which clearly indicates an advertisement."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:38:21.928Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'email_ai_analyzed'[39m, [32m'is_advertise'[39m ],
+  confidenceValue: [33m0.95[39m
+}
+[2026-01-30T19:38:21.928Z] [INFO] Email analysis completed
+Context: { tagCount: [33m2[39m, confidence: [33m0.95[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag advertisement email with is_advertise
+[22m[39m[LOG] Email analysis completed {"providerId":"zai-paas","tagCount":2,"confidence":0.95}
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag personal email with is_personal
+[22m[39m=== DEBUG: Test Config ===
+zaiModel: glm-4.7
+zaiVariant: coding
+zaiBaseUrl: https://api.z.ai/api/coding/paas/v4/chat/completions
+zaiApiKey (first 8 chars): 75840c57
+=========================
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag personal email with is_personal
+[22m[39m[LOG] ZaiPaaSProvider initialized
+[LOG] BaseProviderAdapter initialized {"providerId":"zai-paas"}
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag personal email with is_personal
+[22m[39m[LOG] Starting email analysis {"providerId":"zai-paas","tagCount":8,"hasBody":false}
+[2026-01-30T19:38:21.930Z] [INFO] Starting email analysis
+Context: { hasBody: [33mfalse[39m, attachmentCount: [33m0[39m, tagCount: [33m8[39m, model: [32m'glm-4.7'[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag personal email with is_personal
+[22m[39m[2026-01-30T19:39:32.667Z] [INFO] [LLM-EXTRACT-JSON] Extracted JSON:
+Context: {
+  startIdx: [33m8[39m,
+  endIdx: [33m269[39m,
+  length: [33m261[39m,
+  preview: [32m'{\n'[39m +
+    [32m'  "tags": [\n'[39m +
+    [32m'    "is_personal",\n'[39m +
+    [32m'    "email_ai_analyzed"\n'[39m +
+    [32m'  ],\n'[39m +
+    [32m'  "confidence": 0.6,\n'[39m +
+    [32m`  "reasoning": "The subject line 'Wochenende am See - Wie war es?' strongly suggests a personal follow-up regarding a`[39m
+}
+[LOG] Z.ai PaaS analysis completed successfully {"model":"glm-4.7","usage":{"completion_tokens":1314,"completion_tokens_details":{"reasoning_tokens":1239},"prompt_tokens":661,"prompt_tokens_details":{"cached_tokens":62},"total_tokens":1975}}
+[2026-01-30T19:39:32.668Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":["is_personal","email_ai_analyzed"],"confidence":0.6,"reasoning":"The subject line 'Wochenende am See - Wie war es?' strongly suggests a personal follow-up regarding a shared private event, despite the email body being empty."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:39:32.668Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_personal'[39m, [32m'email_ai_analyzed'[39m ],
+  confidenceValue: [33m0.6[39m
+}
+[2026-01-30T19:39:32.668Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":["is_personal","email_ai_analyzed"],"confidence":0.6,"reasoning":"The subject line 'Wochenende am See - Wie war es?' strongly suggests a personal follow-up regarding a shared private event, despite the email body being empty."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:39:32.668Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_personal'[39m, [32m'email_ai_analyzed'[39m ],
+  confidenceValue: [33m0.6[39m
+}
+[2026-01-30T19:39:32.668Z] [INFO] Email analysis completed
+Context: { tagCount: [33m2[39m, confidence: [33m0.6[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould tag personal email with is_personal
+[22m[39m[LOG] Email analysis completed {"providerId":"zai-paas","tagCount":2,"confidence":0.6}
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould handle multiple tags correctly
+[22m[39m=== DEBUG: Test Config ===
+zaiModel: glm-4.7
+zaiVariant: coding
+zaiBaseUrl: https://api.z.ai/api/coding/paas/v4/chat/completions
+zaiApiKey (first 8 chars): 75840c57
+=========================
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould handle multiple tags correctly
+[22m[39m[LOG] ZaiPaaSProvider initialized
+[LOG] BaseProviderAdapter initialized {"providerId":"zai-paas"}
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould handle multiple tags correctly
+[22m[39m[LOG] Starting email analysis {"providerId":"zai-paas","tagCount":8,"hasBody":false}
+[2026-01-30T19:39:32.669Z] [INFO] Starting email analysis
+Context: { hasBody: [33mfalse[39m, attachmentCount: [33m0[39m, tagCount: [33m8[39m, model: [32m'glm-4.7'[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould handle multiple tags correctly
+[22m[39m[2026-01-30T19:40:38.376Z] [INFO] [LLM-EXTRACT-JSON] Extracted JSON:
+Context: {
+  startIdx: [33m8[39m,
+  endIdx: [33m392[39m,
+  length: [33m384[39m,
+  preview: [32m'{\n'[39m +
+    [32m'  "tags": [\n'[39m +
+    [32m'    "is_business_approach"\n'[39m +
+    [32m'  ],\n'[39m +
+    [32m'  "confidence": 0.75,\n'[39m +
+    [32m`  "reasoning": "The email subject 'Geschäftsangebot für Zusammenarbeit' translates to 'Business offer for cooperation,' which strong`[39m
+}
+[LOG] Z.ai PaaS analysis completed successfully {"model":"glm-4.7","usage":{"completion_tokens":1992,"completion_tokens_details":{"reasoning_tokens":1903},"prompt_tokens":664,"prompt_tokens_details":{"cached_tokens":662},"total_tokens":2656}}
+[2026-01-30T19:40:38.376Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":["is_business_approach"],"confidence":0.75,"reasoning":"The email subject 'Geschäftsangebot für Zusammenarbeit' translates to 'Business offer for cooperation,' which strongly indicates a cold sales or partnership approach. Although the email body is empty, the subject line clearly fits the definition of a business approach or lead generation scenario."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:40:38.376Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_business_approach'[39m ],
+  confidenceValue: [33m0.75[39m
+}
+[2026-01-30T19:40:38.376Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":["is_business_approach"],"confidence":0.75,"reasoning":"The email subject 'Geschäftsangebot für Zusammenarbeit' translates to 'Business offer for cooperation,' which strongly indicates a cold sales or partnership approach. Although the email body is empty, the subject line clearly fits the definition of a business approach or lead generation scenario."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:40:38.376Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'is_business_approach'[39m ],
+  confidenceValue: [33m0.75[39m
+}
+[2026-01-30T19:40:38.376Z] [INFO] Email analysis completed
+Context: { tagCount: [33m1[39m, confidence: [33m0.75[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould handle multiple tags correctly
+[22m[39m[LOG] Email analysis completed {"providerId":"zai-paas","tagCount":1,"confidence":0.75}
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould reject empty emails gracefully
+[22m[39m=== DEBUG: Test Config ===
+zaiModel: glm-4.7
+zaiVariant: coding
+zaiBaseUrl: https://api.z.ai/api/coding/paas/v4/chat/completions
+zaiApiKey (first 8 chars): 75840c57
+=========================
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould reject empty emails gracefully
+[22m[39m[LOG] ZaiPaaSProvider initialized
+[LOG] BaseProviderAdapter initialized {"providerId":"zai-paas"}
+[LOG] Starting email analysis {"providerId":"zai-paas","tagCount":8,"hasBody":false}
+[2026-01-30T19:40:38.377Z] [INFO] Starting email analysis
+Context: { hasBody: [33mfalse[39m, attachmentCount: [33m0[39m, tagCount: [33m8[39m, model: [32m'glm-4.7'[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould reject empty emails gracefully
+[22m[39m[2026-01-30T19:41:21.134Z] [INFO] [LLM-EXTRACT-JSON] Extracted JSON:
+Context: {
+  startIdx: [33m8[39m,
+  endIdx: [33m347[39m,
+  length: [33m339[39m,
+  preview: [32m'{\n'[39m +
+    [32m'  "tags": [],\n'[39m +
+    [32m'  "confidence": 1.0,\n'[39m +
+    [32m`  "reasoning": "The email body is completely empty and the subject is a generic 'Test Subject'. There is no content to analyze for business intent, advertisements,`[39m
+}
+[LOG] Z.ai PaaS analysis completed successfully {"model":"glm-4.7","usage":{"completion_tokens":970,"completion_tokens_details":{"reasoning_tokens":889},"prompt_tokens":587,"prompt_tokens_details":{"cached_tokens":61},"total_tokens":1557}}
+[2026-01-30T19:41:21.134Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":[],"confidence":1,"reasoning":"The email body is completely empty and the subject is a generic 'Test Subject'. There is no content to analyze for business intent, advertisements, service information, or calendar invites. Technical headers required to verify SPF or DKIM status are not present in the provided data."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:41:21.134Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [],
+  confidenceValue: [33m1[39m
+}
+[2026-01-30T19:41:21.135Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":[],"confidence":1,"reasoning":"The email body is completely empty and the subject is a generic 'Test Subject'. There is no content to analyze for business intent, advertisements, service information, or calendar invites. Technical headers required to verify SPF or DKIM status are not present in the provided data."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:41:21.135Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [],
+  confidenceValue: [33m1[39m
+}
+[2026-01-30T19:41:21.135Z] [INFO] Email analysis completed
+Context: { tagCount: [33m0[39m, confidence: [33m1[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould reject empty emails gracefully
+[22m[39m[LOG] Email analysis completed {"providerId":"zai-paas","tagCount":0,"confidence":1}
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould validate response structure
+[22m[39m=== DEBUG: Test Config ===
+zaiModel: glm-4.7
+zaiVariant: coding
+zaiBaseUrl: https://api.z.ai/api/coding/paas/v4/chat/completions
+zaiApiKey (first 8 chars): 75840c57
+=========================
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould validate response structure
+[22m[39m[LOG] ZaiPaaSProvider initialized
+[LOG] BaseProviderAdapter initialized {"providerId":"zai-paas"}
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould validate response structure
+[22m[39m[LOG] Starting email analysis {"providerId":"zai-paas","tagCount":8,"hasBody":false}
+[2026-01-30T19:41:21.135Z] [INFO] Starting email analysis
+Context: { hasBody: [33mfalse[39m, attachmentCount: [33m0[39m, tagCount: [33m8[39m, model: [32m'glm-4.7'[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould validate response structure
+[22m[39m[2026-01-30T19:42:50.653Z] [INFO] [LLM-EXTRACT-JSON] Extracted JSON:
+Context: {
+  startIdx: [33m8[39m,
+  endIdx: [33m424[39m,
+  length: [33m416[39m,
+  preview: [32m'{\n'[39m +
+    [32m'  "tags": [\n'[39m +
+    [32m'    "email_ai_analyzed",\n'[39m +
+    [32m'    "is_business"\n'[39m +
+    [32m'  ],\n'[39m +
+    [32m'  "confidence": 0.75,\n'[39m +
+    [32m`  "reasoning": "The subject line 'Geschäftsangebot für Zusammenarbeit' (Business offer for cooperation) and the send`[39m
+}
+[LOG] Z.ai PaaS analysis completed successfully {"model":"glm-4.7","usage":{"completion_tokens":1781,"completion_tokens_details":{"reasoning_tokens":1677},"prompt_tokens":664,"prompt_tokens_details":{"cached_tokens":662},"total_tokens":2445}}
+[2026-01-30T19:42:50.653Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":["email_ai_analyzed","is_business"],"confidence":0.75,"reasoning":"The subject line 'Geschäftsangebot für Zusammenarbeit' (Business offer for cooperation) and the sender 'Firma GmbH' indicate a work-related context. However, the email body is empty, which limits the ability to confirm specific intent (such as a sales approach or advertisement) or verify service-related details."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:42:50.653Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'email_ai_analyzed'[39m, [32m'is_business'[39m ],
+  confidenceValue: [33m0.75[39m
+}
+[2026-01-30T19:42:50.653Z] [INFO] [LLM-RAW-RESPONSE] Raw LLM response:
+Context: {
+  type: [32m'object'[39m,
+  preview: [32m`{"tags":["email_ai_analyzed","is_business"],"confidence":0.75,"reasoning":"The subject line 'Geschäftsangebot für Zusammenarbeit' (Business offer for cooperation) and the sender 'Firma GmbH' indicate a work-related context. However, the email body is empty, which limits the ability to confirm specific intent (such as a sales approach or advertisement) or verify service-related details."}`[39m,
+  isNull: [33mfalse[39m,
+  isUndefined: [33mfalse[39m,
+  isEmpty: [33mfalse[39m
+}
+[2026-01-30T19:42:50.653Z] [INFO] [LLM-PARSED-JSON] Parsed JSON (object input):
+Context: {
+  keys: [32m'not set'[39m,
+  hasTags: [33mtrue[39m,
+  hasConfidence: [33mtrue[39m,
+  tagsValue: [ [32m'email_ai_analyzed'[39m, [32m'is_business'[39m ],
+  confidenceValue: [33m0.75[39m
+}
+[2026-01-30T19:42:50.653Z] [INFO] Email analysis completed
+Context: { tagCount: [33m2[39m, confidence: [33m0.75[39m }
+
+[90mstdout[2m | test/e2e-real-provider.test.ts[2m > [22m[2mE2E Real Provider - ZAI[2m > [22m[2mshould validate response structure
+[22m[39m[LOG] Email analysis completed {"providerId":"zai-paas","tagCount":2,"confidence":0.75}
+
+ [32m✓[39m test/e2e-real-provider.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 298312[2mms[22m[39m
+     [33m[2m✓[22m[39m should tag business email with is_business [33m 13522[2mms[22m[39m
+     [33m[2m✓[22m[39m should tag advertisement email with is_advertise [33m 16064[2mms[22m[39m
+     [33m[2m✓[22m[39m should tag personal email with is_personal [33m 70740[2mms[22m[39m
+     [33m[2m✓[22m[39m should handle multiple tags correctly [33m 65708[2mms[22m[39m
+     [33m[2m✓[22m[39m should reject empty emails gracefully [33m 42758[2mms[22m[39m
+     [33m[2m✓[22m[39m should validate response structure [33m 89518[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 36 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m test/analyze-batch-emails.test.ts[2m > [22mAnalyzeBatchEmails - Logging Tests[2m > [22mBatch email analysis started logging[2m > [22mshould log "Starting batch email analysis" with correct context
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ …(2) ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "count": 2,[90m
+[31m+   "🚀 Starting batch email analysis",[90m
+[31m+   {[90m
+[31m+     "config": {[90m
+[31m+       "concurrency": 2,[90m
+[31m+       "continueOnError": undefined,[90m
+[31m+       "delayBetweenAnalyses": undefined,[90m
+[2m        "priority": 1,[22m
+[31m+     },[90m
+[31m+     "messageCount": 2,[90m
+[31m+     "provider": "openai",[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[31m+   "✅ Starting batch processing",[90m
+[31m+   {[90m
+[31m+     "concurrency": 2,[90m
+[2m      "count": 2,[22m
+[2m      "priority": 1,[22m
+[2m    },[22m
+[2m  ][22m
+
+[1m  3rd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "count": 2,[90m
+[32m-     "priority": 1,[90m
+[31m+   "✅ Batch analysis completed",[90m
+[31m+   {[90m
+[31m+     "cancelled": false,[90m
+[31m+     "duration": "0ms",[90m
+[31m+     "failed": 0,[90m
+[31m+     "success": 2,[90m
+[31m+     "total": 2,[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m3[22m
+[31m[39m
+[36m [2m❯[22m test/analyze-batch-emails.test.ts:[2m93:27[22m[39m
+    [90m 91| [39m      })[33m;[39m
+    [90m 92| [39m
+    [90m 93| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m 94| [39m        [32m'Starting batch email analysis'[39m[33m,[39m
+    [90m 95| [39m        expect[33m.[39m[34mobjectContaining[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-batch-emails.test.ts[2m > [22mAnalyzeBatchEmails - Logging Tests[2m > [22mBatch email analysis started logging[2m > [22mshould include message count in log context
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ …(2) ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "count": 5,[90m
+[32m-     "priority": 1,[90m
+[31m+   "🚀 Starting batch email analysis",[90m
+[31m+   {[90m
+[31m+     "config": {[90m
+[31m+       "concurrency": undefined,[90m
+[31m+       "continueOnError": undefined,[90m
+[31m+       "delayBetweenAnalyses": undefined,[90m
+[31m+       "priority": undefined,[90m
+[31m+     },[90m
+[31m+     "messageCount": 5,[90m
+[31m+     "provider": "openai",[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[31m+   "✅ Starting batch processing",[90m
+[31m+   {[90m
+[31m+     "concurrency": 3,[90m
+[2m      "count": 5,[22m
+[2m      "priority": 1,[22m
+[2m    },[22m
+[2m  ][22m
+
+[1m  3rd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "count": 5,[90m
+[32m-     "priority": 1,[90m
+[31m+   "✅ Batch analysis completed",[90m
+[31m+   {[90m
+[31m+     "cancelled": false,[90m
+[31m+     "duration": "0ms",[90m
+[31m+     "failed": 0,[90m
+[31m+     "success": 2,[90m
+[31m+     "total": 5,[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m3[22m
+[31m[39m
+[36m [2m❯[22m test/analyze-batch-emails.test.ts:[2m108:27[22m[39m
+    [90m106| [39m      })[33m;[39m
+    [90m107| [39m
+    [90m108| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m109| [39m        [32m'Starting batch email analysis'[39m[33m,[39m
+    [90m110| [39m        expect[33m.[39m[34mobjectContaining[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-batch-emails.test.ts[2m > [22mAnalyzeBatchEmails - Logging Tests[2m > [22mBatch email analysis started logging[2m > [22mshould include priority in log context
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ …(2) ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "count": 1,[90m
+[31m+   "🚀 Starting batch email analysis",[90m
+[31m+   {[90m
+[31m+     "config": {[90m
+[31m+       "concurrency": undefined,[90m
+[31m+       "continueOnError": undefined,[90m
+[31m+       "delayBetweenAnalyses": undefined,[90m
+[2m        "priority": 5,[22m
+[31m+     },[90m
+[31m+     "messageCount": 1,[90m
+[31m+     "provider": "openai",[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[31m+   "✅ Starting batch processing",[90m
+[31m+   {[90m
+[31m+     "concurrency": 3,[90m
+[2m      "count": 1,[22m
+[2m      "priority": 5,[22m
+[2m    },[22m
+[2m  ][22m
+
+[1m  3rd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "count": 1,[90m
+[32m-     "priority": 5,[90m
+[31m+   "✅ Batch analysis completed",[90m
+[31m+   {[90m
+[31m+     "cancelled": false,[90m
+[31m+     "duration": "0ms",[90m
+[31m+     "failed": 0,[90m
+[31m+     "success": 2,[90m
+[31m+     "total": 1,[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m3[22m
+[31m[39m
+[36m [2m❯[22m test/analyze-batch-emails.test.ts:[2m123:27[22m[39m
+    [90m121| [39m      })[33m;[39m
+    [90m122| [39m
+    [90m123| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m124| [39m        [32m'Starting batch email analysis'[39m[33m,[39m
+    [90m125| [39m        expect[33m.[39m[34mobjectContaining[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-batch-emails.test.ts[2m > [22mAnalyzeBatchEmails - Logging Tests[2m > [22mBatch email analysis started logging[2m > [22mshould use default priority if not specified
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ …(2) ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "count": 1,[90m
+[32m-     "priority": 1,[90m
+[31m+   "🚀 Starting batch email analysis",[90m
+[31m+   {[90m
+[31m+     "config": {[90m
+[31m+       "concurrency": undefined,[90m
+[31m+       "continueOnError": undefined,[90m
+[31m+       "delayBetweenAnalyses": undefined,[90m
+[31m+       "priority": undefined,[90m
+[31m+     },[90m
+[31m+     "messageCount": 1,[90m
+[31m+     "provider": "openai",[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[31m+   "✅ Starting batch processing",[90m
+[31m+   {[90m
+[31m+     "concurrency": 3,[90m
+[2m      "count": 1,[22m
+[2m      "priority": 1,[22m
+[2m    },[22m
+[2m  ][22m
+
+[1m  3rd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "count": 1,[90m
+[32m-     "priority": 1,[90m
+[31m+   "✅ Batch analysis completed",[90m
+[31m+   {[90m
+[31m+     "cancelled": false,[90m
+[31m+     "duration": "0ms",[90m
+[31m+     "failed": 0,[90m
+[31m+     "success": 2,[90m
+[31m+     "total": 1,[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m3[22m
+[31m[39m
+[36m [2m❯[22m test/analyze-batch-emails.test.ts:[2m137:27[22m[39m
+    [90m135| [39m      })[33m;[39m
+    [90m136| [39m
+    [90m137| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m138| [39m        [32m'Starting batch email analysis'[39m[33m,[39m
+    [90m139| [39m        expect[33m.[39m[34mobjectContaining[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-batch-emails.test.ts[2m > [22mAnalyzeBatchEmails - Logging Tests[2m > [22mBatch email analysis started logging[2m > [22mshould log "Starting batch email analysis" as first log
+[31m[1mAssertionError[22m: expected 1st "vi.fn()" call to have been called with [ …(2) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[32m-   "Starting batch email analysis",[39m
+[31m+   "🚀 Starting batch email analysis",[39m
+[2m    Any<Object>,[22m
+[2m  ][22m
+
+[36m [2m❯[22m test/analyze-batch-emails.test.ts:[2m152:24[22m[39m
+    [90m150| [39m
+    [90m151| [39m      [35mconst[39m infoCall [33m=[39m logger[33m.[39minfo [35mas[39m [33mReturnType[39m[33m<[39m[35mtypeof[39m vi[33m.[39mfn[33m>[39m[33m;[39m
+    [90m152| [39m      [34mexpect[39m(infoCall)[33m.[39m[34mtoHaveBeenNthCalledWith[39m(
+    [90m   | [39m                       [31m^[39m
+    [90m153| [39m        [34m1[39m[33m,[39m
+    [90m154| [39m        [32m'Starting batch email analysis'[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-batch-emails.test.ts[2m > [22mAnalyzeBatchEmails - Logging Tests[2m > [22mComplete logging flow for batch analysis[2m > [22mshould log starting message with concurrency in correct order
+[31m[1mAssertionError[22m: expected 1st "vi.fn()" call to have been called with [ …(2) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[32m-   "Starting batch email analysis",[39m
+[32m-   ObjectContaining {[39m
+[31m+   "🚀 Starting batch email analysis",[39m
+[31m+   {[39m
+[31m+     "config": {[39m
+[2m        "concurrency": 2,[22m
+[32m-     "count": 2,[39m
+[32m-     "priority": 1,[39m
+[31m+       "continueOnError": undefined,[39m
+[31m+       "delayBetweenAnalyses": undefined,[39m
+[31m+       "priority": undefined,[39m
+[31m+     },[39m
+[31m+     "messageCount": 2,[39m
+[31m+     "provider": "openai",[39m
+[2m    },[22m
+[2m  ][22m
+
+[36m [2m❯[22m test/analyze-batch-emails.test.ts:[2m169:24[22m[39m
+    [90m167| [39m      [35mconst[39m infoCall [33m=[39m logger[33m.[39minfo [35mas[39m [33mReturnType[39m[33m<[39m[35mtypeof[39m vi[33m.[39mfn[33m>[39m[33m;[39m
+    [90m168| [39m
+    [90m169| [39m      [34mexpect[39m(infoCall)[33m.[39m[34mtoHaveBeenNthCalledWith[39m(
+    [90m   | [39m                       [31m^[39m
+    [90m170| [39m        [34m1[39m[33m,[39m
+    [90m171| [39m        [32m'Starting batch email analysis'[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-batch-emails.test.ts[2m > [22mAnalyzeBatchEmails - Logging Tests[2m > [22mComplete logging flow for batch analysis[2m > [22mshould log all context fields correctly
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ …(2) ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[31m+   "🚀 Starting batch email analysis",[90m
+[31m+   {[90m
+[31m+     "config": {[90m
+[2m        "concurrency": 4,[22m
+[32m-     "count": 1,[90m
+[31m+       "continueOnError": undefined,[90m
+[31m+       "delayBetweenAnalyses": undefined,[90m
+[2m        "priority": 3,[22m
+[31m+     },[90m
+[31m+     "messageCount": 1,[90m
+[31m+     "provider": "openai",[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[31m+   "✅ Starting batch processing",[90m
+[31m+   {[90m
+[2m      "concurrency": 4,[22m
+[2m      "count": 1,[22m
+[2m      "priority": 3,[22m
+[2m    },[22m
+[2m  ][22m
+
+[1m  3rd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Starting batch email analysis",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "concurrency": 4,[90m
+[32m-     "count": 1,[90m
+[32m-     "priority": 3,[90m
+[31m+   "✅ Batch analysis completed",[90m
+[31m+   {[90m
+[31m+     "cancelled": false,[90m
+[31m+     "duration": "0ms",[90m
+[31m+     "failed": 0,[90m
+[31m+     "success": 2,[90m
+[31m+     "total": 1,[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m3[22m
+[31m[39m
+[36m [2m❯[22m test/analyze-batch-emails.test.ts:[2m187:27[22m[39m
+    [90m185| [39m      })[33m;[39m
+    [90m186| [39m
+    [90m187| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m188| [39m        [32m'Starting batch email analysis'[39m[33m,[39m
+    [90m189| [39m        expect[33m.[39m[34mobjectContaining[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-email.test.ts[2m > [22mAnalyzeEmail - Logging Tests[2m > [22mEmail analysis started logging[2m > [22mshould log "Email analysis started" with correct context
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 'Email analysis started', …(1) ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Email analysis started",[90m
+[31m+   "🚀 Starting email analysis",[90m
+[2m    {[22m
+[31m+     "config": {[90m
+[31m+       "applyTags": true,[90m
+[31m+       "forceReanalyze": false,[90m
+[31m+     },[90m
+[2m      "messageId": "123",[22m
+[32m-     "model": "gpt-4",[90m
+[32m-     "providerId": undefined,[90m
+[31m+     "providerId": "openai",[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Email analysis started",[90m
+[31m+   "✅ Tags applied successfully",[90m
+[2m    {[22m
+[31m+     "applied": 1,[90m
+[2m      "messageId": "123",[22m
+[32m-     "model": "gpt-4",[90m
+[32m-     "providerId": undefined,[90m
+[31m+     "total": 1,[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  3rd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Email analysis started",[90m
+[31m+   "✅ Email analysis completed successfully",[90m
+[2m    {[22m
+[31m+     "confidence": 0.9,[90m
+[31m+     "duration": "6ms",[90m
+[2m      "messageId": "123",[22m
+[32m-     "model": "gpt-4",[90m
+[32m-     "providerId": undefined,[90m
+[31m+     "tags": [[90m
+[31m+       "work",[90m
+[31m+     ],[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m3[22m
+[31m[39m
+[36m [2m❯[22m test/analyze-email.test.ts:[2m181:27[22m[39m
+    [90m179| [39m      [35mawait[39m analyzeEmail[33m.[39m[34mexecute[39m([32m'123'[39m[33m,[39m mockProviderSettings)[33m;[39m
+    [90m180| [39m
+    [90m181| [39m      expect(logger.info).toHaveBeenCalledWith('Email analysis started…
+    [90m   | [39m                          [31m^[39m
+    [90m182| [39m        messageId[33m:[39m [32m'123'[39m[33m,[39m
+    [90m183| [39m        providerId[33m:[39m mockProviderSettings[33m.[39mproviderId[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-email.test.ts[2m > [22mAnalyzeEmail - Logging Tests[2m > [22mEmail analysis started logging[2m > [22mshould include providerId from provider settings in log context
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 'Email analysis started', …(1) ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Email analysis started",[90m
+[31m+   "🚀 Starting email analysis",[90m
+[2m    {[22m
+[31m+     "config": {[90m
+[31m+       "applyTags": true,[90m
+[31m+       "forceReanalyze": false,[90m
+[31m+     },[90m
+[2m      "messageId": "123",[22m
+[32m-     "model": "gpt-4",[90m
+[32m-     "providerId": "custom-provider-id",[90m
+[31m+     "providerId": "openai",[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Email analysis started",[90m
+[31m+   "✅ Tags applied successfully",[90m
+[2m    {[22m
+[31m+     "applied": 1,[90m
+[2m      "messageId": "123",[22m
+[32m-     "model": "gpt-4",[90m
+[32m-     "providerId": "custom-provider-id",[90m
+[31m+     "total": 1,[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  3rd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Email analysis started",[90m
+[31m+   "✅ Email analysis completed successfully",[90m
+[2m    {[22m
+[31m+     "confidence": 0.9,[90m
+[31m+     "duration": "0ms",[90m
+[2m      "messageId": "123",[22m
+[32m-     "model": "gpt-4",[90m
+[32m-     "providerId": "custom-provider-id",[90m
+[31m+     "tags": [[90m
+[31m+       "work",[90m
+[31m+     ],[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m3[22m
+[31m[39m
+[36m [2m❯[22m test/analyze-email.test.ts:[2m198:27[22m[39m
+    [90m196| [39m      [35mawait[39m analyzeEmail[33m.[39m[34mexecute[39m([32m'123'[39m[33m,[39m settingsWithId)[33m;[39m
+    [90m197| [39m
+    [90m198| [39m      expect(logger.info).toHaveBeenCalledWith('Email analysis started…
+    [90m   | [39m                          [31m^[39m
+    [90m199| [39m        messageId[33m:[39m [32m'123'[39m[33m,[39m
+    [90m200| [39m        providerId[33m:[39m [32m'custom-provider-id'[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-email.test.ts[2m > [22mAnalyzeEmail - Logging Tests[2m > [22mEmail analysis started logging[2m > [22mshould log start message as first info call
+[31m[1mAssertionError[22m: expected 1st "vi.fn()" call to have been called with [ 'Email analysis started', …(1) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[32m-   "Email analysis started",[39m
+[31m+   "🚀 Starting email analysis",[39m
+[2m    {[22m
+[31m+     "config": {[39m
+[31m+       "applyTags": true,[39m
+[31m+       "forceReanalyze": false,[39m
+[31m+     },[39m
+[2m      "messageId": "456",[22m
+[32m-     "model": "gpt-4",[39m
+[32m-     "providerId": undefined,[39m
+[31m+     "providerId": "openai",[39m
+[2m    },[22m
+[2m  ][22m
+
+[36m [2m❯[22m test/analyze-email.test.ts:[2m209:24[22m[39m
+    [90m207| [39m
+    [90m208| [39m      [35mconst[39m infoCall [33m=[39m logger[33m.[39minfo [35mas[39m [33mReturnType[39m[33m<[39m[35mtypeof[39m vi[33m.[39mfn[33m>[39m[33m;[39m
+    [90m209| [39m      expect(infoCall).toHaveBeenNthCalledWith(1, 'Email analysis star…
+    [90m   | [39m                       [31m^[39m
+    [90m210| [39m        messageId[33m:[39m [32m'456'[39m[33m,[39m
+    [90m211| [39m        providerId[33m:[39m mockProviderSettings[33m.[39mproviderId[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-email.test.ts[2m > [22mAnalyzeEmail - Logging Tests[2m > [22mQueue status logging[2m > [22mshould call logQueueStatus after analysis start
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called at least once[39m
+[36m [2m❯[22m test/analyze-email.test.ts:[2m221:30[22m[39m
+    [90m219| [39m      [35mawait[39m analyzeEmail[33m.[39m[34mexecute[39m([32m'123'[39m[33m,[39m mockProviderSettings)[33m;[39m
+    [90m220| [39m
+    [90m221| [39m      [34mexpect[39m(queue[33m.[39mgetStats)[33m.[39m[34mtoHaveBeenCalled[39m()[33m;[39m
+    [90m   | [39m                             [31m^[39m
+    [90m222| [39m    })[33m;[39m
+    [90m223| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-email.test.ts[2m > [22mAnalyzeEmail - Logging Tests[2m > [22mQueue status logging[2m > [22mshould log queue status with correct fields
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 'Queue status', ObjectContaining{…} ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Queue status",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "avgWaitTime": 100,[90m
+[32m-     "processing": 3,[90m
+[32m-     "size": 5,[90m
+[32m-     "waiting": 2,[90m
+[31m+   "🚀 Starting email analysis",[90m
+[31m+   {[90m
+[31m+     "config": {[90m
+[31m+       "applyTags": true,[90m
+[31m+       "forceReanalyze": false,[90m
+[31m+     },[90m
+[31m+     "messageId": "123",[90m
+[31m+     "providerId": "openai",[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Queue status",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "avgWaitTime": 100,[90m
+[32m-     "processing": 3,[90m
+[32m-     "size": 5,[90m
+[32m-     "waiting": 2,[90m
+[31m+   "✅ Tags applied successfully",[90m
+[31m+   {[90m
+[31m+     "applied": 1,[90m
+[31m+     "messageId": "123",[90m
+[31m+     "total": 1,[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  3rd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Queue status",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "avgWaitTime": 100,[90m
+[32m-     "processing": 3,[90m
+[32m-     "size": 5,[90m
+[32m-     "waiting": 2,[90m
+[31m+   "✅ Email analysis completed successfully",[90m
+[31m+   {[90m
+[31m+     "confidence": 0.9,[90m
+[31m+     "duration": "1ms",[90m
+[31m+     "messageId": "123",[90m
+[31m+     "tags": [[90m
+[31m+       "work",[90m
+[31m+     ],[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m3[22m
+[31m[39m
+[36m [2m❯[22m test/analyze-email.test.ts:[2m227:27[22m[39m
+    [90m225| [39m      [35mawait[39m analyzeEmail[33m.[39m[34mexecute[39m([32m'123'[39m[33m,[39m mockProviderSettings)[33m;[39m
+    [90m226| [39m
+    [90m227| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m228| [39m        [32m'Queue status'[39m[33m,[39m
+    [90m229| [39m        expect[33m.[39m[34mobjectContaining[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-email.test.ts[2m > [22mAnalyzeEmail - Logging Tests[2m > [22mQueue status logging[2m > [22mshould log queue status after "Email analysis started"
+[31m[1mAssertionError[22m: expected 1st "vi.fn()" call to have been called with [ 'Email analysis started', …(1) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[32m-   "Email analysis started",[39m
+[31m+   "🚀 Starting email analysis",[39m
+[2m    Any<Object>,[22m
+[2m  ][22m
+
+[36m [2m❯[22m test/analyze-email.test.ts:[2m242:24[22m[39m
+    [90m240| [39m
+    [90m241| [39m      [35mconst[39m infoCall [33m=[39m logger[33m.[39minfo [35mas[39m [33mReturnType[39m[33m<[39m[35mtypeof[39m vi[33m.[39mfn[33m>[39m[33m;[39m
+    [90m242| [39m      expect(infoCall).toHaveBeenNthCalledWith(1, 'Email analysis star…
+    [90m   | [39m                       [31m^[39m
+    [90m243| [39m      expect(infoCall).toHaveBeenNthCalledWith(2, 'Queue status', expe…
+    [90m244| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-email.test.ts[2m > [22mAnalyzeEmail - Logging Tests[2m > [22mQueue status logging[2m > [22mshould handle queue stats correctly
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 'Queue status', ObjectContaining{…} ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Queue status",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "avgWaitTime": 200,[90m
+[32m-     "processing": 5,[90m
+[32m-     "size": 10,[90m
+[32m-     "waiting": 5,[90m
+[31m+   "🚀 Starting email analysis",[90m
+[31m+   {[90m
+[31m+     "config": {[90m
+[31m+       "applyTags": true,[90m
+[31m+       "forceReanalyze": false,[90m
+[31m+     },[90m
+[31m+     "messageId": "789",[90m
+[31m+     "providerId": "openai",[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Queue status",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "avgWaitTime": 200,[90m
+[32m-     "processing": 5,[90m
+[32m-     "size": 10,[90m
+[32m-     "waiting": 5,[90m
+[31m+   "✅ Tags applied successfully",[90m
+[31m+   {[90m
+[31m+     "applied": 1,[90m
+[31m+     "messageId": "789",[90m
+[31m+     "total": 1,[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  3rd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Queue status",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "avgWaitTime": 200,[90m
+[32m-     "processing": 5,[90m
+[32m-     "size": 10,[90m
+[32m-     "waiting": 5,[90m
+[31m+   "✅ Email analysis completed successfully",[90m
+[31m+   {[90m
+[31m+     "confidence": 0.9,[90m
+[31m+     "duration": "1ms",[90m
+[31m+     "messageId": "789",[90m
+[31m+     "tags": [[90m
+[31m+       "work",[90m
+[31m+     ],[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m3[22m
+[31m[39m
+[36m [2m❯[22m test/analyze-email.test.ts:[2m258:27[22m[39m
+    [90m256| [39m      [35mawait[39m analyzeEmail[33m.[39m[34mexecute[39m([32m'789'[39m[33m,[39m mockProviderSettings)[33m;[39m
+    [90m257| [39m
+    [90m258| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m259| [39m        [32m'Queue status'[39m[33m,[39m
+    [90m260| [39m        expect[33m.[39m[34mobjectContaining[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/analyze-email.test.ts[2m > [22mAnalyzeEmail - Logging Tests[2m > [22mComplete logging flow[2m > [22mshould log both start message and queue status in correct order
+[31m[1mAssertionError[22m: expected 1st "vi.fn()" call to have been called with [ 'Email analysis started', …(1) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[32m-   "Email analysis started",[39m
+[31m+   "🚀 Starting email analysis",[39m
+[2m    {[22m
+[31m+     "config": {[39m
+[31m+       "applyTags": true,[39m
+[31m+       "forceReanalyze": false,[39m
+[31m+     },[39m
+[2m      "messageId": "999",[22m
+[32m-     "model": "gpt-4",[39m
+[32m-     "providerId": undefined,[39m
+[31m+     "providerId": "openai",[39m
+[2m    },[22m
+[2m  ][22m
+
+[36m [2m❯[22m test/analyze-email.test.ts:[2m276:24[22m[39m
+    [90m274| [39m      [35mconst[39m infoCall [33m=[39m logger[33m.[39minfo [35mas[39m [33mReturnType[39m[33m<[39m[35mtypeof[39m vi[33m.[39mfn[33m>[39m[33m;[39m
+    [90m275| [39m
+    [90m276| [39m      expect(infoCall).toHaveBeenNthCalledWith(1, 'Email analysis star…
+    [90m   | [39m                       [31m^[39m
+    [90m277| [39m        messageId[33m:[39m [32m'999'[39m[33m,[39m
+    [90m278| [39m        providerId[33m:[39m mockProviderSettings[33m.[39mproviderId[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/config-repository.test.ts[2m > [22mIndexedDBConfigRepository[2m > [22mCustom Tags[2m > [22mshould set and get custom tags
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 'Saved 2 custom tags' ][90m
+
+Number of calls: [1m0[22m
+[31m[39m
+[36m [2m❯[22m test/config-repository.test.ts:[2m228:32[22m[39m
+    [90m226| [39m
+    [90m227| [39m      [34mexpect[39m(retrieved)[33m.[39m[34mtoEqual[39m(sampleCustomTags)[33m;[39m
+    [90m228| [39m      expect(mockLogger.debug).toHaveBeenCalledWith('Saved 2 custom ta…
+    [90m   | [39m                               [31m^[39m
+    [90m229| [39m    })[33m;[39m
+    [90m230| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/config-repository.test.ts[2m > [22mIndexedDBConfigRepository[2m > [22mError Handling[2m > [22mshould handle get errors gracefully
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 'Failed to get custom tags', …(1) ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Failed to get custom tags",[90m
+[32m-   ObjectContaining {[90m
+[31m+   "[CONFIG-REPO] Failed to get custom tags",[90m
+[31m+   {[90m
+[2m      "error": "Database error",[22m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m1[22m
+[31m[39m
+[36m [2m❯[22m test/config-repository.test.ts:[2m366:32[22m[39m
+    [90m364| [39m      )[33m;[39m
+    [90m365| [39m
+    [90m366| [39m      [34mexpect[39m(mockLogger[33m.[39merror)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                               [31m^[39m
+    [90m367| [39m        [32m'Failed to get custom tags'[39m[33m,[39m
+    [90m368| [39m        expect[33m.[39m[34mobjectContaining[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/email-event-listener.test.ts[2m > [22mEmailEventListener - Logging Tests[2m > [22mQueue status logging[2m > [22mshould call logQueueStatus after new mail event log
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called at least once[39m
+[36m [2m❯[22m test/email-event-listener.test.ts:[2m189:30[22m[39m
+    [90m187| [39m      [35mawait[39m handler[33m.[39m[34monNewMailReceived[39m(mockFolder[33m,[39m mockMessages)[33m;[39m
+    [90m188| [39m
+    [90m189| [39m      [34mexpect[39m(queue[33m.[39mgetStats)[33m.[39m[34mtoHaveBeenCalled[39m()[33m;[39m
+    [90m   | [39m                             [31m^[39m
+    [90m190| [39m    })[33m;[39m
+    [90m191| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/email-event-listener.test.ts[2m > [22mEmailEventListener - Logging Tests[2m > [22mQueue status logging[2m > [22mshould log queue status with correct fields
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 'Queue status', ObjectContaining{…} ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Queue status",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "avgWaitTime": 100,[90m
+[32m-     "processing": 3,[90m
+[32m-     "size": 5,[90m
+[32m-     "waiting": 2,[90m
+[31m+   "New mail event received",[90m
+[31m+   {[90m
+[31m+     "folderName": "INBOX",[90m
+[31m+     "folderPath": "/INBOX",[90m
+[31m+     "folderType": "inbox",[90m
+[31m+     "messageCount": 2,[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Queue status",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "avgWaitTime": 100,[90m
+[32m-     "processing": 3,[90m
+[32m-     "size": 5,[90m
+[32m-     "waiting": 2,[90m
+[31m+   "New mail processing completed",[90m
+[31m+   {[90m
+[31m+     "failureCount": 0,[90m
+[31m+     "successCount": 2,[90m
+[31m+     "total": 2,[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m2[22m
+[31m[39m
+[36m [2m❯[22m test/email-event-listener.test.ts:[2m196:27[22m[39m
+    [90m194| [39m      [35mawait[39m handler[33m.[39m[34monNewMailReceived[39m(mockFolder[33m,[39m mockMessages)[33m;[39m
+    [90m195| [39m
+    [90m196| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m197| [39m        [32m'Queue status'[39m[33m,[39m
+    [90m198| [39m        expect[33m.[39m[34mobjectContaining[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/email-event-listener.test.ts[2m > [22mEmailEventListener - Logging Tests[2m > [22mQueue status logging[2m > [22mshould log queue status after "New mail event received"
+[31m[1mAssertionError[22m: expected 2nd "vi.fn()" call to have been called with [ 'Queue status', Any<Object> ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[32m-   "Queue status",[39m
+[31m+   "New mail processing completed",[39m
+[2m    Any<Object>,[22m
+[2m  ][22m
+
+[36m [2m❯[22m test/email-event-listener.test.ts:[2m213:24[22m[39m
+    [90m211| [39m      [35mconst[39m infoCall [33m=[39m logger[33m.[39minfo [35mas[39m [33mReturnType[39m[33m<[39m[35mtypeof[39m vi[33m.[39mfn[33m>[39m[33m;[39m
+    [90m212| [39m      expect(infoCall).toHaveBeenNthCalledWith(1, 'New mail event rece…
+    [90m213| [39m      expect(infoCall).toHaveBeenNthCalledWith(2, 'Queue status', expe…
+    [90m   | [39m                       [31m^[39m
+    [90m214| [39m    })[33m;[39m
+    [90m215| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/email-event-listener.test.ts[2m > [22mEmailEventListener - Logging Tests[2m > [22mQueue status logging[2m > [22mshould handle different queue stats correctly
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 'Queue status', ObjectContaining{…} ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Queue status",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "avgWaitTime": 250,[90m
+[32m-     "processing": 3,[90m
+[32m-     "size": 10,[90m
+[32m-     "waiting": 7,[90m
+[31m+   "New mail event received",[90m
+[31m+   {[90m
+[31m+     "folderName": "INBOX",[90m
+[31m+     "folderPath": "/INBOX",[90m
+[31m+     "folderType": "inbox",[90m
+[31m+     "messageCount": 2,[90m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "Queue status",[90m
+[32m-   ObjectContaining {[90m
+[32m-     "avgWaitTime": 250,[90m
+[32m-     "processing": 3,[90m
+[32m-     "size": 10,[90m
+[32m-     "waiting": 7,[90m
+[31m+   "New mail processing completed",[90m
+[31m+   {[90m
+[31m+     "failureCount": 0,[90m
+[31m+     "successCount": 2,[90m
+[31m+     "total": 2,[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m2[22m
+[31m[39m
+[36m [2m❯[22m test/email-event-listener.test.ts:[2m229:27[22m[39m
+    [90m227| [39m      [35mawait[39m handler[33m.[39m[34monNewMailReceived[39m(mockFolder[33m,[39m mockMessages)[33m;[39m
+    [90m228| [39m
+    [90m229| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenCalledWith[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m230| [39m        [32m'Queue status'[39m[33m,[39m
+    [90m231| [39m        expect[33m.[39m[34mobjectContaining[39m({
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/email-event-listener.test.ts[2m > [22mEmailEventListener - Logging Tests[2m > [22mNew email processing logging[2m > [22mshould log "New email received" after queue status
+[31m[1mAssertionError[22m: expected 2nd "vi.fn()" call to have been called with [ 'Queue status', Any<Object> ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[32m-   "Queue status",[39m
+[31m+   "New mail processing completed",[39m
+[2m    Any<Object>,[22m
+[2m  ][22m
+
+[36m [2m❯[22m test/email-event-listener.test.ts:[2m249:24[22m[39m
+    [90m247| [39m
+    [90m248| [39m      expect(infoCall).toHaveBeenNthCalledWith(1, 'New mail event rece…
+    [90m249| [39m      expect(infoCall).toHaveBeenNthCalledWith(2, 'Queue status', expe…
+    [90m   | [39m                       [31m^[39m
+    [90m250| [39m      [34mexpect[39m(infoCall)[33m.[39m[34mtoHaveBeenNthCalledWith[39m(
+    [90m251| [39m        [34m3[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/email-event-listener.test.ts[2m > [22mEmailEventListener - Logging Tests[2m > [22mNew email processing logging[2m > [22mshould include folder and messageCount in log context
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 'New email received', …(1) ][90m
+
+Received: 
+
+[1m  1st vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "New email received",[90m
+[31m+   "New mail event received",[90m
+[2m    {[22m
+[32m-     "folder": "INBOX",[90m
+[31m+     "folderName": "INBOX",[90m
+[31m+     "folderPath": "/INBOX",[90m
+[31m+     "folderType": "inbox",[90m
+[2m      "messageCount": 2,[22m
+[2m    },[22m
+[2m  ][22m
+
+[1m  2nd vi.fn() call:
+
+[22m[2m  [[22m
+[32m-   "New email received",[90m
+[31m+   "New mail processing completed",[90m
+[2m    {[22m
+[32m-     "folder": "INBOX",[90m
+[32m-     "messageCount": 2,[90m
+[31m+     "failureCount": 0,[90m
+[31m+     "successCount": 2,[90m
+[31m+     "total": 2,[90m
+[2m    },[22m
+[2m  ][22m
+[31m[90m
+
+Number of calls: [1m2[22m
+[31m[39m
+[36m [2m❯[22m test/email-event-listener.test.ts:[2m264:27[22m[39m
+    [90m262| [39m      [35mawait[39m handler[33m.[39m[34monNewMailReceived[39m(mockFolder[33m,[39m mockMessages)[33m;[39m
+    [90m263| [39m
+    [90m264| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenCalledWith[39m([32m'New email received'[39m[33m,[39m {
+    [90m   | [39m                          [31m^[39m
+    [90m265| [39m        folder[33m:[39m mockFolder[33m.[39mname[33m,[39m
+    [90m266| [39m        messageCount[33m:[39m mockMessages[33m.[39mmessages[33m.[39mlength[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/email-event-listener.test.ts[2m > [22mEmailEventListener - Logging Tests[2m > [22mComplete logging flow for new mail event[2m > [22mshould log all messages in correct order
+[31m[1mAssertionError[22m: expected 2nd "vi.fn()" call to have been called with [ 'Queue status', ObjectContaining{…} ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[32m-   "Queue status",[39m
+[32m-   ObjectContaining {[39m
+[32m-     "avgWaitTime": 100,[39m
+[32m-     "processing": 3,[39m
+[32m-     "size": 5,[39m
+[32m-     "waiting": 2,[39m
+[31m+   "New mail processing completed",[39m
+[31m+   {[39m
+[31m+     "failureCount": 0,[39m
+[31m+     "successCount": 2,[39m
+[31m+     "total": 2,[39m
+[2m    },[22m
+[2m  ][22m
+
+[36m [2m❯[22m test/email-event-listener.test.ts:[2m296:24[22m[39m
+    [90m294| [39m      })[33m;[39m
+    [90m295| [39m
+    [90m296| [39m      [34mexpect[39m(infoCall)[33m.[39m[34mtoHaveBeenNthCalledWith[39m(
+    [90m   | [39m                       [31m^[39m
+    [90m297| [39m        [34m2[39m[33m,[39m
+    [90m298| [39m        [32m'Queue status'[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/email-event-listener.test.ts[2m > [22mEmailEventListener - Logging Tests[2m > [22mComplete logging flow for new mail event[2m > [22mshould include all required context fields
+[31m[1mAssertionError[22m: expected 2nd "vi.fn()" call to have been called with [ 'Queue status', ObjectContaining{…} ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[32m-   "Queue status",[39m
+[32m-   ObjectContaining {[39m
+[32m-     "avgWaitTime": Any<Number>,[39m
+[32m-     "processing": Any<Number>,[39m
+[32m-     "size": Any<Number>,[39m
+[32m-     "waiting": Any<Number>,[39m
+[31m+   "New mail processing completed",[39m
+[31m+   {[39m
+[31m+     "failureCount": 0,[39m
+[31m+     "successCount": 2,[39m
+[31m+     "total": 2,[39m
+[2m    },[22m
+[2m  ][22m
+
+[36m [2m❯[22m test/email-event-listener.test.ts:[2m334:27[22m[39m
+    [90m332| [39m      )[33m;[39m
+    [90m333| [39m
+    [90m334| [39m      [34mexpect[39m(logger[33m.[39minfo)[33m.[39m[34mtoHaveBeenNthCalledWith[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m335| [39m        [34m2[39m[33m,[39m
+    [90m336| [39m        [32m'Queue status'[39m[33m,[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/integration/tagApplication.test.ts[2m > [22mTag Application Integration Tests - Confidence Thresholds[2m > [22mTags Not Applied When Below Threshold[2m > [22mshould not apply tags when confidence is below global threshold
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 123, [] ][90m
+
+Number of calls: [1m0[22m
+[31m[39m
+[36m [2m❯[22m test/integration/tagApplication.test.ts:[2m325:43[22m[39m
+    [90m323| [39m      [90m// - is_urgent: 65% < 70% (global threshold) ✗[39m
+    [90m324| [39m      [90m// - is_business: 65% < 75% (custom threshold) ✗[39m
+    [90m325| [39m      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []…
+    [90m   | [39m                                          [31m^[39m
+    [90m326| [39m
+    [90m327| [39m      [90m// Verify: Warning logged[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/integration/tagApplication.test.ts[2m > [22mTag Application Integration Tests - Confidence Thresholds[2m > [22mTags Not Applied When Below Threshold[2m > [22mshould not apply tag when below custom threshold override
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 123, [] ][90m
+
+Number of calls: [1m0[22m
+[31m[39m
+[36m [2m❯[22m test/integration/tagApplication.test.ts:[2m352:43[22m[39m
+    [90m350| [39m
+    [90m351| [39m      [90m// Verify: Tag should NOT be applied (74% < 75% custom threshold)[39m
+    [90m352| [39m      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []…
+    [90m   | [39m                                          [31m^[39m
+    [90m353| [39m      [34mexpect[39m(result[33m.[39mtags)[33m.[39m[34mtoEqual[39m([[32m'is_business'[39m])[33m;[39m
+    [90m354| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/integration/tagApplication.test.ts[2m > [22mTag Application Integration Tests - Confidence Thresholds[2m > [22mTags Not Applied When Below Threshold[2m > [22mshould not apply tag when below high custom threshold
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 123, [] ][90m
+
+Number of calls: [1m0[22m
+[31m[39m
+[36m [2m❯[22m test/integration/tagApplication.test.ts:[2m368:43[22m[39m
+    [90m366| [39m
+    [90m367| [39m      [90m// Verify: Tag should NOT be applied (85% < 90% custom threshold)[39m
+    [90m368| [39m      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []…
+    [90m   | [39m                                          [31m^[39m
+    [90m369| [39m      [34mexpect[39m(result[33m.[39mtags)[33m.[39m[34mtoEqual[39m([[32m'is_personal'[39m])[33m;[39m
+    [90m370| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/integration/tagApplication.test.ts[2m > [22mTag Application Integration Tests - Confidence Thresholds[2m > [22mLow-Confidence Flagging Behavior[2m > [22mshould create low-confidence flags for tags below threshold
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 123, [] ][90m
+
+Number of calls: [1m0[22m
+[31m[39m
+[36m [2m❯[22m test/integration/tagApplication.test.ts:[2m494:43[22m[39m
+    [90m492| [39m
+    [90m493| [39m      [90m// Verify: No tags applied (both below threshold)[39m
+    [90m494| [39m      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []…
+    [90m   | [39m                                          [31m^[39m
+    [90m495| [39m
+    [90m496| [39m      [90m// Verify: Low-confidence flags stored[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/integration/tagApplication.test.ts[2m > [22mTag Application Integration Tests - Confidence Thresholds[2m > [22mEdge Cases and Boundary Conditions[2m > [22mshould handle empty tag list
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 123, [] ][90m
+
+Number of calls: [1m0[22m
+[31m[39m
+[36m [2m❯[22m test/integration/tagApplication.test.ts:[2m615:43[22m[39m
+    [90m613| [39m
+    [90m614| [39m      [90m// Verify: No tags applied[39m
+    [90m615| [39m      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []…
+    [90m   | [39m                                          [31m^[39m
+    [90m616| [39m      [34mexpect[39m(result[33m.[39mtags)[33m.[39m[34mtoEqual[39m([])[33m;[39m
+    [90m617| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/integration/tagApplication.test.ts[2m > [22mTag Application Integration Tests - Confidence Thresholds[2m > [22mEdge Cases and Boundary Conditions[2m > [22mshould handle confidence of 0.0 (0%)
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 123, [] ][90m
+
+Number of calls: [1m0[22m
+[31m[39m
+[36m [2m❯[22m test/integration/tagApplication.test.ts:[2m651:43[22m[39m
+    [90m649| [39m
+    [90m650| [39m      [90m// Verify: No tags applied[39m
+    [90m651| [39m      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []…
+    [90m   | [39m                                          [31m^[39m
+    [90m652| [39m      [34mexpect[39m(result[33m.[39mconfidence)[33m.[39m[34mtoBe[39m([34m0.0[39m)[33m;[39m
+    [90m653| [39m    })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/integration/tagApplication.test.ts[2m > [22mTag Application Integration Tests - Confidence Thresholds[2m > [22mCaching Interactions with Confidence Thresholds[2m > [22mshould flag low-confidence from cached results
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called with arguments: [ 123, [] ][90m
+
+Number of calls: [1m0[22m
+[31m[39m
+[36m [2m❯[22m test/integration/tagApplication.test.ts:[2m769:43[22m[39m
+    [90m767| [39m
+    [90m768| [39m      [90m// Verify: Tag not applied (70% < 90% custom threshold)[39m
+    [90m769| [39m      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []…
+    [90m   | [39m                                          [31m^[39m
+    [90m770| [39m
+    [90m771| [39m      [90m// Verify: Low-confidence flag stored[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/interfaces/options/options-form-validation.test.ts[2m > [22mOptions Page - Integration[2m > [22mEnd-to-End Threshold Configuration[2m > [22mshould handle threshold update
+[31m[1mAssertionError[22m: expected "vi.fn()" to be called 2 times, but got 3 times[39m
+[36m [2m❯[22m test/interfaces/options/options-form-validation.test.ts:[2m627:37[22m[39m
+    [90m625| [39m      })[33m;[39m
+    [90m626| [39m
+    [90m627| [39m      [34mexpect[39m(mockStorage[33m.[39mlocal[33m.[39m[35mset[39m)[33m.[39m[34mtoHaveBeenCalledTimes[39m([34m2[39m)[33m;[39m
+    [90m   | [39m                                    [31m^[39m
+    [90m628| [39m    })[33m;[39m
+    [90m629| [39m  })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/interfaces/components/ConfidenceBadge.test.ts[2m > [22mConfidenceBadge Component[2m > [22mColor Coding[2m > [22mshould handle boundary values correctly
+[31m[1mAssertionError[22m: expected 'confidence-badge confidence-medium co…' to contain 'confidence-low'[39m
+
+Expected: [32m"confidence-[7mlow[27m"[39m
+Received: [31m"confidence-[7mbadge confidence-medium compact[27m"[39m
+
+[36m [2m❯[22m test/interfaces/components/ConfidenceBadge.test.ts:[2m118:33[22m[39m
+    [90m116| [39m      // Test boundaries: 0.699 (69%) should be low, 0.700 (70%) shoul…
+    [90m117| [39m      [35mconst[39m badge69 [33m=[39m badgeComponent[33m.[39m[34mcreateCompact[39m([34m0.699[39m)[33m;[39m
+    [90m118| [39m      [34mexpect[39m(badge69[33m.[39mclassName)[33m.[39m[34mtoContain[39m([32m'confidence-low'[39m)[33m;[39m
+    [90m   | [39m                                [31m^[39m
+    [90m119| [39m
+    [90m120| [39m      [35mconst[39m badge70 [33m=[39m badgeComponent[33m.[39m[34mcreateCompact[39m([34m0.700[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/interfaces/components/ConfidenceBadge.test.ts[2m > [22mConfidenceBadge Component[2m > [22mUpdate Functionality[2m > [22mshould allow changing display mode when updating
+[31m[1mAssertionError[22m: expected 'confidence-badge confidence-high deta…' not to contain 'compact'[39m
+
+Expected: [32m"compact"[39m
+Received: [31m"[7mconfidence-badge confidence-high detailed confidence-medium [27mcompact"[39m
+
+[36m [2m❯[22m test/interfaces/components/ConfidenceBadge.test.ts:[2m291:37[22m[39m
+    [90m289| [39m      [34mexpect[39m(element[33m.[39minnerHTML)[33m.[39m[34mtoBe[39m([32m'85% High'[39m)[33m;[39m
+    [90m290| [39m      [34mexpect[39m(element[33m.[39mclassName)[33m.[39m[34mtoContain[39m([32m'detailed'[39m)[33m;[39m
+    [90m291| [39m      [34mexpect[39m(element[33m.[39mclassName)[33m.[39mnot[33m.[39m[34mtoContain[39m([32m'compact'[39m)[33m;[39m
+    [90m   | [39m                                    [31m^[39m
+    [90m292| [39m    })[33m;[39m
+    [90m293| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/36]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/interfaces/components/ConfidenceBadge.test.ts[2m > [22mConfidenceBadge Component[2m > [22mError Handling[2m > [22mshould throw error for NaN confidence
+[31m[1mAssertionError[22m: expected [Function] to throw an error[39m
+[36m [2m❯[22m test/interfaces/components/ConfidenceBadge.test.ts:[2m336:10[22m[39m
+    [90m334| [39m      [34mexpect[39m(() [33m=>[39m {
+    [90m335| [39m        badgeComponent[33m.[39m[34mcreateCompact[39m([33mNaN[39m)[33m;[39m
+    [90m336| [39m      })[33m.[39m[34mtoThrow[39m()[33m;[39m
+    [90m   | [39m         [31m^[39m
+    [90m337| [39m    })[33m;[39m
+    [90m338| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/36]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m7 failed[39m[22m[2m | [22m[1m[32m10 passed[39m[22m[90m (17)[39m
+[2m      Tests [22m [1m[31m36 failed[39m[22m[2m | [22m[1m[32m477 passed[39m[22m[90m (513)[39m
+[2m   Start at [22m 20:37:51
+[2m   Duration [22m 299.58s[2m (transform 2.35s, setup 546ms, import 3.44s, tests 300.40s, environment 6.70s)[22m
+
