@@ -1,0 +1,580 @@
+{
+  "feature": "Email Analysis Tracking via Custom Header",
+  "description": "Implement header-based tracking to prevent AI from re-analyzing emails during development by storing X-AI-Analyzed: true header in email messages",
+  "workflow_type": "feature",
+  "workflow_rationale": "This is a new feature being added to an existing system. It requires new API methods, permission modifications, and integration into multiple existing workflows. The implementation follows a clear sequence: create tracking service, add permission, integrate into use cases, verify functionality.",
+  "created_at": "2026-01-30T21:45:00Z",
+  "updated_at": "2026-01-30T21:10:40.246Z",
+  "status": "in_progress",
+  "phases": [
+    {
+      "id": "phase-1-permission",
+      "name": "Manifest Permission Update",
+      "type": "implementation",
+      "description": "Add messagesModifyPermanent permission to manifest.json to enable permanent message header modifications",
+      "depends_on": [],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Add messagesModifyPermanent permission to manifest.json",
+          "service": "main",
+          "files_to_modify": [
+            "manifest.json"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "grep -q 'messagesModifyPermanent' manifest.json && echo 'Permission found' || echo 'Permission missing'",
+            "expected": "Permission found"
+          },
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-tracker-service",
+      "name": "Email Analysis Tracker Service",
+      "type": "implementation",
+      "description": "Create EmailAnalysisTracker service with wasAnalyzed() and markAnalyzed() methods for header-based tracking",
+      "depends_on": [
+        "phase-1-permission"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Create EmailAnalysisTracker service class with dependency injection",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [
+            "src/application/services/EmailAnalysisTracker.ts"
+          ],
+          "patterns_from": [
+            "src/application/use-cases/AnalyzeEmail.ts",
+            "src/infrastructure/repositories/IndexedDBConfigRepository.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "test -f src/application/services/EmailAnalysisTracker.ts && echo 'File created' || echo 'File missing'",
+            "expected": "File created"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "Implement wasAnalyzed(messageId: number): Promise<boolean> method to read X-AI-Analyzed header",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/services/EmailAnalysisTracker.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/interfaces/adapters/ThunderbirdMailReader.ts"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review wasAnalyzed() method implementation: checks messenger.messages.getFull() for X-AI-Analyzed header, returns true if present"
+          },
+          "status": "completed",
+          "notes": "Implemented wasAnalyzed() method that:\n- Uses messenger.messages.getFull() to retrieve message with headers\n- Checks if X-AI-Analyzed header exists and equals 'true'\n- Returns boolean indicating analysis status\n- Includes debug logging following ThunderbirdMailReader patterns\n- Has proper error handling and throws descriptive errors\n\nAlso fixed TypeScript errors in getMessengerApi() by updating BrowserApi and ChromeApi interfaces to properly define the nested structure for browser.messenger and chrome.messenger access.\n\nBuild verification: TypeScript compilation successful with no errors.",
+          "updated_at": "2026-01-30T20:50:44.775563+00:00"
+        },
+        {
+          "id": "subtask-2-3",
+          "description": "Implement markAnalyzed(messageId: number): Promise<void> method to write X-AI-Analyzed header with fallback to storage.local",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/services/EmailAnalysisTracker.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/interfaces/adapters/ThunderbirdTagManager.ts",
+            "src/infrastructure/repositories/IndexedDBConfigRepository.ts"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review markAnalyzed() method: attempts to write header via messagesModifyPermanent API, falls back to storage.local with key processed_<messageId> on failure"
+          },
+          "status": "completed",
+          "notes": "Implemented markAnalyzed() method with:\n- Primary strategy: writes X-AI-Analyzed: true header via messagesModifyPermanent API\n- Fallback strategy: stores processed_<messageId>: true in storage.local on failure\n- Added tryWriteHeader() helper: checks API availability and attempts header write, returns boolean success\n- Added writeToFallbackStorage() helper: writes to storage.local with proper error handling\n- Follows patterns from ThunderbirdTagManager and IndexedDBConfigRepository:\n  - Proper try-catch blocks with detailed error logging\n  - Error message extraction: `error instanceof Error ? error.message : String(error)`\n  - Descriptive logging with context at each step\n  - Clean separation of concerns with helper methods\n  - Returns early on success\n- TypeScript compilation successful with no errors\n\nThe implementation gracefully handles:\n- missing modifyPermanent API (experimental feature)\n- API call failures\n- storage write failures with proper error propagation",
+          "updated_at": "2026-01-30T21:15:00.000000+00:00"
+        },
+        {
+          "id": "subtask-2-4",
+          "description": "Register EmailAnalysisTracker in DI container (background.ts)",
+          "service": "main",
+          "files_to_modify": [
+            "background.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "background.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -q 'EmailAnalysisTracker' background.ts && echo 'Registered in background' || echo 'Not found'",
+            "expected": "Registered in background"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-2-5",
+          "description": "Register EmailAnalysisTracker in DI container (options.ts)",
+          "service": "main",
+          "files_to_modify": [
+            "src/interfaces/options/OptionsScript.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/interfaces/options/OptionsScript.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -q 'EmailAnalysisTracker' src/interfaces/options/OptionsScript.ts && echo 'Registered in options' || echo 'Not found'",
+            "expected": "Registered in options"
+          },
+          "status": "completed",
+          "notes": "Successfully registered EmailAnalysisTracker in options.ts:\n- Added import statement in Services section\n- Registered as singleton in setupDIContainer() method\n- Verification passed: EmailAnalysisTracker found in OptionsScript.ts",
+          "updated_at": "2026-01-30T21:20:00.000000+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-analyze-email-integration",
+      "name": "AnalyzeEmail Integration",
+      "type": "implementation",
+      "description": "Integrate header check into AnalyzeEmail use case to skip already-analyzed emails",
+      "depends_on": [
+        "phase-2-tracker-service"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "Inject EmailAnalysisTracker into AnalyzeEmail constructor",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/use-cases/AnalyzeEmail.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/use-cases/AnalyzeEmail.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -q 'EmailAnalysisTracker' src/application/use-cases/AnalyzeEmail.ts && grep -q '@inject(EmailAnalysisTracker)' src/application/use-cases/AnalyzeEmail.ts && echo 'Injected' || echo 'Not injected'",
+            "expected": "Injected"
+          },
+          "status": "completed",
+          "notes": "Successfully injected EmailAnalysisTracker into AnalyzeEmail:\n- Added import statement for EmailAnalysisTracker\n- Added @inject(EmailAnalysisTracker) decorator with private readonly analysisTracker parameter in constructor\n- Verification passed: both 'EmailAnalysisTracker' and '@inject(EmailAnalysisTracker)' found in AnalyzeEmail.ts\n- Commit created: fcb62db",
+          "updated_at": "2026-01-30T21:25:00.000000+00:00"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "Add header check at start of execute() method to skip already-analyzed emails",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/use-cases/AnalyzeEmail.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/use-cases/AnalyzeEmail.ts"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review execute() method: early return with log message '⏭️ Skipping already-analyzed email' if wasAnalyzed() returns true"
+          },
+          "status": "completed",
+          "notes": "Successfully added header check at start of execute() method:\n- Added check immediately after initial logging and before Step 1 (email retrieval)\n- Converts messageId string to number for wasAnalyzed() call with proper validation\n- Calls this.analysisTracker.wasAnalyzed(messageIdNum) to check if email was already analyzed\n- Returns early with empty ITagResponse (empty tags, confidence: 0, reasoning: '') if header present\n- Logs '⏭️ Skipping already-analyzed email' message when skipping\n- Follows code patterns from existing codebase:\n  - Proper error handling for invalid message ID\n  - Uses logger.debug and logger.info (no console.log)\n  - Returns valid ITagResponse object matching interface requirements\n  - Placed strategically to avoid unnecessary email retrieval\n- TypeScript compilation successful with no errors\n- Commit created: 78d8be8",
+          "updated_at": "2026-01-30T21:30:00.000000+00:00"
+        },
+        {
+          "id": "subtask-3-3",
+          "description": "Call markAnalyzed() after successful tag application in execute() method",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/use-cases/AnalyzeEmail.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/use-cases/AnalyzeEmail.ts"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review execute() method: markAnalyzed() called after successful analysis and tag application, wrapped in try-catch with error logging"
+          },
+          "status": "completed",
+          "notes": "Successfully implemented markAnalyzed() calls after tag application:\n- Added call in cached result code path (lines 263-274): after applying cached tags, before storing low-confidence flags\n- Added call in new analysis code path (lines 353-364): after applying tags from new analysis\n- Both calls wrapped in try-catch with proper error handling:\n  - Attempts to mark email as analyzed via this.analysisTracker.markAnalyzed(messageIdNum)\n  - Logs success with '✅ Email marked as analyzed' message\n  - On error: extracts error message, logs warning with '⚠️ Failed to mark email as analyzed', continues execution (non-fatal)\n- Follows codebase patterns:\n  - Proper error message extraction: `error instanceof Error ? error.message : String(error)`\n  - Uses logger.warn for non-fatal errors\n  - Detailed logging with context (messageId)\n  - Continues execution on failure (non-blocking)\n- Also updated test files to include EmailAnalysisTracker mock:\n  - test/analyze-email.test.ts: Added import, variable declaration, mock, and constructor parameter\n  - test/integration/tagApplication.test.ts: Added import, variable declaration, mock, and constructor parameter\n- TypeScript compilation successful with no errors\n- Commit created: c6bf11e",
+          "updated_at": "2026-01-30T21:35:00.000000+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-batch-integration",
+      "name": "AnalyzeBatchEmails Integration",
+      "type": "implementation",
+      "description": "Integrate header check into AnalyzeBatchEmails use case to skip already-analyzed emails in batch",
+      "depends_on": [
+        "phase-2-tracker-service"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "Inject EmailAnalysisTracker into AnalyzeBatchEmails constructor",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/use-cases/AnalyzeBatchEmails.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/use-cases/AnalyzeBatchEmails.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -q 'EmailAnalysisTracker' src/application/use-cases/AnalyzeBatchEmails.ts && grep -q '@inject(EmailAnalysisTracker)' src/application/use-cases/AnalyzeBatchEmails.ts && echo 'Injected' || echo 'Not injected'",
+            "expected": "Injected"
+          },
+          "status": "completed",
+          "notes": "Successfully confirmed EmailAnalysisTracker injection into AnalyzeBatchEmails:\n- Import statement present: EmailAnalysisTracker imported from '../services/EmailAnalysisTracker'\n- Private field declared: private readonly emailAnalysisTracker: EmailAnalysisTracker\n- Constructor parameter injected: @inject(EmailAnalysisTracker) emailAnalysisTracker: EmailAnalysisTracker\n- Field assignment: this.emailAnalysisTracker = emailAnalysisTracker\n- Verification passed: both 'EmailAnalysisTracker' and '@inject(EmailAnalysisTracker)' found in AnalyzeBatchEmails.ts\n- Commit created: confirms implementation",
+          "updated_at": "2026-01-30T21:40:00.000000+00:00"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "Add header check in processQueueItem() before calling analyzeEmail.execute()",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/use-cases/AnalyzeBatchEmails.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/use-cases/AnalyzeBatchEmails.ts"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "Review processQueueItem() method: wasAnalyzed() check before analyzeEmail.execute(), log '⏭️ Skipping already-analyzed email' and return early if header present"
+          },
+          "status": "completed",
+          "notes": "Successfully added header check in processQueueItem() method:\n- Added check immediately after initial logging and before analyzeEmail.execute() call\n- Converts messageId string to number for wasAnalyzed() call using parseInt(messageId, 10)\n- Calls await this.emailAnalysisTracker.wasAnalyzed(messageIdNum) to check if email was already analyzed\n- Returns early if header present, logging '⏭️ Skipping already-analyzed email' with logger.info\n- Follows codebase patterns:\n  - Proper logging with context (messageId)\n  - Uses logger.info for skip notification (consistent with skip logging in other use cases)\n  - Early return pattern to avoid unnecessary processing\n  - ParseInt for safe string to number conversion\n- Verification passed: manual review confirms wasAnalyzed() check is present before analyzeEmail.execute() call\n- TypeScript compilation successful with no errors\n- Commit created: 91666fd",
+          "updated_at": "2026-01-30T21:45:00.000000+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-5-tests",
+      "name": "Test Implementation",
+      "type": "implementation",
+      "description": "Create unit tests for EmailAnalysisTracker service and integration tests for workflow",
+      "depends_on": [
+        "phase-3-analyze-email-integration",
+        "phase-4-batch-integration"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-5-1",
+          "description": "Create EmailAnalysisTracker unit test file",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [
+            "test/services/EmailAnalysisTracker.test.ts"
+          ],
+          "patterns_from": [
+            "test/analyze-email.test.ts",
+            "test/config-repository.test.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "test -f test/services/EmailAnalysisTracker.test.ts && echo 'Test file created' || echo 'Test file missing'",
+            "expected": "Test file created"
+          },
+          "status": "completed",
+          "notes": "Successfully created comprehensive unit test file for EmailAnalysisTracker:\n- Created test/services/EmailAnalysisTracker.test.ts with 23 passing tests\n- Test coverage includes:\n  - Constructor initialization\n  - wasAnalyzed() method:\n    * Returns true when X-AI-Analyzed header set to 'true'\n    * Returns false when header missing or has different value\n    * Returns false when header is empty array\n    * Error handling for missing messenger API\n    * Error handling for getFull() failures\n  - markAnalyzed() method:\n    * Marks email via modifyPermanent API when available\n    * Accepts optional config parameter\n    * Logs appropriate debug messages\n    * Falls back to storage.local when modifyPermanent unavailable\n    * Falls back to storage.local when modifyPermanent throws error\n    * Uses correct storage key pattern (processed_<messageId>)\n    * Error handling for missing messenger API\n    * Error handling for fallback storage failures\n  - Browser API compatibility:\n    * Works with browser.messenger API\n    * Works with chrome.messenger API\n  - Integration scenarios:\n    * Full check and mark cycle with header\n    * Full check and mark cycle with fallback storage\n  - Logging behavior:\n    * All debug messages during wasAnalyzed\n    * Success messages when marking via header\n    * Fallback messages when using storage\n- Follows existing test patterns:\n  - Uses vitest for testing framework\n  - Mock browser API with createMockMessenger() helper\n  - Uses beforeEach/afterEach for proper test isolation\n  - Helper functions for mock creation (createMockLogger, createMockMessenger)\n  - Proper cleanup of global mocks\n  - Descriptive test names and organized test suites\n  - Type-safe mocks with TypeScript\n- All 23 tests pass successfully\n- Verification passed: test file created at test/services/EmailAnalysisTracker.test.ts\n- Commit created: 229d400",
+          "updated_at": "2026-01-30T22:11:00.000000+00:00"
+        },
+        {
+          "id": "subtask-5-2",
+          "description": "Implement tests for wasAnalyzed() method (true when header present, false when absent)",
+          "service": "main",
+          "files_to_modify": [
+            "test/services/EmailAnalysisTracker.test.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "test/analyze-email.test.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "npm test -- test/services/EmailAnalysisTracker.test.ts 2>&1 | head -20",
+            "expected": "Tests pass"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-3",
+          "description": "Implement tests for markAnalyzed() method including fallback to storage.local",
+          "service": "main",
+          "files_to_modify": [
+            "test/services/EmailAnalysisTracker.test.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "test/config-repository.test.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "npm test -- test/services/EmailAnalysisTracker.test.ts 2>&1 | head -20",
+            "expected": "Tests pass"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-4",
+          "description": "Update AnalyzeEmail tests to verify header check integration",
+          "service": "main",
+          "files_to_modify": [
+            "test/analyze-email.test.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "test/analyze-email.test.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "npm test -- test/analyze-email.test.ts 2>&1 | grep -E 'PASS|FAIL' | head -10",
+            "expected": "PASS"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-5",
+          "description": "Update AnalyzeBatchEmails tests to verify header check in batch processing",
+          "service": "main",
+          "files_to_modify": [
+            "test/analyze-batch-emails.test.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "test/analyze-batch-emails.test.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "npm test -- test/analyze-batch-emails.test.ts 2>&1 | grep -E 'PASS|FAIL' | head -10",
+            "expected": "PASS"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-6-validation",
+      "name": "Validation and Verification",
+      "type": "integration",
+      "description": "Run all tests, verify TypeScript compilation, and ensure extension loads in Thunderbird",
+      "depends_on": [
+        "phase-5-tests"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-6-1",
+          "description": "Run full test suite to verify no regressions",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "npm test 2>&1 | tail -30",
+            "expected": "Test Suite Pass"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-6-2",
+          "description": "Run TypeScript type checking",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "npm run type-check 2>&1",
+            "expected": "No TypeScript errors"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-6-3",
+          "description": "Build extension bundle",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "npm run build 2>&1 | tail -10",
+            "expected": "Webpack compilation successful"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-6-4",
+          "description": "Verify manifest.json is valid and contains messagesModifyPermanent permission",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cat manifest.json | jq '.permissions' | grep messagesModifyPermanent",
+            "expected": "messagesModifyPermanent"
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 6,
+    "total_subtasks": 20,
+    "services_involved": [
+      "main"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 2,
+      "parallel_groups": [
+        {
+          "phases": [
+            "phase-3-analyze-email-integration",
+            "phase-4-batch-integration"
+          ],
+          "reason": "Both phases depend only on phase-2-tracker-service and modify different files (AnalyzeEmail.ts vs AnalyzeBatchEmails.ts)"
+        }
+      ],
+      "recommended_workers": 2,
+      "speedup_estimate": "1.3x faster than sequential (phases 3 and 4 can run in parallel)"
+    },
+    "startup_command": "cd /home/titus/Projects/thunderbird-email-ai-assistant && source .venv/bin/activate 2>/dev/null || true && npm install && npm run build"
+  },
+  "verification_strategy": {
+    "risk_level": "medium",
+    "skip_validation": false,
+    "test_creation_phase": "post_implementation",
+    "test_types_required": [
+      "unit",
+      "integration"
+    ],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "All existing tests pass",
+      "New EmailAnalysisTracker service has unit tests",
+      "wasAnalyzed() returns true when X-AI-Analyzed header present",
+      "markAnalyzed() writes X-AI-Analyzed: true header",
+      "Fallback to storage.local works when header write fails",
+      "AnalyzeEmail skips already-analyzed emails",
+      "AnalyzeBatchEmails skips already-analyzed emails in batch",
+      "TypeScript compilation successful with no errors",
+      "Extension builds successfully"
+    ],
+    "verification_steps": [
+      {
+        "name": "Unit Tests",
+        "command": "npm test -- test/services/EmailAnalysisTracker.test.ts",
+        "expected_outcome": "All EmailAnalysisTracker tests pass",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Integration Tests - AnalyzeEmail",
+        "command": "npm test -- test/analyze-email.test.ts",
+        "expected_outcome": "All AnalyzeEmail integration tests pass",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Integration Tests - AnalyzeBatchEmails",
+        "command": "npm test -- test/analyze-batch-emails.test.ts",
+        "expected_outcome": "All AnalyzeBatchEmails integration tests pass",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Full Test Suite",
+        "command": "npm test",
+        "expected_outcome": "All tests pass with no regressions",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "TypeScript Type Check",
+        "command": "npm run type-check",
+        "expected_outcome": "No TypeScript compilation errors",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Extension Build",
+        "command": "npm run build",
+        "expected_outcome": "Webpack builds successfully with no errors",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      }
+    ],
+    "reasoning": "Medium risk feature requiring unit tests for tracking logic (header read/write, fallback mechanism) and integration tests for use case integration. Experimental API error handling needs verification. No security-sensitive areas touched, no infrastructure changes requiring staging deployment."
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": true,
+      "commands": [
+        "npm test -- test/services/EmailAnalysisTracker.test.ts",
+        "npm test -- test/analyze-email.test.ts",
+        "npm test -- test/analyze-batch-emails.test.ts"
+      ],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": true,
+      "commands": [
+        "npm test"
+      ],
+      "services_to_test": [
+        "main"
+      ]
+    },
+    "e2e_tests": {
+      "required": false,
+      "commands": [],
+      "flows": []
+    },
+    "browser_verification": {
+      "required": true,
+      "pages": [
+        {
+          "url": "about:debugging#/runtime/this-firefox",
+          "checks": [
+            "Extension loads without warnings",
+            "manifest.json contains messagesModifyPermanent permission",
+            "No console errors on load"
+          ]
+        }
+      ]
+    },
+    "database_verification": {
+      "required": false,
+      "checks": []
+    }
+  },
+  "qa_signoff": null,
+  "planStatus": "in_progress",
+  "last_updated": "2026-01-30T21:35:00.000000+00:00"
+}
