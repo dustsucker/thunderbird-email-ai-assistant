@@ -247,7 +247,9 @@ class BackgroundScript {
       this.logger.info('Background script initialization started');
 
       // Step 2.5: Ensuring all custom tags exist
+      this.logger?.info('Ensuring all custom tags exist in Thunderbird...');
       await ensureTagsExist();
+      this.logger?.info('Tag initialization completed');
 
       // Step 3: Resolve background services
       this.eventListener = container.resolve<EmailEventListener>(EmailEventListener);
