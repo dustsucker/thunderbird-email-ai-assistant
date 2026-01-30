@@ -67,27 +67,6 @@ function isThunderbirdTagArray(value: unknown): value is ThunderbirdTag[] {
 }
 
 // ============================================================================
-// Tag Key Mapping (Internal Keys with _ma_ Prefix)
-// ============================================================================
-
-/**
- * Map from defined tag keys to internal Thunderbird tag keys (with _ma_ prefix)
- * Thunderbird internally prefixes all tag keys with "_ma_", so we need to map
- * our defined keys to the internal keys for all operations.
- *
- * @deprecated This static map only includes hardcoded tags. Use buildTagKeyMap()
- * for dynamic mapping that includes custom tags. Will be removed in favor of
- * convertToInternalKey() and convertToInternalKeys() methods.
- */
-const TAG_KEY_MAP: Record<string, string> = {
-  is_scam: TAG_KEY_PREFIX + HARDCODED_TAGS.is_scam.key,
-  spf_fail: TAG_KEY_PREFIX + HARDCODED_TAGS.spf_fail.key,
-  dkim_fail: TAG_KEY_PREFIX + HARDCODED_TAGS.dkim_fail.key,
-  tagged: TAG_KEY_PREFIX + HARDCODED_TAGS.tagged.key,
-  email_ai_analyzed: TAG_KEY_PREFIX + HARDCODED_TAGS.email_ai_analyzed.key,
-};
-
-// ============================================================================
 // ThunderbirdTagManager Implementation
 // ============================================================================
 
