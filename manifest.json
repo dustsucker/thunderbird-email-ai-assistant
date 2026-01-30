@@ -6,6 +6,7 @@
   "permissions": [
     "messagesRead",
     "messagesUpdate",
+    "messagesModifyPermanent",
     "accountsRead",
     "storage",
     "menus",
