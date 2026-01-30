@@ -86,8 +86,8 @@ export class ApplyTagsToEmail {
   // Private Fields
   // ==========================================================================
 
-  /** Flag to track if hardcoded tags have been ensured */
-  private hardcodedTagsEnsured: boolean = false;
+  /** Flag to track if all tags (hardcoded + custom) have been ensured */
+  private allTagsEnsured: boolean = false;
 
   // ==========================================================================
   // Public Methods
@@ -115,11 +115,11 @@ export class ApplyTagsToEmail {
     tagKeys: string[],
     config: ApplyTagsConfig = {}
   ): Promise<ApplyTagsResult> {
-    // Hardcoded Tags beim ersten Mal erstellen
-    if (!this.hardcodedTagsEnsured) {
-      await this.ensureHardcodedTagsExist();
-      this.hardcodedTagsEnsured = true;
-      this.logger.info('✅ Hardcoded tags ensured on first execution');
+    // Ensure all tags (hardcoded + custom) exist on first execution
+    if (!this.allTagsEnsured) {
+      await this.ensureAllTagsExist();
+      this.allTagsEnsured = true;
+      this.logger.info('✅ All tags (hardcoded + custom) ensured on first execution');
     }
 
     const { createMissingTags = false, replaceTags = false, defaultColor = '#9E9E9E' } = config;
@@ -356,15 +356,16 @@ export class ApplyTagsToEmail {
   // ==========================================================================
 
   /**
-   * Ensures all hardcoded tags exist in Thunderbird.
+   * Ensures all tags (hardcoded + custom) exist in Thunderbird.
    *
-   * Automatically creates all tags defined in HARDCODED_TAGS if they don't exist.
-   * This is called once on the first execution to ensure the system has all
-   * required tags available.
+   * Automatically creates all tags defined in HARDCODED_TAGS and custom tags
+   * from configRepository if they don't exist. This is called once on the first
+   * execution to ensure the system has all required tags available.
    *
    * @private
    */
-  private async ensureHardcodedTagsExist(): Promise<void> {
+  private async ensureAllTagsExist(): Promise<void> {
+    // Ensure hardcoded tags exist
     for (const [key, tagConfig] of Object.entries(HARDCODED_TAGS)) {
       try {
         await this.tagManager.ensureTagExists(key, tagConfig.name, tagConfig.color);
@@ -372,6 +373,28 @@ export class ApplyTagsToEmail {
       } catch (error) {
         this.logger.warn('Failed to ensure hardcoded tag', { key, error: String(error) });
       }
+    }
+
+    // Ensure custom tags exist
+    try {
+      const customTags = await this.configRepository.getCustomTags();
+      this.logger.debug('Loading custom tags for initialization', { count: customTags.length });
+
+      for (const tag of customTags) {
+        try {
+          await this.tagManager.ensureTagExists(tag.key, tag.name, tag.color);
+          this.logger.debug('Custom tag ensured', { key: tag.key, name: tag.name });
+        } catch (error) {
+          this.logger.warn('Failed to ensure custom tag', { key: tag.key, error: String(error) });
+        }
+      }
+
+      this.logger.info('✅ All tags initialized', {
+        hardcodedCount: Object.keys(HARDCODED_TAGS).length,
+        customCount: customTags.length,
+      });
+    } catch (error) {
+      this.logger.warn('Failed to load custom tags for initialization', { error: String(error) });
     }
   }
 
