@@ -570,7 +570,7 @@ export class ThunderbirdTagManager implements ITagManager {
 
     try {
       // Convert defined keys to internal keys (with _ma_ prefix)
-      const internalTagKeys = tagKeys.map((key) => TAG_KEY_MAP[key] || key);
+      const internalTagKeys = await this.convertToInternalKeys(tagKeys);
 
       this.logger.debug('[TAG-SET] Converting to internal keys', {
         originalKeys: tagKeys,
@@ -732,7 +732,7 @@ export class ThunderbirdTagManager implements ITagManager {
     this.logger.debug('Setting tags on messages', { messageIds, tagKeys });
 
     // Convert defined keys to internal keys (with _ma_ prefix)
-    const internalTagKeys = tagKeys.map((key) => TAG_KEY_MAP[key] || key);
+    const internalTagKeys = await this.convertToInternalKeys(tagKeys);
 
     // Validate all tags exist
     const allTags = await this.getAllTags();
