@@ -36,6 +36,7 @@ import { createEmailAnalyzedEvent } from '@/domain/events/EmailAnalyzedEvent';
 import { createProviderErrorEvent } from '@/domain/events/ProviderErrorEvent';
 import { meetsTagThreshold, getEffectiveThreshold } from '@/shared/utils/confidenceUtils';
 import type { Tag } from '@/shared/types/ProviderTypes';
+import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 
 // ============================================================================
 // Browser-compatible Crypto Utilities
@@ -134,7 +135,8 @@ export class AnalyzeEmail {
     @inject(EmailContentExtractor) private readonly contentExtractor: EmailContentExtractor,
     @inject(EventBus) private readonly eventBus: EventBus,
     @inject('IConfigRepository') private readonly configRepository: IConfigRepository,
-    @inject('IQueue') private readonly queue: IQueue
+    @inject('IQueue') private readonly queue: IQueue,
+    @inject(EmailAnalysisTracker) private readonly analysisTracker: EmailAnalysisTracker
   ) {
     this.logger.debug('✅ AnalyzeEmail use case initialized');
   }
