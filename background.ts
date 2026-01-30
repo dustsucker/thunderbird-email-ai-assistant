@@ -41,6 +41,7 @@ import { TagService } from './src/domain/services/TagService';
 import { AppConfigService } from './src/infrastructure/config/AppConfig';
 import { RateLimiterService } from './src/application/services/RateLimiterService';
 import { ProviderFactory } from './src/infrastructure/providers/ProviderFactory';
+import { ensureTagsExist } from './core/tags';
 
 // ============================================================================
 // Domain Types
