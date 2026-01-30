@@ -185,30 +185,29 @@ describe('AnalyzeEmail - Logging Tests', () => {
   });
 
   describe('Email analysis started logging', () => {
-    it('should log "Email analysis started" with correct context', async () => {
+    it('should log "Starting email analysis" with correct context', async () => {
       await analyzeEmail.execute('123', mockProviderSettings);
 
-      expect(logger.info).toHaveBeenCalledWith('Email analysis started', {
+      expect(logger.info).toHaveBeenCalledWith('🚀 Starting email analysis', {
         messageId: '123',
-        providerId: mockProviderSettings.providerId,
-        model: mockProviderSettings.model,
+        providerId: mockProviderSettings.provider,
+        config: { forceReanalyze: false, applyTags: true },
       });
     });
 
     it('should include providerId from provider settings in log context', async () => {
       const settingsWithId: IProviderSettings = {
-        provider: 'openai',
-        providerId: 'custom-provider-id',
+        provider: 'custom-provider-id',
         model: 'gpt-4',
         apiKey: 'test-key',
       };
 
       await analyzeEmail.execute('123', settingsWithId);
 
-      expect(logger.info).toHaveBeenCalledWith('Email analysis started', {
+      expect(logger.info).toHaveBeenCalledWith('🚀 Starting email analysis', {
         messageId: '123',
         providerId: 'custom-provider-id',
-        model: 'gpt-4',
+        config: { forceReanalyze: false, applyTags: true },
       });
     });
 
@@ -216,88 +215,149 @@ describe('AnalyzeEmail - Logging Tests', () => {
       await analyzeEmail.execute('456', mockProviderSettings);
 
       const infoCall = logger.info as ReturnType<typeof vi.fn>;
-      expect(infoCall).toHaveBeenNthCalledWith(1, 'Email analysis started', {
+      expect(infoCall).toHaveBeenNthCalledWith(1, '🚀 Starting email analysis', {
         messageId: '456',
-        providerId: mockProviderSettings.providerId,
-        model: mockProviderSettings.model,
+        providerId: mockProviderSettings.provider,
+        config: { forceReanalyze: false, applyTags: true },
       });
-    });
-  });
-
-  describe('Queue status logging', () => {
-    it('should call logQueueStatus after analysis start', async () => {
-      await analyzeEmail.execute('123', mockProviderSettings);
-
-      expect(queue.getStats).toHaveBeenCalled();
-    });
-
-    it('should log queue status with correct fields', async () => {
-      await analyzeEmail.execute('123', mockProviderSettings);
-
-      expect(logger.info).toHaveBeenCalledWith(
-        'Queue status',
-        expect.objectContaining({
-          size: mockQueueStats.size,
-          waiting: mockQueueStats.waiting,
-          processing: mockQueueStats.processing,
-          avgWaitTime: mockQueueStats.avgWaitTime,
-        })
-      );
-    });
-
-    it('should log queue status after "Email analysis started"', async () => {
-      await analyzeEmail.execute('123', mockProviderSettings);
-
-      const infoCall = logger.info as ReturnType<typeof vi.fn>;
-      expect(infoCall).toHaveBeenNthCalledWith(1, 'Email analysis started', expect.any(Object));
-      expect(infoCall).toHaveBeenNthCalledWith(2, 'Queue status', expect.any(Object));
-    });
-
-    it('should handle queue stats correctly', async () => {
-      const customStats = {
-        size: 10,
-        waiting: 5,
-        processing: 5,
-        avgWaitTime: 200,
-      };
-
-      (queue.getStats as ReturnType<typeof vi.fn>).mockResolvedValueOnce(customStats);
-
-      await analyzeEmail.execute('789', mockProviderSettings);
-
-      expect(logger.info).toHaveBeenCalledWith(
-        'Queue status',
-        expect.objectContaining({
-          size: customStats.size,
-          waiting: customStats.waiting,
-          processing: customStats.processing,
-          avgWaitTime: customStats.avgWaitTime,
-        })
-      );
     });
   });
 
   describe('Complete logging flow', () => {
-    it('should log both start message and queue status in correct order', async () => {
+    it('should log analysis completed message', async () => {
       await analyzeEmail.execute('999', mockProviderSettings);
 
-      const infoCall = logger.info as ReturnType<typeof vi.fn>;
-
-      expect(infoCall).toHaveBeenNthCalledWith(1, 'Email analysis started', {
-        messageId: '999',
-        providerId: mockProviderSettings.providerId,
-        model: mockProviderSettings.model,
-      });
-      expect(infoCall).toHaveBeenNthCalledWith(
-        2,
-        'Queue status',
+      expect(logger.info).toHaveBeenCalledWith(
+        '✅ Email analysis completed successfully',
         expect.objectContaining({
-          size: mockQueueStats.size,
-          waiting: mockQueueStats.waiting,
-          processing: mockQueueStats.processing,
-          avgWaitTime: mockQueueStats.avgWaitTime,
+          messageId: '999',
+          tags: ['work'],
+          confidence: 0.9,
         })
       );
+    });
+  });
+
+  describe('Header check integration', () => {
+    it('should skip analysis if email was already analyzed', async () => {
+      // Mock the tracker to indicate email was already analyzed
+      (analysisTracker.wasAnalyzed as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true);
+
+      const result = await analyzeEmail.execute('123', mockProviderSettings);
+
+      // Should return empty result
+      expect(result).toEqual({
+        tags: [],
+        confidence: 0,
+        reasoning: '',
+      });
+
+      // Should log that the email is being skipped
+      expect(logger.info).toHaveBeenCalledWith('⏭️ Skipping already-analyzed email', {
+        messageId: '123',
+      });
+
+      // Should NOT call the mail reader or provider
+      expect(mailReader.getFullMessage).not.toHaveBeenCalled();
+      expect(queue.getStats).not.toHaveBeenCalled();
+    });
+
+    it('should proceed with analysis if email was not analyzed', async () => {
+      // Mock the tracker to indicate email was not analyzed
+      (analysisTracker.wasAnalyzed as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+
+      const result = await analyzeEmail.execute('456', mockProviderSettings);
+
+      // Should return actual analysis result
+      expect(result.tags).toEqual(['work']);
+      expect(result.confidence).toBe(0.9);
+      expect(result.reasoning).toBe('Test reasoning');
+
+      // Should call the mail reader
+      expect(mailReader.getFullMessage).toHaveBeenCalledWith(456);
+      // Should mark the email as analyzed
+      expect(analysisTracker.markAnalyzed).toHaveBeenCalledWith(456);
+    });
+
+    it('should mark email as analyzed after successful analysis', async () => {
+      (analysisTracker.wasAnalyzed as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+
+      await analyzeEmail.execute('789', mockProviderSettings);
+
+      // Should mark the email as analyzed
+      expect(analysisTracker.markAnalyzed).toHaveBeenCalledWith(789);
+    });
+
+    it('should call markAnalyzed after applying tags from cache', async () => {
+      // Mock cache hit
+      (analysisTracker.wasAnalyzed as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+      const cachedResult = {
+        tags: ['cached-tag'],
+        confidence: 0.85,
+        reasoning: 'Cached reasoning',
+      };
+      (cache.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce(cachedResult);
+
+      await analyzeEmail.execute('101', mockProviderSettings);
+
+      // Should mark the email as analyzed even with cache hit
+      expect(analysisTracker.markAnalyzed).toHaveBeenCalledWith(101);
+    });
+
+    it('should handle markAnalyzed failure gracefully and continue execution', async () => {
+      (analysisTracker.wasAnalyzed as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+      (analysisTracker.markAnalyzed as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        new Error('Failed to mark analyzed')
+      );
+
+      // Should not throw, should continue execution
+      const result = await analyzeEmail.execute('202', mockProviderSettings);
+
+      // Should still get valid result
+      expect(result.tags).toEqual(['work']);
+
+      // Should log warning about the failure
+      expect(logger.warn).toHaveBeenCalledWith(
+        '⚠️  Failed to mark email as analyzed',
+        expect.objectContaining({
+          messageId: '202',
+          error: 'Failed to mark analyzed',
+        })
+      );
+    });
+
+    it('should log debug message when checking if email was analyzed', async () => {
+      (analysisTracker.wasAnalyzed as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+
+      await analyzeEmail.execute('303', mockProviderSettings);
+
+      expect(logger.debug).toHaveBeenCalledWith('🔍 Checking if email was already analyzed');
+    });
+
+    it('should log debug message after successfully marking email as analyzed', async () => {
+      (analysisTracker.wasAnalyzed as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+
+      await analyzeEmail.execute('404', mockProviderSettings);
+
+      expect(logger.debug).toHaveBeenCalledWith('✅ Email marked as analyzed', {
+        messageId: '404',
+      });
+    });
+
+    it('should validate message ID before checking analysis status', async () => {
+      // Invalid message ID should throw error
+      await expect(analyzeEmail.execute('invalid-id', mockProviderSettings)).rejects.toThrow(
+        'Invalid message ID'
+      );
+    });
+
+    it('should check analysis status with numeric message ID', async () => {
+      (analysisTracker.wasAnalyzed as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+
+      await analyzeEmail.execute('12345', mockProviderSettings);
+
+      // Should call wasAnalyzed with numeric ID
+      expect(analysisTracker.wasAnalyzed).toHaveBeenCalledWith(12345);
     });
   });
 });
