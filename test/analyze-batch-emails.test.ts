@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
+import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
@@ -11,6 +12,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
   let queue: IQueue;
   let configRepository: IConfigRepository;
   let analyzeEmail: AnalyzeEmail;
+  let emailAnalysisTracker: EmailAnalysisTracker;
   let analyzeBatch: AnalyzeBatchEmails;
 
   const mockProviderSettings: IProviderSettings = {
@@ -79,7 +81,12 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       }),
     } as unknown as AnalyzeEmail;
 
-    analyzeBatch = new AnalyzeBatchEmails(analyzeEmail, queue, logger, configRepository);
+    emailAnalysisTracker = {
+      wasAnalyzed: vi.fn().mockResolvedValue(false),
+      markAnalyzed: vi.fn().mockResolvedValue(undefined),
+    } as unknown as EmailAnalysisTracker;
+
+    analyzeBatch = new AnalyzeBatchEmails(analyzeEmail, queue, logger, configRepository, emailAnalysisTracker);
   });
 
   describe('Batch email analysis started logging', () => {
