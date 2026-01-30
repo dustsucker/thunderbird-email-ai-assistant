@@ -40,6 +40,7 @@ import { EmailContentExtractor } from './src/domain/services/EmailContentExtract
 import { TagService } from './src/domain/services/TagService';
 import { AppConfigService } from './src/infrastructure/config/AppConfig';
 import { RateLimiterService } from './src/application/services/RateLimiterService';
+import { EmailAnalysisTracker } from './src/application/services/EmailAnalysisTracker';
 import { ProviderFactory } from './src/infrastructure/providers/ProviderFactory';
 import { ensureTagsExist } from './core/tags';
 
@@ -348,6 +349,7 @@ class BackgroundScript {
     container.registerSingleton('TagService', TagService);
     container.registerSingleton('AppConfigService', AppConfigService);
     container.registerSingleton('RateLimiterService', RateLimiterService);
+    container.registerSingleton('EmailAnalysisTracker', EmailAnalysisTracker);
 
     startupLogger.info('Services registered');
 
