@@ -198,6 +198,41 @@ export const DEFAULT_CUSTOM_TAGS: CustomTags = [
     prompt:
       'check if the mail has invitation to the call or meeting (with calendar appointment attached)',
   },
+  {
+    key: 'is_newsletter',
+    name: 'Newsletter',
+    color: '#00BCD4',
+    prompt:
+      'check if email is a newsletter, digest, or regular subscription update with curated content, articles, or updates.',
+  },
+  {
+    key: 'is_promotion',
+    name: 'Promotion',
+    color: '#FF9800',
+    prompt:
+      'check if email contains promotional offers, discounts, sales, coupons, or special deals from a business or service.',
+  },
+  {
+    key: 'is_social_media',
+    name: 'Social Media',
+    color: '#E91E63',
+    prompt:
+      'check if email is a notification or update from a social media platform (likes, comments, shares, friend requests, or engagement notifications).',
+  },
+  {
+    key: 'is_shipping',
+    name: 'Shipping',
+    color: '#3F51B5',
+    prompt:
+      'check if email contains shipping notification, delivery confirmation, tracking information, or package status updates.',
+  },
+  {
+    key: 'is_finance',
+    name: 'Finance',
+    color: '#009688',
+    prompt:
+      'check if email contains financial information like bank statements, investment updates, transaction alerts, or financial account notifications.',
+  },
 ] as const;
 
 // ============================================================================
