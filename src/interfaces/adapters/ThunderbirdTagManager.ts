@@ -187,6 +187,46 @@ export class ThunderbirdTagManager implements ITagManager {
     return internalKey;
   }
 
+  /**
+   * Converts an array of tag keys to their internal Thunderbird keys with _ma_ prefix.
+   *
+   * This method uses convertToInternalKey() for each tag in the array, handling
+   * both known tags (hardcoded + custom) and unknown tags (fallback with prefix).
+   *
+   * @param keys - Array of tag keys to convert (e.g., ['is_scam', 'is_advertise', 'unknown'])
+   * @returns Array of internal Thunderbird keys (e.g., ['_ma_is_scam', '_ma_is_advertise', '_ma_unknown'])
+   *
+   * @example
+   * ```typescript
+   * const internalKeys = await tagManager.convertToInternalKeys(['is_scam', 'is_advertise']);
+   * // Returns: ['_ma_is_scam', '_ma_is_advertise']
+   *
+   * // Empty array returns empty array
+   * const empty = await tagManager.convertToInternalKeys([]);
+   * // Returns: []
+   * ```
+   */
+  async convertToInternalKeys(keys: string[]): Promise<string[]> {
+    this.logger.debug('Converting array of tag keys to internal keys', { keys, count: keys.length });
+
+    // Handle empty array case
+    if (keys.length === 0) {
+      this.logger.debug('Empty keys array, returning empty result');
+      return [];
+    }
+
+    // Convert each key using the single key conversion method
+    const internalKeys = await Promise.all(keys.map((key) => this.convertToInternalKey(key)));
+
+    this.logger.debug('Converted array of tag keys to internal keys', {
+      originalKeys: keys,
+      internalKeys,
+      count: internalKeys.length,
+    });
+
+    return internalKeys;
+  }
+
   // ==========================================================================
   // Read Tags
   // ==========================================================================
