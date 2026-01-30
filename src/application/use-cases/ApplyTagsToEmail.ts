@@ -18,7 +18,7 @@ import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepos
 import { EventBus } from '@/domain/events/EventBus';
 import { createTagAppliedEvent } from '@/domain/events/TagAppliedEvent';
 import { createTagCreatedEvent } from '@/domain/events/TagCreatedEvent';
-import { HARDCODED_TAGS, type Tag } from '../../../core/config';
+import { HARDCODED_TAGS } from '../../../core/config';
 
 // ============================================================================
 // Type Definitions
