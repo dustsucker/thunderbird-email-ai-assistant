@@ -520,7 +520,7 @@ export class ThunderbirdTagManager implements ITagManager {
 
     try {
       // Convert defined key to internal key (with _ma_ prefix)
-      const internalKey = TAG_KEY_MAP[tagKey] || tagKey;
+      const internalKey = await this.convertToInternalKey(tagKey);
 
       // Verify tag exists
       const tagExists = await this.tagExists(internalKey);
@@ -545,7 +545,7 @@ export class ThunderbirdTagManager implements ITagManager {
 
     try {
       // Convert defined key to internal key (with _ma_ prefix)
-      const internalKey = TAG_KEY_MAP[tagKey] || tagKey;
+      const internalKey = await this.convertToInternalKey(tagKey);
 
       await messenger.messages.removeTags([messageId], [internalKey]);
       this.logger.debug('Tag removed from message', { messageId, internalKey });
