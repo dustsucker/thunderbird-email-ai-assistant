@@ -3,7 +3,7 @@
   "spec": "016-aufgabe-e-mail-analyse-tracking-via-custom-header-",
   "state": "building",
   "subtasks": {
-    "completed": 16,
+    "completed": 17,
     "total": 20,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 1,
+    "number": 2,
     "started_at": "2026-01-31T11:12:01.492230"
   },
-  "last_update": "2026-01-31T11:12:01.568836"
+  "last_update": "2026-01-31T11:23:23.281073"
 }
