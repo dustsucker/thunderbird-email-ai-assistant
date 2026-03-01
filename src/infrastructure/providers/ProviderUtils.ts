@@ -403,7 +403,6 @@ function determineErrorSeverity(error: unknown, type: ErrorType): ErrorSeverity 
 async function sendErrorToUI(errorDisplay: ErrorDisplay): Promise<void> {
   try {
     // Check if we're in a browser extension context
-    // @ts-expect-error - browser runtime API is available in extension context
     if (typeof browser !== 'undefined' && browser.runtime) {
       const message: ShowErrorRuntimeMessage = {
         action: 'showError',

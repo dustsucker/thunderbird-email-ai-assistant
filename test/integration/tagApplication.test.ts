@@ -477,7 +477,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
 
       // Mock messenger.storage.local for flag storage
       const mockStorage = new Map();
-      global.messenger = {
+      (global as any).messenger = {
         storage: {
           local: {
             set: vi.fn().mockImplementation((data) => {
@@ -497,8 +497,8 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []);
 
       // Verify: Low-confidence flags stored
-      expect(global.messenger.storage.local.set).toHaveBeenCalled();
-      const storageCall = global.messenger.storage.local.set.mock.calls[0][0];
+      expect((global as any).messenger.storage.local.set).toHaveBeenCalled();
+      const storageCall = (global as any).messenger.storage.local.set.mock.calls[0][0];
       const storageKey = Object.keys(storageCall)[0];
       expect(storageKey).toMatch(/^lowConfidence_/);
 
@@ -533,7 +533,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       );
 
       // Cleanup
-      delete global.messenger;
+      delete (global as any).messenger;
     });
 
     it('should include threshold type in low-confidence flags', async () => {
@@ -545,7 +545,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       });
 
       // Mock messenger.storage.local
-      global.messenger = {
+      (global as any).messenger = {
         storage: {
           local: {
             set: vi.fn(),
@@ -557,12 +557,12 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       await analyzeEmail.execute('123', mockProviderSettings);
 
       // Verify: Flag includes threshold type
-      const storageCall = global.messenger.storage.local.set.mock.calls[0][0];
+      const storageCall = (global as any).messenger.storage.local.set.mock.calls[0][0];
       const flagData = Object.values(storageCall)[0] as { flags: Array<{ thresholdType: string }> };
       expect(flagData.flags[0].thresholdType).toBe('global');
 
       // Cleanup
-      delete global.messenger;
+      delete (global as any).messenger;
     });
 
     it('should handle storage errors gracefully when flagging low confidence', async () => {
@@ -574,7 +574,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       });
 
       // Mock storage that throws error
-      global.messenger = {
+      (global as any).messenger = {
         storage: {
           local: {
             set: vi.fn().mockRejectedValue(new Error('Storage error')),
@@ -592,7 +592,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       );
 
       // Cleanup
-      delete global.messenger;
+      delete (global as any).messenger;
     });
   });
 
@@ -713,7 +713,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       cache.get = vi.fn().mockResolvedValue(cachedResult);
 
       // Mock storage for low-confidence flags
-      global.messenger = {
+      (global as any).messenger = {
         storage: {
           local: {
             set: vi.fn(),
@@ -738,7 +738,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       expect(result.confidence).toBe(0.8);
 
       // Cleanup
-      delete global.messenger;
+      delete (global as any).messenger;
     });
 
     it('should flag low-confidence from cached results', async () => {
@@ -752,7 +752,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       cache.get = vi.fn().mockResolvedValue(cachedResult);
 
       // Mock storage
-      global.messenger = {
+      (global as any).messenger = {
         storage: {
           local: {
             set: vi.fn(),
@@ -767,10 +767,10 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []);
 
       // Verify: Low-confidence flag stored
-      expect(global.messenger.storage.local.set).toHaveBeenCalled();
+      expect((global as any).messenger.storage.local.set).toHaveBeenCalled();
 
       // Cleanup
-      delete global.messenger;
+      delete (global as any).messenger;
     });
   });
 });

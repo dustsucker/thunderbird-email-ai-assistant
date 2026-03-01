@@ -27,10 +27,12 @@ import { createEmailReceivedEvent } from '@/domain/events/EmailReceivedEvent';
 
 /**
  * Folder structure from Thunderbird events.
+ * Note: This mirrors the global ThunderbirdFolder type from types/thunderbird.d.ts
+ * to avoid importing global types in this service file.
  */
 interface ThunderbirdFolder {
   /** Account identifier */
-  accountId: number;
+  accountId: string;
   /** Folder name */
   name: string;
   /** Folder type (inbox, sent, etc.) */
@@ -45,6 +47,15 @@ interface ThunderbirdFolder {
 interface ThunderbirdNewMailMessages {
   /** Array of new message metadata */
   messages: Array<{ id: number }>;
+}
+
+/**
+ * Full message details from messenger.messages.getFull()
+ */
+interface MessageDetails {
+  subject?: string;
+  author?: string;
+  recipients?: Array<{ email: string }>;
 }
 
 /**
@@ -251,7 +262,7 @@ export class EmailEventListener {
       for (const message of messages.messages) {
         try {
           // Get message details
-          const messageDetails = await messenger.messages.getFull(message.id);
+          const messageDetails = (await messenger.messages.getFull(message.id)) as MessageDetails;
 
           await this.eventBus.publish(
             createEmailReceivedEvent(
@@ -259,7 +270,7 @@ export class EmailEventListener {
                 id: message.id,
                 subject: messageDetails.subject || '',
                 from: messageDetails.author || '',
-                to: messageDetails.recipients?.map((r: { email: string }) => r.email) || [],
+                to: messageDetails.recipients?.map((r) => r.email) || [],
               },
               {
                 name: folder.name,

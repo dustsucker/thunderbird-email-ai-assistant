@@ -7,11 +7,6 @@ import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import { EventBus } from '@/domain/events/EventBus';
 
-declare global {
-  // eslint-disable-next-line no-var
-  var messenger: any;
-}
-
 describe('EmailEventListener - Logging Tests', () => {
   let logger: ILogger;
   let queue: IQueue;
@@ -129,7 +124,7 @@ describe('EmailEventListener - Logging Tests', () => {
       },
     };
 
-    global.messenger = mockMessenger;
+    (global as any).messenger = mockMessenger;
   });
 
   afterEach(() => {
