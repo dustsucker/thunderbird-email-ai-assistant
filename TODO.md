@@ -33,11 +33,69 @@ Organisierte Liste von Problemen und Verbesserungsmöglichkeiten
 - [x] Tests migriert nach `test/infrastructure/cache/` und `test/domain/services/`
 - [x] `background.ts` nutzt jetzt DI für TagService statt core/tags Import
 
-### Manifest V2 → V3 Migration
+### Manifest V3 Kompatibilität
 
-- [ ] Manifest V3 Migration (Schwierigkeit: 5/5, Datei: manifest.json)
-  - **Warum wichtig:** Thunderbird wird Manifest V3 bald als Standard erzwingen
-  - **Lösung:** background scripts → service workers, permissions overhaul, CSP-Anpassungen
+#### Current State: Hybrid (V3 Version Number + V2 Architecture)
+
+Das `manifest.json` verwendet `manifest_version: 3` mit V2-style `background.page` + `persistent: true`.
+Dies ist ein Hybrid-Zustand - Thunderbird Bug mit `src` allow rules verhindert volle V3-Migration.
+
+#### ✅ Bereits V3-Kompatibel
+
+- [x] **Kein `localStorage`** - Verwendet `messenger.storage.local` API
+- [x] **Kein DOM-Zugriff im Background** - Saubere Trennung
+- [x] **Event Listener sind re-registrierbar** - Alle Handler haben `start()/stop()`:
+  - `EmailEventListener`: `registerListeners()` / `unregisterListeners()`
+  - `MessageHandler`: `registerMessageHandlers()` / `unregisterMessageHandlers()`
+  - `BackgroundScript`: `initialize()` / `shutdown()`
+- [x] **CSP Format** - Verwendet V3-style Object mit `extension_pages`
+- [x] **Kein Remote Code** - Alle Provider sind lokale Bundles (code-splitting OK)
+- [x] **DI Container Pattern** - Services sind injectable und re-creatable
+- [x] **`onSuspend` Handler** - BackgroundScript.registerShutdownHandler() implementiert
+- [x] **Persistente Daten in Storage API** - Alle Konfiguration in `storage.local` / IndexedDB
+
+#### ⚠️ Anpassung nötig für volle Service Worker Kompatibilität
+
+- [ ] **In-Memory State bei Termination** (Schwierigkeit: 3/5)
+  - `MemoryCache` - Intentional transient, dokumentiert
+  - `PriorityQueue` - Queue-Items gehen bei Termination verloren
+  - `batchProgress` in MessageHandler - Laufende Batch-Progress verloren
+  - `listenerState` Counter - Nicht kritisch (Statistiken)
+  - **Lösung:** Batch-Progress in `storage.local` persistieren für Resume
+
+- [ ] **Event Listener Cleanup** (Schwierigkeit: 2/5)
+  - `InstallHandler` - Speichert keine Handler-Referenz (minor)
+  - `ContextMenuHandler` - Speichert keine Handler-Referenzen (minor)
+  - **Lösung:** Handler-Referenzen für `removeListener()` speichern
+
+#### 🔴 Manifest-Änderungen für volle V3 Migration
+
+- [ ] `background.page` → `background.service_worker` (Schwierigkeit: 5/5)
+  - **Blockiert durch:** Thunderbird Bug mit `src` allow rules
+  - **Workaround:** V2-style `background.page` + `persistent: true` beibehalten
+  - **Referenz:** https://bugzilla.mozilla.org/show_bug.cgi?id=1852203
+
+#### V3 Migrations-Pfad (wenn Thunderbird Bug gefixt)
+
+1. Manifest: `background.page` → `background.service_worker`
+2. Batch-Progress in `storage.session` persistieren
+3. Queue-Items in `storage.local` für Resume nach Termination
+4. Testen mit Service Worker Lifecycle (idle → suspend → wake)
+
+#### Code-Dateien mit V3-Relevanz
+
+| Datei                                       | Status    | Anmerkung                 |
+| ------------------------------------------- | --------- | ------------------------- |
+| `manifest.json`                             | ⚠️ Hybrid | V3 version, V2 background |
+| `background.ts`                             | ✅ OK     | Entry point, DI bootstrap |
+| `src/background/BackgroundScript.ts`        | ✅ OK     | onSuspend handler         |
+| `src/background/EmailEventListener.ts`      | ✅ OK     | start/stop pattern        |
+| `src/background/MessageHandler.ts`          | ⚠️ State  | batchProgress in-memory   |
+| `src/background/ContextMenuHandler.ts`      | ⚠️ Minor  | Handler ref storage       |
+| `src/background/InstallHandler.ts`          | ⚠️ Minor  | Handler ref storage       |
+| `src/infrastructure/cache/MemoryCache.ts`   | ✅ OK     | Documented transient      |
+| `src/application/services/PriorityQueue.ts` | ⚠️ State  | In-memory queue           |
+| `options.ts`                                | ✅ OK     | UI code, DOM access OK    |
 
 ---
 
