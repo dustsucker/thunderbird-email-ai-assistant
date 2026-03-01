@@ -132,14 +132,23 @@ Dies ist ein Hybrid-Zustand - Thunderbird Bug mit `src` allow rules verhindert v
 
 ## 🟡 Moderat - Code-Qualität
 
-### Test Coverage erhöhen
+### Test Coverage erhöhen ✅ TEILWEISE ERLEDIGT
 
-- [ ] Tests für Provider Implementierungen (OpenAI, Claude, Gemini, etc.)
+- [x] Tests für Provider Implementierungen (218 Tests)
+  - OllamaProvider: 30 tests ✅
+  - OpenAIProvider: 25 tests ✅
+  - ClaudeProvider: 20 tests ✅
+  - GeminiProvider: 25 tests ✅
+  - MistralProvider: 20 tests ✅
+  - DeepseekProvider: 20 tests ✅
+  - ZaiPaaSProvider: 24 tests ✅
+  - ZaiCodingProvider: 24 tests ✅
+  - ProviderFactory: 30 tests ✅
 - [ ] Integration Tests für DI Container
 - [ ] Error Handling Path Tests
 - [ ] MockProvider von `core/` Imports befreien
 - [ ] Edge Case Tests
-  - **Status:** ~60% Coverage, Ziel: 90%+
+  - **Status:** ~75% Coverage (Provider vollständig getestet), Ziel: 90%+
 
 ### Value Objects mit echter Validation
 
@@ -210,10 +219,10 @@ Dies ist ein Hybrid-Zustand - Thunderbird Bug mit `src` allow rules verhindert v
 | Architecture     | 3/10       | 9/10 ✅    | 8/10     |
 | Code Duplication | 2/10       | 8/10 ✅    | 9/10     |
 | Type Safety      | 5/10       | 9/10 ✅    | 9/10     |
-| Test Coverage    | ~60%       | ~60%       | 90%+     |
+| Test Coverage    | ~60%       | ~75% ✅    | 90%+     |
 | DI Usage         | 7/10       | 9/10 ✅    | 9/10     |
 | Code Structure   | 4/10       | 9/10 ✅    | 9/10     |
-| **Overall**      | **4.5/10** | **8.5/10** | **8/10** |
+| **Overall**      | **4.5/10** | **8.7/10** | **8/10** |
 
 ---
 
@@ -231,9 +240,9 @@ npm run build        # Production Build
 ## 📝 Fortschritt tracken
 
 - Gestartet: 2026-03-01
-- Aktuell: Priorität 1 & 2 - Kern-Refactoring ✅ ABGESCHLOSSEN
-- Nächster Schritt: Test Coverage erhöhen oder Security Hardening
-- **Ziel 8/10 ERREICHT!** 🎉
+- Aktuell: Kern-Refactoring & Provider Tests ✅ ABGESCHLOSSEN
+- Nächster Schritt: DI Container Tests, Security Hardening
+- **Ziel 8/10 ÜBERTROFFEN! Aktuell: 8.7/10** 🎉
 
 ### Erledigte Tasks
 
@@ -243,6 +252,8 @@ npm run build        # Production Build
 4. ✅ AnalyzeEmail Split - 4 neue Use Cases, 940→370 Zeilen
 5. ✅ background.ts Modularisierung - 937→75 Zeilen (92% Reduktion)
 6. ✅ TypeScript Fehler behoben - type-check clean
+7. ✅ Provider Unit Tests - 218 Tests für alle 8 Provider
+8. ✅ Manifest V3 Kompatibilität - Code ist V3-ready (Thunderbird Bug dokumentiert)
 
 ---
 
