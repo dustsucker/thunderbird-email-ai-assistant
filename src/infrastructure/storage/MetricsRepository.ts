@@ -5,7 +5,7 @@
 
 import { injectable, inject } from 'tsyringe';
 
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces/ILogger';
 import type { IClock } from '@/domain/interfaces/IClock';
 import type { IRandom } from '@/domain/interfaces/IRandom';
 import type { AnalysisMetrics, AggregatedMetrics } from '@/shared/types/Metrics';
