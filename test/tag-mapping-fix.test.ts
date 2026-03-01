@@ -145,7 +145,6 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
       expect(tagKeyMap['spf_fail']).toBe('_ma_spf_fail');
       expect(tagKeyMap['dkim_fail']).toBe('_ma_dkim_fail');
       expect(tagKeyMap['tagged']).toBe('_ma_tagged');
-      expect(tagKeyMap['email_ai_analyzed']).toBe('_ma_email_ai_analyzed');
     });
 
     it('should return map with all custom tag keys prefixed with _ma_', async () => {
@@ -579,7 +578,6 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
       expect(HARDCODED_TAGS.spf_fail).toBeDefined();
       expect(HARDCODED_TAGS.dkim_fail).toBeDefined();
       expect(HARDCODED_TAGS.tagged).toBeDefined();
-      expect(HARDCODED_TAGS.email_ai_analyzed).toBeDefined();
     });
 
     it('should convert all HARDCODED_TAGS keys correctly', async () => {
@@ -608,7 +606,6 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
       expect(tagKeyMap['spf_fail']).toBe('_ma_spf_fail');
       expect(tagKeyMap['dkim_fail']).toBe('_ma_dkim_fail');
       expect(tagKeyMap['tagged']).toBe('_ma_tagged');
-      expect(tagKeyMap['email_ai_analyzed']).toBe('_ma_email_ai_analyzed');
     });
   });
 
@@ -755,7 +752,6 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         expect(createdKeys).toContain('_ma_spf_fail');
         expect(createdKeys).toContain('_ma_dkim_fail');
         expect(createdKeys).toContain('_ma_tagged');
-        expect(createdKeys).toContain('_ma_email_ai_analyzed');
       });
 
       it('should handle creation errors for individual hardcoded tags gracefully', async () => {

@@ -55,7 +55,7 @@ export type CustomTags = ReadonlyArray<Tag>;
 /**
  * Hardcoded tag keys that are reserved for system use.
  */
-export type HardcodedTagKey = 'is_scam' | 'spf_fail' | 'dkim_fail' | 'tagged' | 'email_ai_analyzed';
+export type HardcodedTagKey = 'is_scam' | 'spf_fail' | 'dkim_fail' | 'tagged';
 
 /**
  * Map of hardcoded tags with their configurations.

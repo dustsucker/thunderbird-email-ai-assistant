@@ -66,7 +66,6 @@ export class AppConfigService {
     spf_fail: { key: 'spf_fail', name: 'SPF Fail', color: '#E91E63' },
     dkim_fail: { key: 'dkim_fail', name: 'DKIM Fail', color: '#E91E63' },
     tagged: { key: 'tagged', name: 'Tagged', color: '#4f4f4f' },
-    email_ai_analyzed: { key: 'email_ai_analyzed', name: 'AI Analyzed', color: '#9E9E9E' },
   };
 
   private readonly defaultCustomTags: CustomTags = [
