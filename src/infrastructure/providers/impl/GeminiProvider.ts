@@ -1,26 +1,10 @@
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
-import { buildPrompt } from '../../../../core/analysis';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
 
 const GEMINI_MODEL = 'gemini-1.5-flash-latest';
-
-interface GeminiContentPart {
-  text: string;
-}
-
-interface GeminiContent {
-  parts: GeminiContentPart[];
-}
-
-interface GeminiGenerateContentRequest extends Record<string, unknown> {
-  contents: GeminiContent[];
-  generationConfig: {
-    response_mime_type: string;
-  };
-}
 
 type GeminiFinishReason =
   | 'FINISH_REASON_UNSPECIFIED'
@@ -29,6 +13,10 @@ type GeminiFinishReason =
   | 'SAFETY'
   | 'RECITATION'
   | 'OTHER';
+
+interface GeminiContentPart {
+  text?: string;
+}
 
 interface GeminiResponseContent {
   parts: GeminiContentPart[];

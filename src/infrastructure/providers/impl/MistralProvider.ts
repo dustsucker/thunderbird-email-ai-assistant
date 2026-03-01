@@ -1,29 +1,10 @@
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
-import { buildPrompt } from '../../../../core/analysis';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
 
 type MistralMessageRole = 'system' | 'user' | 'assistant';
-
-interface MistralMessage {
-  role: MistralMessageRole;
-  content: string;
-}
-
-interface MistralResponseFormat {
-  type: 'json_object' | 'text';
-}
-
-interface MistralApiRequest extends Record<string, unknown> {
-  model: string;
-  messages: MistralMessage[];
-  response_format?: MistralResponseFormat;
-  temperature?: number;
-  top_p?: number;
-  max_tokens?: number;
-}
 
 interface MistralChoice {
   index: number;

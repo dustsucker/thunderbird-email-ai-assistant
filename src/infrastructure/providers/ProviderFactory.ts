@@ -3,6 +3,9 @@
  *
  * This factory registers and resolves provider instances, wrapping legacy BaseProvider
  * implementations with BaseProviderAdapter for dependency injection compatibility.
+ *
+ * Uses dynamic imports for code-splitting - providers are loaded on-demand to reduce
+ * initial bundle size.
  */
 
 import { injectable, container, inject, InjectionToken } from 'tsyringe';
@@ -10,15 +13,100 @@ import { BaseProviderAdapter } from './BaseProviderAdapter';
 import type { BaseProvider } from './BaseProvider';
 import type { IProvider } from '../interfaces/IProvider';
 import type { ILogger } from '../interfaces/ILogger';
-import { OpenAIProvider } from './impl/OpenAIProvider';
-import { ClaudeProvider } from './impl/ClaudeProvider';
-import { GeminiProvider } from './impl/GeminiProvider';
-import { MistralProvider } from './impl/MistralProvider';
-import { OllamaProvider } from './impl/OllamaProvider';
-import { DeepseekProvider } from './impl/DeepseekProvider';
-import { ZaiPaaSProvider } from './impl/ZaiPaaSProvider';
-import { ZaiCodingProvider } from './impl/ZaiCodingProvider';
 import 'reflect-metadata';
+
+// ============================================================================
+// LAZY PROVIDER LOADER (Code-Splitting)
+// ============================================================================
+
+/**
+ * Type for provider class constructors.
+ */
+type ProviderConstructor = new (logger: ILogger) => BaseProvider;
+
+/**
+ * Lazy loader function type - dynamically imports provider module.
+ */
+type ProviderLoader = () => Promise<
+  { default: ProviderConstructor } | { [key: string]: ProviderConstructor }
+>;
+
+/**
+ * Map of provider IDs to their lazy loader functions.
+ * Using dynamic imports enables webpack code-splitting - each provider
+ * becomes a separate chunk that's loaded only when needed.
+ */
+const PROVIDER_LOADERS: ReadonlyMap<string, ProviderLoader> = new Map([
+  [
+    'openai',
+    () =>
+      import(
+        /* webpackChunkName: "provider-openai" */
+        './impl/OpenAIProvider'
+      ).then((m) => ({ default: m.OpenAIProvider })),
+  ],
+  [
+    'claude',
+    () =>
+      import(
+        /* webpackChunkName: "provider-claude" */
+        './impl/ClaudeProvider'
+      ).then((m) => ({ default: m.ClaudeProvider })),
+  ],
+  [
+    'gemini',
+    () =>
+      import(
+        /* webpackChunkName: "provider-gemini" */
+        './impl/GeminiProvider'
+      ).then((m) => ({ default: m.GeminiProvider })),
+  ],
+  [
+    'mistral',
+    () =>
+      import(
+        /* webpackChunkName: "provider-mistral" */
+        './impl/MistralProvider'
+      ).then((m) => ({ default: m.MistralProvider })),
+  ],
+  [
+    'ollama',
+    () =>
+      import(
+        /* webpackChunkName: "provider-ollama" */
+        './impl/OllamaProvider'
+      ).then((m) => ({ default: m.OllamaProvider })),
+  ],
+  [
+    'deepseek',
+    () =>
+      import(
+        /* webpackChunkName: "provider-deepseek" */
+        './impl/DeepseekProvider'
+      ).then((m) => ({ default: m.DeepseekProvider })),
+  ],
+  [
+    'zai-paas',
+    () =>
+      import(
+        /* webpackChunkName: "provider-zai-paas" */
+        './impl/ZaiPaaSProvider'
+      ).then((m) => ({ default: m.ZaiPaaSProvider })),
+  ],
+  [
+    'zai-coding',
+    () =>
+      import(
+        /* webpackChunkName: "provider-zai-coding" */
+        './impl/ZaiCodingProvider'
+      ).then((m) => ({ default: m.ZaiCodingProvider })),
+  ],
+]);
+
+/**
+ * Cache for loaded provider classes to avoid repeated dynamic imports.
+ */
+const loadedProviderClasses = new Map<string, ProviderConstructor>();
 
 // ============================================================================
 // TOKEN DEFINITIONS
@@ -54,21 +142,6 @@ const PROVIDER_ID_TO_TOKEN: ReadonlyMap<string, InjectionToken<unknown>> = new M
   ['zai-coding', ProviderTokens.ZAI_CODING_PROVIDER],
 ] as const);
 
-/**
- * Provider ID to class mapping
- * Maps provider IDs to their implementation classes
- */
-const PROVIDER_ID_TO_CLASS: ReadonlyMap<string, new (logger: ILogger) => unknown> = new Map([
-  ['openai', OpenAIProvider],
-  ['claude', ClaudeProvider],
-  ['gemini', GeminiProvider],
-  ['mistral', MistralProvider],
-  ['ollama', OllamaProvider],
-  ['deepseek', DeepseekProvider],
-  ['zai-paas', ZaiPaaSProvider],
-  ['zai-coding', ZaiCodingProvider],
-] as Array<[string, new (logger: ILogger) => unknown]>);
-
 // ============================================================================
 // TYPE GUARDS
 // ============================================================================
@@ -94,9 +167,9 @@ function isIProvider(value: unknown): value is IProvider {
  * ProviderFactory manages the lifecycle and registration of AI Provider instances.
  *
  * This factory is responsible for:
- * - Registering providers as singletons in the TSyringe DI container
+ * - Loading providers on-demand using dynamic imports (code-splitting)
+ * - Caching loaded provider instances for performance
  * - Wrapping legacy BaseProvider implementations with BaseProviderAdapter
- * - Resolving provider instances on demand
  * - Maintaining a registry of available providers
  *
  * @example
@@ -104,8 +177,8 @@ function isIProvider(value: unknown): value is IProvider {
  * // Use via DI container
  * const providerFactory = container.resolve<ProviderFactory>(ProviderFactory);
  *
- * // Get a specific provider
- * const provider = providerFactory.getProvider('openai');
+ * // Get a specific provider (async - loads on demand)
+ * const provider = await providerFactory.getProvider('openai');
  * const result = await provider.analyze({...});
  *
  * // List available providers
@@ -121,6 +194,7 @@ export class ProviderFactory {
 
   private readonly logger: ILogger;
   private readonly registeredProviders = new Map<string, InjectionToken<unknown>>();
+  private readonly adapterCache = new Map<string, IProvider>();
   private initialized = false;
 
   // ========================================================================
@@ -137,10 +211,10 @@ export class ProviderFactory {
   // ========================================================================
 
   /**
-   * Initializes the ProviderFactory and registers core services.
+   * Initializes the ProviderFactory and registers provider tokens.
    *
-   * This method is called by the constructor. It registers the provider
-   * adapters for all known providers.
+   * This method is called by the constructor. It prepares the provider
+   * registry but does NOT load provider modules - they are loaded on-demand.
    *
    * @remarks
    * This method is idempotent - calling it multiple times has no effect.
@@ -151,60 +225,78 @@ export class ProviderFactory {
       return;
     }
 
-    this.logger.info('Initializing ProviderFactory');
+    this.logger.info('Initializing ProviderFactory with lazy loading');
 
-    // Register provider adapters for known providers
-    this.registerAdapterTokens();
+    // Register provider IDs (but don't load the modules yet)
+    for (const providerId of PROVIDER_ID_TO_TOKEN.keys()) {
+      const token = PROVIDER_ID_TO_TOKEN.get(providerId);
+      if (token) {
+        this.registeredProviders.set(providerId, token);
+      }
+    }
 
     this.initialized = true;
-    this.logger.info('ProviderFactory initialized successfully');
+    this.logger.info('ProviderFactory initialized successfully', {
+      availableProviders: this.getAvailableProviders(),
+    });
   }
 
   /**
-   * Registers adapter tokens for all known providers.
+   * Loads a provider class dynamically using code-splitting.
    *
-   * This registers the IProvider implementations (BaseProviderAdapter) for
-   * each provider token. The actual BaseProvider implementations will be
-   * lazily instantiated when needed.
-   *
-   * @private
+   * @param providerId - The provider ID to load
+   * @returns The provider class constructor
+   * @throws {Error} If provider cannot be loaded
    */
-  private registerAdapterTokens(): void {
-    const providerIds = Array.from(PROVIDER_ID_TO_TOKEN.keys());
+  private async loadProviderClass(providerId: string): Promise<ProviderConstructor> {
+    // Check cache first
+    const cachedClass = loadedProviderClasses.get(providerId);
+    if (cachedClass) {
+      this.logger.debug('Provider class loaded from cache', { providerId });
+      return cachedClass;
+    }
 
-    providerIds.forEach((providerId) => {
-      const token = PROVIDER_ID_TO_TOKEN.get(providerId);
-      if (!token) {
-        this.logger.warn('Failed to get token for provider', { providerId });
-        return;
-      }
+    // Get the loader function
+    const loader = PROVIDER_LOADERS.get(providerId);
+    if (!loader) {
+      throw new Error(`No loader found for provider: ${providerId}`);
+    }
 
-      // Register BaseProviderAdapter as a factory
-      container.register(token, {
-        useFactory: () => {
-          this.logger.debug('Creating adapter for provider', { providerId });
+    this.logger.debug('Loading provider module (code-split)', { providerId });
 
-          // Get the provider class from mapping
-          const ProviderClass = PROVIDER_ID_TO_CLASS.get(providerId);
-          if (!ProviderClass) {
-            this.logger.error('Provider class not found', { providerId });
-            throw new Error(`Provider class not found for provider: ${providerId}`);
-          }
+    // Dynamic import - webpack will create a separate chunk
+    const module = await loader();
+    const ProviderClass = module.default;
 
-          // Instantiate the provider with logger
-          // Type assertion: all provider classes extend BaseProvider
-          const providerInstance = new ProviderClass(this.logger) as BaseProvider;
-          this.logger.debug('Provider instantiated', { providerId });
+    if (!ProviderClass) {
+      throw new Error(`Provider class not found in module for: ${providerId}`);
+    }
 
-          // Create adapter with the provider instance
-          return new BaseProviderAdapter(providerId, providerInstance, this.logger);
-        },
-      });
+    // Cache for future use
+    loadedProviderClasses.set(providerId, ProviderClass);
+    this.logger.debug('Provider class loaded and cached', { providerId });
 
-      // Store using providerId as the key, token as the value
-      this.registeredProviders.set(providerId, token);
-      this.logger.debug('Registered provider adapter', { providerId });
-    });
+    return ProviderClass;
+  }
+
+  /**
+   * Creates a provider adapter for the given provider ID.
+   *
+   * @param providerId - The provider ID
+   * @returns The provider adapter instance
+   */
+  private async createProviderAdapter(providerId: string): Promise<IProvider> {
+    this.logger.debug('Creating provider adapter', { providerId });
+
+    // Load the provider class dynamically
+    const ProviderClass = await this.loadProviderClass(providerId);
+
+    // Instantiate the provider with logger
+    const providerInstance = new ProviderClass(this.logger) as BaseProvider;
+    this.logger.debug('Provider instantiated', { providerId });
+
+    // Create adapter with the provider instance
+    return new BaseProviderAdapter(providerId, providerInstance, this.logger);
   }
 
   // ========================================================================
@@ -214,19 +306,29 @@ export class ProviderFactory {
   /**
    * Gets a provider instance by its provider ID.
    *
+   * This method loads the provider module on-demand using dynamic imports,
+   * enabling code-splitting to reduce initial bundle size.
+   *
    * @param providerId - The unique identifier for the provider (e.g., 'openai', 'claude')
-   * @returns The IProvider instance
-   * @throws {Error} If provider is not registered
+   * @returns Promise resolving to the IProvider instance
+   * @throws {Error} If provider is not registered or fails to load
    *
    * @example
    * ```typescript
-   * const provider = providerFactory.getProvider('openai');
+   * const provider = await providerFactory.getProvider('openai');
    * const isValid = await provider.validateSettings({ apiKey: 'sk-...' });
    * ```
    */
-  public getProvider(providerId: string): IProvider {
-    const token = PROVIDER_ID_TO_TOKEN.get(providerId);
-    if (!token) {
+  public async getProvider(providerId: string): Promise<IProvider> {
+    // Check cache first
+    const cachedAdapter = this.adapterCache.get(providerId);
+    if (cachedAdapter) {
+      this.logger.debug('Provider adapter served from cache', { providerId });
+      return cachedAdapter;
+    }
+
+    // Validate provider ID
+    if (!this.registeredProviders.has(providerId)) {
       const available = this.getAvailableProviders();
       this.logger.error('Provider not found', {
         providerId,
@@ -238,22 +340,28 @@ export class ProviderFactory {
     }
 
     try {
-      this.logger.debug('Resolving provider', { providerId });
-      const provider = container.resolve(token) as unknown;
+      this.logger.debug('Loading provider (lazy load)', { providerId });
 
-      if (!isIProvider(provider)) {
-        this.logger.error('Resolved object is not an IProvider', { providerId });
-        throw new Error(`Resolved object is not a valid IProvider: ${providerId}`);
+      // Create the adapter (which loads the provider class dynamically)
+      const adapter = await this.createProviderAdapter(providerId);
+
+      // Validate the adapter implements IProvider
+      if (!isIProvider(adapter)) {
+        this.logger.error('Created adapter is not an IProvider', { providerId });
+        throw new Error(`Created adapter is not a valid IProvider: ${providerId}`);
       }
 
-      this.logger.debug('Provider resolved successfully', {
+      // Cache the adapter for future use
+      this.adapterCache.set(providerId, adapter);
+
+      this.logger.debug('Provider loaded and cached successfully', {
         providerId,
-        resolvedProviderId: provider.providerId,
+        resolvedProviderId: adapter.providerId,
       });
 
-      return provider;
+      return adapter;
     } catch (error) {
-      this.logger.error('Failed to resolve provider', {
+      this.logger.error('Failed to load provider', {
         providerId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -337,7 +445,7 @@ export class ProviderFactory {
    * @example
    * ```typescript
    * if (providerFactory.hasProvider('openai')) {
-   *   const provider = providerFactory.getProvider('openai');
+   *   const provider = await providerFactory.getProvider('openai');
    * }
    * ```
    */
@@ -375,6 +483,8 @@ export class ProviderFactory {
     container.clearInstances();
     container.reset();
     this.registeredProviders.clear();
+    this.adapterCache.clear();
+    loadedProviderClasses.clear();
     this.initialized = false;
   }
 }

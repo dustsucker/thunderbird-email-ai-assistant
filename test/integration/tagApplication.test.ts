@@ -301,7 +301,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       // Setup: Provider returns tag with 0.70 confidence (at global threshold)
       mockProvider.analyze = vi.fn().mockResolvedValue({
         tags: ['is_urgent'],
-        confidence: 0.70,
+        confidence: 0.7,
         reasoning: 'Urgent email',
       });
 
@@ -445,7 +445,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       // - is_personal (override 90%): 80% < 90% ✗
       mockProvider.analyze = vi.fn().mockResolvedValue({
         tags: ['is_business', 'is_urgent', 'is_personal'],
-        confidence: 0.80,
+        confidence: 0.8,
         reasoning: 'Mixed results',
       });
 
@@ -453,10 +453,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       const result = await analyzeEmail.execute('123', mockProviderSettings);
 
       // Verify: Only is_business and is_urgent applied
-      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, [
-        'is_business',
-        'is_urgent',
-      ]);
+      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, ['is_business', 'is_urgent']);
       expect(result.tags).toEqual(['is_business', 'is_urgent', 'is_personal']);
 
       // Verify: Log shows 2 applied, 1 skipped
@@ -499,7 +496,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       };
 
       // Execute
-      const result = await analyzeEmail.execute('123', mockProviderSettings);
+      await analyzeEmail.execute('123', mockProviderSettings);
 
       // Verify: No tags applied (both below threshold)
       expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []);
@@ -577,7 +574,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       // Setup
       mockProvider.analyze = vi.fn().mockResolvedValue({
         tags: ['is_business'],
-        confidence: 0.50,
+        confidence: 0.5,
         reasoning: 'Low confidence',
       });
 
@@ -591,9 +588,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       };
 
       // Execute: Should not throw, just log warning
-      await expect(
-        analyzeEmail.execute('123', mockProviderSettings)
-      ).resolves.toBeDefined();
+      await expect(analyzeEmail.execute('123', mockProviderSettings)).resolves.toBeDefined();
 
       // Verify: Warning logged
       expect(logger.warn).toHaveBeenCalledWith(
@@ -684,7 +679,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       // Setup
       mockProvider.analyze = vi.fn().mockResolvedValue({
         tags: ['is_business'],
-        confidence: 0.80,
+        confidence: 0.8,
         reasoning: 'Business email',
       });
 
@@ -698,7 +693,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
 
       // Verify: Analysis still completes
       expect(result.tags).toEqual(['is_business']);
-      expect(result.confidence).toBe(0.80);
+      expect(result.confidence).toBe(0.8);
 
       // Verify: Log shows skip
       expect(logger.debug).toHaveBeenCalledWith(
@@ -716,7 +711,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       // Setup: Cache has stored result
       const cachedResult = {
         tags: ['is_business', 'is_urgent'],
-        confidence: 0.80,
+        confidence: 0.8,
         reasoning: 'Cached analysis',
       };
 
@@ -741,14 +736,11 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       expect(mockProvider.analyze).not.toHaveBeenCalled();
 
       // Verify: Tags applied from cache (80% meets thresholds)
-      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, [
-        'is_business',
-        'is_urgent',
-      ]);
+      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, ['is_business', 'is_urgent']);
 
       // Verify: Result from cache
       expect(result.tags).toEqual(['is_business', 'is_urgent']);
-      expect(result.confidence).toBe(0.80);
+      expect(result.confidence).toBe(0.8);
 
       // Cleanup
       delete global.messenger;
@@ -758,7 +750,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       // Setup: Cache has low-confidence result
       const cachedResult = {
         tags: ['is_personal'],
-        confidence: 0.70,
+        confidence: 0.7,
         reasoning: 'Cached low confidence',
       };
 

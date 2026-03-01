@@ -7,25 +7,14 @@ import {
   CustomTags,
   Tag,
   isValidProvider,
-  ModelConcurrencyConfig,
 } from './core/config';
 import {
   ErrorSeverity,
-  ErrorType,
   ErrorDisplay,
   ShowErrorRuntimeMessage,
   debounce,
 } from './src/infrastructure/providers/ProviderUtils';
 
-/**
- * Batch processing statistics
- */
-interface BatchStatistics {
-  total: number;
-  successful: number;
-  failed: number;
-  [key: string]: unknown;
-}
 import { ensureTagsExist } from './core/tags';
 import { logger } from './src/infrastructure/providers/ProviderUtils';
 import { fetchZaiModels } from './src/infrastructure/providers';
@@ -169,14 +158,11 @@ interface DOMElements
 // ============================================================================
 
 /**
- * Tag Form State
+ * Tag Edit Context
  */
-interface TagFormState {
+interface TagEditContext {
+  tag: Tag | null;
   index: number;
-  name: string;
-  key: string;
-  color: string;
-  prompt: string;
 }
 
 /**
@@ -187,28 +173,9 @@ interface SettingsSaveResult {
   message: string;
 }
 
-/**
- * Tag Edit Context
- */
-interface TagEditContext {
-  tag: Tag | null;
-  index: number;
-}
-
 // ============================================================================
 // Provider Settings Types
 // ============================================================================
-
-/**
- * Settings to save for each provider type
- */
-type ProviderSettingsData =
-  | { provider: Provider.OLLAMA; ollamaApiUrl: string; ollamaModel: string }
-  | { provider: Provider.OPENAI; openaiApiKey: string }
-  | { provider: Provider.GEMINI; geminiApiKey: string }
-  | { provider: Provider.CLAUDE; claudeApiKey: string }
-  | { provider: Provider.MISTRAL; mistralApiKey: string }
-  | { provider: Provider.DEEPSEEK; deepseekApiKey: string };
 
 /**
  * Partial provider config for saving
@@ -233,24 +200,6 @@ type PartialProviderConfig = {
 // ============================================================================
 
 /**
- * Storage response for general settings
- */
-interface GeneralSettingsStorage {
-  provider?: Provider;
-  ollamaApiUrl?: string;
-  ollamaModel?: string;
-  openaiApiKey?: string;
-  geminiApiKey?: string;
-  claudeApiKey?: string;
-  mistralApiKey?: string;
-  deepseekApiKey?: string;
-  zaiPaasApiKey?: string;
-  zaiPaasModel?: string;
-  zaiCodingApiKey?: string;
-  zaiCodingModel?: string;
-}
-
-/**
  * Storage response for custom tags
  */
 interface CustomTagsStorage {
@@ -267,70 +216,13 @@ interface CustomTagsStorage {
 type TabClickHandler = (event: MouseEvent) => void;
 
 /**
- * Form submit event handler for general settings
- */
-type GeneralSettingsSubmitHandler = (event: SubmitEvent) => Promise<void>;
-
-/**
- * Provider change event handler
- */
-type ProviderChangeHandler = (event: Event) => void;
-
-/**
  * Tag list click event handler
  */
 type TagListClickHandler = (event: MouseEvent) => void;
 
-/**
- * Tag form submit event handler
- */
-type TagFormSubmitHandler = (event: SubmitEvent) => void;
-
-/**
- * Batch analysis click event handler
- */
-type BatchAnalysisClickHandler = (event: MouseEvent) => void;
-
 // ============================================================================
 // Batch Analysis Types
 // ============================================================================
-
-/**
- * Batch analysis status
- */
-type BatchStatus = 'idle' | 'running' | 'completed' | 'cancelled' | 'error';
-
-/**
- * Batch analysis progress data
- */
-interface BatchProgress {
-  status: BatchStatus;
-  total: number;
-  processed: number;
-  successful: number;
-  failed: number;
-  startTime: number;
-  endTime?: number;
-  errorMessage?: string;
-}
-
-/**
- * Batch analysis response
- */
-interface BatchAnalysisResponse {
-  success: boolean;
-  statistics?: BatchStatistics;
-  error?: string;
-  message?: string;
-}
-
-/**
- * Batch analysis cancel response
- */
-interface BatchCancelResponse {
-  success: boolean;
-  message: string;
-}
 
 /**
  * Runtime message types for batch analysis
@@ -343,15 +235,6 @@ type BatchRuntimeMessage =
   | { action: 'clearCache' }
   | { action: 'getCacheStats' }
   | ShowErrorRuntimeMessage;
-
-/**
- * Runtime message response types
- */
-type BatchRuntimeResponse =
-  | BatchAnalysisResponse
-  | BatchProgress
-  | BatchCancelResponse
-  | { success: boolean; message: string };
 
 // ============================================================================
 // Helper Functions
@@ -771,7 +654,7 @@ function gatherProviderSettings(
   const baseSettings: PartialProviderConfig = { provider: provider as Provider };
 
   switch (provider) {
-    case Provider.OLLAMA:
+    case Provider.OLLAMA: {
       if (!elements.ollamaApiUrl || !elements.ollamaModel) {
         throw new Error('Ollama settings elements not found');
       }
@@ -785,8 +668,9 @@ function gatherProviderSettings(
         model: ollamaSettings.ollamaModel,
       });
       return ollamaSettings;
+    }
 
-    case Provider.OPENAI:
+    case Provider.OPENAI: {
       if (!elements.openaiApiKey) {
         throw new Error('OpenAI settings element not found');
       }
@@ -798,8 +682,9 @@ function gatherProviderSettings(
         apiKey: openaiSettings.openaiApiKey ? '***REDACTED***' : '',
       });
       return openaiSettings;
+    }
 
-    case Provider.GEMINI:
+    case Provider.GEMINI: {
       if (!elements.geminiApiKey) {
         throw new Error('Gemini settings element not found');
       }
@@ -811,8 +696,9 @@ function gatherProviderSettings(
         apiKey: geminiSettings.geminiApiKey ? '***REDACTED***' : '',
       });
       return geminiSettings;
+    }
 
-    case Provider.CLAUDE:
+    case Provider.CLAUDE: {
       if (!elements.claudeApiKey) {
         throw new Error('Claude settings element not found');
       }
@@ -824,8 +710,9 @@ function gatherProviderSettings(
         apiKey: claudeSettings.claudeApiKey ? '***REDACTED***' : '',
       });
       return claudeSettings;
+    }
 
-    case Provider.MISTRAL:
+    case Provider.MISTRAL: {
       if (!elements.mistralApiKey) {
         throw new Error('Mistral settings element not found');
       }
@@ -837,8 +724,9 @@ function gatherProviderSettings(
         apiKey: mistralSettings.mistralApiKey ? '***REDACTED***' : '',
       });
       return mistralSettings;
+    }
 
-    case Provider.DEEPSEEK:
+    case Provider.DEEPSEEK: {
       if (!elements.deepseekApiKey) {
         throw new Error('DeepSeek settings element not found');
       }
@@ -850,8 +738,9 @@ function gatherProviderSettings(
         apiKey: deepseekSettings.deepseekApiKey ? '***REDACTED***' : '',
       });
       return deepseekSettings;
+    }
 
-    case Provider.ZAI_PAAS:
+    case Provider.ZAI_PAAS: {
       if (!elements.zaiPaasApiKey || !elements.zaiPaasModel) {
         throw new Error('Zai PaaS settings element not found');
       }
@@ -865,8 +754,9 @@ function gatherProviderSettings(
         model: zaiPaasSettings.zaiPaasModel,
       });
       return zaiPaasSettings;
+    }
 
-    case Provider.ZAI_CODING:
+    case Provider.ZAI_CODING: {
       if (!elements.zaiCodingApiKey || !elements.zaiCodingModel) {
         throw new Error('Zai Coding settings element not found');
       }
@@ -880,6 +770,7 @@ function gatherProviderSettings(
         model: zaiCodingSettings.zaiCodingModel,
       });
       return zaiCodingSettings;
+    }
 
     default:
       throw new Error(`Unknown provider: ${provider}`);
@@ -1464,46 +1355,6 @@ async function updateCacheStats(elements: CacheManagementElements): Promise<void
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to get cache stats', { error: errorMessage });
     elements.cacheStats.textContent = 'Fehler beim Laden der Statistiken';
-  }
-}
-
-/**
- * Checks if provider is configured
- */
-async function checkProviderConfigured(): Promise<boolean> {
-  try {
-    const settings = await messenger.storage.local.get(DEFAULTS);
-    const provider = settings.provider;
-
-    if (!provider) {
-      return false;
-    }
-
-    // Check provider-specific settings
-    switch (provider) {
-      case 'ollama':
-        return !!(settings.ollamaApiUrl && settings.ollamaModel);
-      case 'openai':
-        return !!settings.openaiApiKey;
-      case 'gemini':
-        return !!settings.geminiApiKey;
-      case 'claude':
-        return !!settings.claudeApiKey;
-      case 'mistral':
-        return !!settings.mistralApiKey;
-      case 'deepseek':
-        return !!settings.deepseekApiKey;
-      case 'zai-paas':
-        return !!settings.zaiPaasApiKey;
-      case 'zai-coding':
-        return !!settings.zaiCodingApiKey;
-      default:
-        return false;
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Failed to check provider configuration', { error: errorMessage });
-    return false;
   }
 }
 

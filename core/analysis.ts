@@ -1,98 +1,30 @@
-import { htmlToText } from 'html-to-text';
 import { PROMPT_BASE, CustomTags, HARDCODED_TAGS, type Tag } from './config';
 import { logger } from '../src/infrastructure/providers/ProviderUtils';
+import type {
+  EmailPart,
+  Attachment,
+  ParsedEmail,
+  StructuredEmailData,
+  AnalysisData,
+  PromptBuilderResult,
+} from '../src/shared/types/EmailPart';
+import {
+  hasNestedParts,
+  isPlainTextBody,
+  isHtmlBody,
+  isAttachment,
+  convertHtmlToText,
+} from '../src/shared/utils/emailPartUtils';
 
-// ============================================================================
-// Email Part Type Definitions
-// ============================================================================
-
-/**
- * Represents a single part of a MIME email structure
- */
-export interface EmailPart {
-  contentType: string;
-  body: string;
-  isAttachment: boolean;
-  name?: string;
-  size?: number;
-  parts?: EmailPart[];
-}
-
-/**
- * Represents an extracted email attachment
- */
-export interface Attachment {
-  name: string;
-  mimeType: string;
-  size: number;
-}
-
-/**
- * Result of parsing email parts
- */
-export interface ParsedEmail {
-  body: string;
-  attachments: Attachment[];
-}
-
-/**
- * Structured email data for prompt building
- */
-export interface StructuredEmailData {
-  headers: Record<string, string>;
-  body: string;
-  attachments: Attachment[];
-}
-
-/**
- * Analysis data containing email information
- */
-export interface AnalysisData {
-  headers: Record<string, string>;
-  body?: string;
-  attachments: Attachment[];
-  parts?: EmailPart[];
-}
-
-/**
- * Result of prompt building operation
- */
-export interface PromptBuilderResult {
-  prompt: string;
-  allTagsDescription: string;
-}
-
-// ============================================================================
-// Type Guards
-// ============================================================================
-
-/**
- * Type guard to check if a part has nested parts
- */
-function hasNestedParts(part: EmailPart): part is EmailPart & { parts: EmailPart[] } {
-  return part.parts !== undefined && part.parts.length > 0;
-}
-
-/**
- * Type guard to check if a part is a plain text body
- */
-function isPlainTextBody(part: EmailPart): boolean {
-  return part.contentType === 'text/plain' && !part.isAttachment;
-}
-
-/**
- * Type guard to check if a part is an HTML body
- */
-function isHtmlBody(part: EmailPart): boolean {
-  return part.contentType === 'text/html' && !part.isAttachment;
-}
-
-/**
- * Type guard to check if a part is an attachment
- */
-function isAttachment(part: EmailPart): boolean {
-  return part.isAttachment || part.name !== undefined;
-}
+// Re-export types for backward compatibility
+export type {
+  EmailPart,
+  Attachment,
+  ParsedEmail,
+  StructuredEmailData,
+  AnalysisData,
+  PromptBuilderResult,
+};
 
 // ============================================================================
 // Email Parsing Functions
@@ -138,15 +70,6 @@ export function findEmailParts(parts: ReadonlyArray<EmailPart>): ParsedEmail {
   const finalBody: string = htmlBody ? convertHtmlToText(htmlBody) : textBody;
 
   return { body: finalBody, attachments };
-}
-
-/**
- * Converts HTML content to plain text
- * @param html - HTML string to convert
- * @returns Plain text representation of the HTML
- */
-function convertHtmlToText(html: string): string {
-  return htmlToText(html, { wordwrap: 130 });
 }
 
 // ============================================================================

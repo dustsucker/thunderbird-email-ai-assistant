@@ -1,23 +1,8 @@
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
-import { buildPrompt } from '../../../../core/analysis';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
-
-type ClaudeMessageRole = 'user' | 'assistant';
-
-interface ClaudeMessage {
-  role: ClaudeMessageRole;
-  content: string;
-}
-
-interface ClaudeApiRequest {
-  model: string;
-  max_tokens: number;
-  system: string;
-  messages: ClaudeMessage[];
-}
 
 interface ClaudeContentBlock {
   type: 'text';

@@ -936,10 +936,10 @@ export class MessageHandler {
   /**
    * Handles get analysis results message.
    *
-   * @param message - Message containing optional limit parameter
+   * @param _message - Message containing optional limit parameter (currently unused)
    * @returns Analysis results from cache
    */
-  private async handleGetAnalysisResults(message?: unknown): Promise<{
+  private async handleGetAnalysisResults(_message?: unknown): Promise<{
     success: boolean;
     results?: Array<{
       cacheKey: string;

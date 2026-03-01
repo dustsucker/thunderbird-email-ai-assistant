@@ -1,6 +1,41 @@
 /**
  * In-memory cache implementation using Map and Web Crypto API
  * @module infrastructure/cache/MemoryCache
+ *
+ * ============================================================================
+ * DUAL CACHE ARCHITECTURE
+ * ============================================================================
+ *
+ * This project uses TWO cache implementations with distinct purposes:
+ *
+ * 1. **MemoryCache (this file)** - src/infrastructure/cache/MemoryCache.ts
+ *    - Storage: In-memory Map (lost on extension reload)
+ *    - Purpose: General-purpose transient caching via DI
+ *    - Usage: Inject via `ICache` interface from DI container
+ *    - Features:
+ *      - Generic type support (cache any data type)
+ *      - DI-injectable for testability
+ *      - TTL support
+ *    - When to use: For transient caching needs, rate limiting data,
+ *      temporary computations, etc.
+ *
+ * 2. **AnalysisCache** - core/cache.ts
+ *    - Storage: IndexedDB (persistent across sessions)
+ *    - Purpose: Caching LLM email analysis results with per-tag confidence
+ *    - Usage: Direct import of `analysisCache` singleton
+ *    - Features:
+ *      - Per-tag confidence scores
+ *      - Persists across Thunderbird restarts
+ *      - Email-specific hashing
+ *    - When to use: For storing/fetching AI analysis results
+ *
+ * **Decision Guide:**
+ * - Need DI injection for testability? → Use this MemoryCache via ICache
+ * - Need persistence across sessions? → Use AnalysisCache from core/cache.ts
+ * - Caching generic app data? → Use this MemoryCache via ICache
+ * - Caching AI analysis results? → Use AnalysisCache from core/cache.ts
+ *
+ * ============================================================================
  */
 
 import { injectable } from 'tsyringe';

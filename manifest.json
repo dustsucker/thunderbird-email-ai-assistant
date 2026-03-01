@@ -1,5 +1,5 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "Email Assistant",
   "version": "1.0.4",
   "description": "Automatically tags messages base on AI rules",
@@ -12,15 +12,23 @@
     "menus",
     "notifications",
     "messagesTags",
-    "messagesTagsList",
-    "http://localhost:11434/api/generate"
+    "messagesTagsList"
   ],
-  "optional_permissions": ["http://*/*", "https://*/*"],
-  "content_security_policy": "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://* http://*",
-  "background": {
-    "page": "background.html"
+  "host_permissions": [
+    "http://localhost:11434/*",
+    "http://127.0.0.1:11434/*",
+    "http://localhost/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*"
   },
-  "browser_action": {
+  "background": {
+    "page": "background.html",
+    "persistent": true
+  },
+  "action": {
     "default_title": "AI-Analyse",
     "default_icon": "icon.png"
   },

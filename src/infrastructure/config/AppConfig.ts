@@ -158,6 +158,7 @@ export class AppConfigService {
     this.logger = logger;
     this.configRepository = configRepository;
     this.logger.debug('AppConfigService initialized with ConfigRepository');
+    this.registerStorageChangeListener();
   }
 
   // ==========================================================================
@@ -599,5 +600,55 @@ export class AppConfigService {
         model: '',
       }
     );
+  }
+
+  /**
+   * Register storage change listener for cache invalidation.
+   * This ensures cache is invalidated when options.ts writes directly to storage.
+   * Uses browser.storage.onChanged for Thunderbird Manifest V3 compatibility.
+   */
+  private registerStorageChangeListener(): void {
+    try {
+      // Für Thunderbird/FF: browser.storage.onChanged
+      const browserApi = (globalThis as unknown as Record<string, unknown>).browser as
+        | {
+            storage?: {
+              onChanged?: {
+                addListener: (
+                  callback: (
+                    changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
+                    areaName: string
+                  ) => void
+                ) => void;
+              };
+            };
+          }
+        | undefined;
+
+      if (browserApi?.storage?.onChanged) {
+        browserApi.storage.onChanged.addListener((changes, areaName) => {
+          // Only react to local storage changes
+          if (areaName === 'local') {
+            // Invalidate appConfig cache when it changes
+            if ('appConfig' in changes) {
+              this.invalidateCache('appConfig');
+              this.logger.debug('AppConfig cache invalidated due to storage change');
+            }
+            // Invalidate provider settings caches when they change
+            if ('providerSettings' in changes) {
+              for (const cacheKey of this.cache.keys()) {
+                if (cacheKey.startsWith('providerSettings:')) {
+                  this.invalidateCache(cacheKey);
+                }
+              }
+              this.logger.debug('Provider settings caches invalidated due to storage change');
+            }
+          }
+        });
+        this.logger.debug('Storage change listener registered for cache invalidation');
+      }
+    } catch (error) {
+      this.logger.warn('Failed to register storage change listener', { error });
+    }
   }
 }

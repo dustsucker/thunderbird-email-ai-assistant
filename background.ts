@@ -11,6 +11,12 @@ import 'reflect-metadata';
 import { container, injectable } from 'tsyringe';
 
 // ============================================================================
+// Custom Errors
+// ============================================================================
+
+import { DependencyInjectionError } from './src/shared/errors';
+
+// ============================================================================
 // Core Interfaces
 // ============================================================================
 
@@ -548,7 +554,10 @@ class BackgroundScript {
           });
 
           // Direct use case call
-          const result = await this.analyzeBatch!.execute(messageIds, {
+          if (!this.analyzeBatch) {
+            throw new DependencyInjectionError('AnalyzeBatchEmails');
+          }
+          const result = await this.analyzeBatch.execute(messageIds, {
             providerSettings,
             priority: 1,
             concurrency: 3,
@@ -635,7 +644,10 @@ class BackgroundScript {
           }
 
           this.logger?.info('Step 3: Calling analyzeEmail.execute()...');
-          const result = await this.analyzeEmail!.execute(String(messageId), providerSettings);
+          if (!this.analyzeEmail) {
+            throw new DependencyInjectionError('AnalyzeEmail');
+          }
+          const result = await this.analyzeEmail.execute(String(messageId), providerSettings);
 
           this.logger?.info('Single message analysis completed successfully', {
             messageId,
@@ -816,7 +828,7 @@ class BackgroundScript {
    */
   private async getProviderSettings(): Promise<IProviderSettings> {
     if (!this.appConfigService) {
-      throw new Error('AppConfigService not initialized');
+      throw new DependencyInjectionError('AppConfigService');
     }
 
     try {

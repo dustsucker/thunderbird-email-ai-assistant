@@ -70,17 +70,6 @@ import { ManualReviewPanel } from './ManualReviewPanel';
 // ============================================================================
 // Browser API Declarations
 // ============================================================================
-// Browser API Declarations
-// ============================================================================
-
-declare const messenger: {
-  storage: {
-    local: {
-      get(keys?: Record<string, unknown> | string[] | string): Promise<Record<string, unknown>>;
-      set(items: Record<string, unknown>): Promise<void>;
-    };
-  };
-};
 
 interface CacheStatsResponse {
   success: boolean;

@@ -9,7 +9,6 @@
 
 import {
   confidenceToPercentage,
-  formatConfidence,
   getConfidenceLevel,
   getConfidenceColor,
   ConfidenceLevel,
@@ -282,7 +281,7 @@ export class ConfidenceBadge {
     confidence: number,
     mode: ConfidenceBadgeDisplayMode,
     showPercentage: boolean,
-    threshold?: number
+    _threshold?: number
   ): string {
     const percentage = confidenceToPercentage(confidence);
     const level = getConfidenceLevel(confidence);
@@ -291,9 +290,10 @@ export class ConfidenceBadge {
       case 'compact':
         return showPercentage ? `${percentage}%` : `${percentage}`;
 
-      case 'detailed':
+      case 'detailed': {
         const label = level.charAt(0).toUpperCase() + level.slice(1);
         return showPercentage ? `${percentage}% ${label}` : `${percentage} ${label}`;
+      }
 
       case 'minimal':
         return ''; // Minimal mode shows just the colored dot

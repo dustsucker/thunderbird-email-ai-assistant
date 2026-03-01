@@ -1,6 +1,42 @@
 /**
  * IndexedDB-based cache for LLM analysis results
  * @module core/cache
+ *
+ * ============================================================================
+ * DUAL CACHE ARCHITECTURE
+ * ============================================================================
+ *
+ * This project uses TWO cache implementations with distinct purposes:
+ *
+ * 1. **AnalysisCache (this file)** - core/cache.ts
+ *    - Storage: IndexedDB (persistent across sessions)
+ *    - Purpose: Caching LLM email analysis results with per-tag confidence
+ *    - Usage: Direct import of `analysisCache` singleton
+ *    - Features:
+ *      - Per-tag confidence scores (e.g., is_business: 0.95, is_urgent: 0.75)
+ *      - TTL-based expiration (24 hours default)
+ *      - Persists across Thunderbird restarts
+ *    - When to use: For storing/fetching AI analysis results that should
+ *      survive extension reloads
+ *
+ * 2. **MemoryCache** - src/infrastructure/cache/MemoryCache.ts
+ *    - Storage: In-memory Map (lost on extension reload)
+ *    - Purpose: General-purpose transient caching via DI
+ *    - Usage: Inject via `ICache` interface from DI container
+ *    - Features:
+ *      - Generic type support (cache any data type)
+ *      - DI-injectable for testability
+ *      - TTL support
+ *    - When to use: For transient caching needs, rate limiting data,
+ *      temporary computations, etc.
+ *
+ * **Decision Guide:**
+ * - Need persistence across sessions? → Use AnalysisCache (this file)
+ * - Need DI injection for testability? → Use MemoryCache via ICache
+ * - Caching AI analysis results? → Use AnalysisCache (this file)
+ * - Caching generic app data? → Use MemoryCache via ICache
+ *
+ * ============================================================================
  */
 
 import { TagResponse } from '../src/infrastructure/providers/ProviderUtils';
@@ -346,7 +382,11 @@ export class AnalysisCache {
    *   'is_urgent': 0.75
    * });
    */
-  async set(emailHash: string, result: TagResponse, tagConfidence?: Record<string, number>): Promise<void> {
+  async set(
+    emailHash: string,
+    result: TagResponse,
+    tagConfidence?: Record<string, number>
+  ): Promise<void> {
     try {
       // Build tagConfidence map if not provided
       // Use overall confidence for each tag as a fallback
@@ -563,7 +603,11 @@ export class AnalysisCache {
       }
 
       this.hitCount++;
-      logger.info('Cache hit with details', { emailHash, age, hasTagConfidence: !!entry.tagConfidence });
+      logger.info('Cache hit with details', {
+        emailHash,
+        age,
+        hasTagConfidence: !!entry.tagConfidence,
+      });
 
       return entry;
     } catch (error) {
@@ -603,8 +647,34 @@ export class AnalysisCache {
 // ============================================================================
 
 /**
- * Global cache instance for the application
- * Exported as singleton for consistent caching across the application
+ * Global cache instance for storing LLM analysis results
+ *
+ * This singleton provides persistent storage for email analysis results
+ * using IndexedDB. Data survives Thunderbird restarts.
+ *
+ * **Usage:**
+ * ```typescript
+ * import { analysisCache, hashEmail } from '@/core/cache';
+ *
+ * // Store analysis result
+ * const emailHash = await hashEmail(emailBody, headers);
+ * await analysisCache.set(emailHash, { tags: ['is_business'], confidence: 0.95 });
+ *
+ * // Retrieve analysis result (persists across sessions)
+ * const cached = await analysisCache.get(emailHash);
+ * ```
+ *
+ * **For general-purpose caching, use ICache via DI:**
+ * ```typescript
+ * @injectable()
+ * class MyService {
+ *   constructor(@inject('ICache') private cache: ICache) {}
+ *   // Use this.cache for transient data
+ * }
+ * ```
+ *
+ * @see {@link AnalysisCache} for the full API
+ * @see {@link MemoryCache} for DI-injectable general-purpose caching
  */
 export const analysisCache = new AnalysisCache();
 

@@ -9,12 +9,11 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
-import { ConfidenceBadge, createConfidenceBadge } from '@/interfaces/shared/components/ConfidenceBadge';
+import { createConfidenceBadge } from '@/interfaces/shared/components/ConfidenceBadge';
 import {
   confidenceToPercentage,
   getConfidenceLevel,
   meetsThreshold,
-  type ConfidenceLevel,
 } from '@/shared/utils/confidenceUtils';
 
 // ============================================================================
@@ -148,9 +147,7 @@ export class AnalysisResultsUI {
       }
 
       // Sort by timestamp (newest first) - just in case
-      const results = response.results
-        .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 20); // Show max 20 recent results
+      const results = response.results.sort((a, b) => b.timestamp - a.timestamp).slice(0, 20); // Show max 20 recent results
 
       this.renderResults(results);
       this.logger.info('Analysis results loaded', { count: results.length });

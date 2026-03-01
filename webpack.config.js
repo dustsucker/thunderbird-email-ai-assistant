@@ -29,5 +29,11 @@ module.exports = (env, argv) => {
       extensions: ['.tsx', '.ts', '.js'],
       plugins: [new TsconfigPathsPlugin()],
     },
+    // Disable performance hints for Thunderbird extension
+    // Bundle size is less critical than web apps (no initial load time impact)
+    performance: {
+      maxEntrypointSize: 512000, // 500 KiB
+      maxAssetSize: 512000, // 500 KiB
+    },
   };
 };

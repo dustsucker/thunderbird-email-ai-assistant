@@ -8,11 +8,7 @@
  * @module interfaces/shared/components/LowConfidenceIndicator
  */
 
-import {
-  confidenceToPercentage,
-  getConfidenceLevel,
-  ConfidenceLevel,
-} from '@/shared/utils/confidenceUtils';
+import { confidenceToPercentage } from '@/shared/utils/confidenceUtils';
 
 // ============================================================================
 // Type Definitions
@@ -103,8 +99,8 @@ export class LowConfidenceIndicator {
   private readonly BASE_CLASS = 'low-confidence-indicator';
   private readonly LEVEL_CLASSES: Record<string, string> = {
     'very-low': 'confidence-very-low',
-    'low': 'confidence-low',
-    'medium': 'confidence-medium',
+    low: 'confidence-low',
+    medium: 'confidence-medium',
   };
 
   private visibilityConfig: IndicatorVisibilityConfig = {
@@ -195,7 +191,11 @@ export class LowConfidenceIndicator {
    * const element = indicator.createIcon(0.65, 'list', '');
    * ```
    */
-  createIcon(confidence: number, placement: IndicatorPlacement = 'list', cssClass = ''): HTMLElement {
+  createIcon(
+    confidence: number,
+    placement: IndicatorPlacement = 'list',
+    cssClass = ''
+  ): HTMLElement {
     if (!this.visibilityConfig.showIcons) {
       return document.createElement('span');
     }
@@ -218,7 +218,11 @@ export class LowConfidenceIndicator {
    * const element = indicator.createBadge(0.65, 'view', '');
    * ```
    */
-  createBadge(confidence: number, placement: IndicatorPlacement = 'list', cssClass = ''): HTMLElement {
+  createBadge(
+    confidence: number,
+    placement: IndicatorPlacement = 'list',
+    cssClass = ''
+  ): HTMLElement {
     if (!this.visibilityConfig.showBadges) {
       return document.createElement('span');
     }
@@ -247,13 +251,7 @@ export class LowConfidenceIndicator {
    * ```
    */
   createNotificationBanner(options: NotificationBannerOptions): HTMLElement {
-    const {
-      count,
-      message,
-      actionText = 'Review',
-      onAction,
-      autoDismiss = 0,
-    } = options;
+    const { count, message, actionText = 'Review', onAction, autoDismiss = 0 } = options;
 
     // Check visibility
     if (!this.visibilityConfig.showNotifications) {
@@ -279,7 +277,9 @@ export class LowConfidenceIndicator {
     // Create message
     const messageEl = document.createElement('div');
     messageEl.className = 'notification-message';
-    messageEl.textContent = message || `${count} email${count > 1 ? 's' : ''} flagged for manual review due to low confidence`;
+    messageEl.textContent =
+      message ||
+      `${count} email${count > 1 ? 's' : ''} flagged for manual review due to low confidence`;
 
     // Create actions container
     const actions = document.createElement('div');
@@ -513,9 +513,11 @@ export class LowConfidenceIndicator {
    */
   private getIconSvg(level: 'very-low' | 'low' | 'medium'): string {
     const icons = {
-      'very-low': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>',
-      'low': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>',
-      'medium': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z"/></svg>',
+      'very-low':
+        '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>',
+      low: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>',
+      medium:
+        '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z"/></svg>',
     };
 
     return icons[level] || icons['low'];
@@ -548,8 +550,8 @@ export class LowConfidenceIndicator {
   private getBadgeLabel(level: 'very-low' | 'low' | 'medium'): string {
     const labels = {
       'very-low': 'Very Low',
-      'low': 'Low',
-      'medium': 'Medium',
+      low: 'Low',
+      medium: 'Medium',
     };
 
     return labels[level] || 'Low';
@@ -563,7 +565,11 @@ export class LowConfidenceIndicator {
    * @param isFlagged - Whether email is flagged
    * @returns ARIA label string
    */
-  private getAriaLabel(level: 'very-low' | 'low' | 'medium', percentage: number, isFlagged: boolean): string {
+  private getAriaLabel(
+    level: 'very-low' | 'low' | 'medium',
+    percentage: number,
+    isFlagged: boolean
+  ): string {
     const label = this.getBadgeLabel(level);
     const status = isFlagged ? 'flagged for review' : 'auto-tagged';
     return `${label} confidence ${percentage}%, ${status}`;

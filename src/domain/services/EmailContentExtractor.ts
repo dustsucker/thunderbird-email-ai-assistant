@@ -1,4 +1,3 @@
-import { htmlToText } from 'html-to-text';
 import {
   EmailPart,
   ParsedEmail,
@@ -7,6 +6,13 @@ import {
   Attachment,
 } from '@/shared/types/EmailPart';
 import { CustomTags } from '@/shared/types/ProviderTypes';
+import {
+  hasNestedParts,
+  isPlainTextBody,
+  isHtmlBody,
+  isAttachment,
+  convertHtmlToText,
+} from '@/shared/utils/emailPartUtils';
 import { singleton, inject } from 'tsyringe';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 
@@ -21,7 +27,7 @@ export class EmailContentExtractor {
 
     this.logger.debug('Parsing email parts...');
 
-    function recurse(part: EmailPart): void {
+    const recurse = (part: EmailPart): void => {
       if (hasNestedParts(part)) {
         part.parts.forEach(recurse);
         return;
@@ -38,7 +44,7 @@ export class EmailContentExtractor {
           size: part.size || 0,
         });
       }
-    }
+    };
 
     parts.forEach(recurse);
 
@@ -78,24 +84,4 @@ export class EmailContentExtractor {
     }
     return text.substring(0, maxLength);
   }
-}
-
-function hasNestedParts(part: EmailPart): part is EmailPart & { parts: EmailPart[] } {
-  return part.parts !== undefined && part.parts.length > 0;
-}
-
-function isPlainTextBody(part: EmailPart): boolean {
-  return part.contentType === 'text/plain' && !part.isAttachment;
-}
-
-function isHtmlBody(part: EmailPart): boolean {
-  return part.contentType === 'text/html' && !part.isAttachment;
-}
-
-function isAttachment(part: EmailPart): boolean {
-  return part.isAttachment || part.name !== undefined;
-}
-
-function convertHtmlToText(html: string): string {
-  return htmlToText(html, { wordwrap: 130 });
 }

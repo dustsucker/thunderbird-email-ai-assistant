@@ -1,6 +1,23 @@
 /**
  * Cache interface for storing and retrieving typed data with TTL support
  * @module infrastructure/interfaces/ICache
+ *
+ * ============================================================================
+ * CACHE ARCHITECTURE NOTE
+ * ============================================================================
+ *
+ * This project has TWO cache implementations:
+ *
+ * 1. **ICache/MemoryCache** (this interface) - For general-purpose transient
+ *    caching via dependency injection. Data is lost on extension reload.
+ *
+ * 2. **AnalysisCache** (core/cache.ts) - For persistent LLM analysis results
+ *    stored in IndexedDB. Survives Thunderbird restarts.
+ *
+ * Use ICache for: Rate limiting data, temporary computations, generic app data
+ * Use AnalysisCache for: AI analysis results that need persistence
+ *
+ * ============================================================================
  */
 
 /**

@@ -15,15 +15,6 @@ const DEFAULT_MODEL = 'glm-4.5';
 
 type ZaiMessageRole = 'system' | 'user' | 'assistant' | 'tool';
 
-interface ZaiMessage {
-  role: ZaiMessageRole;
-  content: string;
-}
-
-interface ZaiThinking {
-  type: 'enabled' | 'disabled';
-}
-
 interface ZaiChoiceMessage {
   role: ZaiMessageRole;
   content: string;

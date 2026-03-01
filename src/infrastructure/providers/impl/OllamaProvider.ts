@@ -1,22 +1,8 @@
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
-import { buildPrompt } from '../../../../core/analysis';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
-
-interface OllamaGenerateRequest extends Record<string, unknown> {
-  model: string;
-  prompt: string;
-  format: 'json';
-  stream: false;
-  options?: {
-    temperature?: number;
-    top_p?: number;
-    top_k?: number;
-    num_predict?: number;
-  };
-}
 
 interface OllamaGenerateResponse {
   model: string;

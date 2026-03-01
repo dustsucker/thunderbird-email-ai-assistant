@@ -60,24 +60,6 @@ type PartialProviderConfig = {
 };
 
 /**
- * General settings from storage
- */
-interface GeneralSettingsStorage {
-  provider?: string;
-  ollamaApiUrl?: string;
-  ollamaModel?: string;
-  openaiApiKey?: string;
-  geminiApiKey?: string;
-  claudeApiKey?: string;
-  mistralApiKey?: string;
-  deepseekApiKey?: string;
-  zaiPaasApiKey?: string;
-  zaiPaasModel?: string;
-  zaiCodingApiKey?: string;
-  zaiCodingModel?: string;
-}
-
-/**
  * Default provider settings
  */
 const DEFAULT_PROVIDER = 'openai' as const;
@@ -640,8 +622,8 @@ export class SettingsForm {
         return;
       }
 
-      // Get provider instance via ProviderFactory
-      const provider = this.providerFactory.getProvider(providerId);
+      // Get provider instance via ProviderFactory (lazy loaded)
+      const provider = await this.providerFactory.getProvider(providerId);
 
       // Check if provider supports listModels
       if (typeof provider.listModels !== 'function') {

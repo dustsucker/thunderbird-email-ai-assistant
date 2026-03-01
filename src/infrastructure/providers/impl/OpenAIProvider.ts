@@ -1,28 +1,10 @@
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
-import { buildPrompt } from '../../../../core/analysis';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
 
 type OpenAIMessageRole = 'system' | 'user' | 'assistant' | 'tool';
-
-interface OpenAIMessage {
-  role: OpenAIMessageRole;
-  content: string;
-}
-
-type OpenAIResponseType = 'text' | 'json_object';
-
-interface OpenAIResponseFormat {
-  type: OpenAIResponseType;
-}
-
-interface OpenAIChatCompletionRequest extends Record<string, unknown> {
-  model: string;
-  messages: OpenAIMessage[];
-  response_format?: OpenAIResponseFormat;
-}
 
 interface OpenAIUsage {
   prompt_tokens: number;

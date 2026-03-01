@@ -1,22 +1,8 @@
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
-import { buildPrompt } from '../../../../core/analysis';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
-
-type DeepSeekMessageRole = 'system' | 'user' | 'assistant';
-
-interface DeepSeekMessage {
-  role: DeepSeekMessageRole;
-  content: string;
-}
-
-interface DeepSeekApiRequest extends Record<string, unknown> {
-  model: string;
-  messages: DeepSeekMessage[];
-  stream: boolean;
-}
 
 interface DeepSeekResponseMessage {
   role: string;

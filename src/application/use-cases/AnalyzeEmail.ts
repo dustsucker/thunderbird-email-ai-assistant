@@ -308,7 +308,7 @@ export class AnalyzeEmail {
 
       // Step 6: Get provider from factory (if providerId is specified)
       this.logger.debug('➡️  Step 6: Getting provider from factory');
-      const provider = this.getProvider(providerSettings);
+      const provider = await this.getProvider(providerSettings);
       this.logger.debug('✅ Step 6 complete: Provider retrieved');
 
       // Step 7: Perform AI analysis
@@ -618,10 +618,10 @@ export class AnalyzeEmail {
    * Gets provider instance from factory.
    *
    * @param providerSettings - Provider settings with providerId
-   * @returns Provider instance
+   * @returns Promise resolving to provider instance
    * @throws {Error} If provider cannot be resolved
    */
-  private getProvider(providerSettings: IProviderSettings): IProvider {
+  private async getProvider(providerSettings: IProviderSettings): Promise<IProvider> {
     const providerId = providerSettings.provider as string;
     if (!providerId) {
       throw new Error('Provider ID not specified in provider settings');
@@ -630,7 +630,7 @@ export class AnalyzeEmail {
     this.logger.debug('🏭 Getting provider from factory', { providerId });
 
     try {
-      return this.providerFactory.getProvider(providerId);
+      return await this.providerFactory.getProvider(providerId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('❌ Failed to get provider', { providerId, error: errorMessage });
@@ -772,7 +772,9 @@ export class AnalyzeEmail {
           flagCount: flags.length,
         });
       } else {
-        this.logger.warn('⚠️  Messenger storage not available, skipping low-confidence flag storage');
+        this.logger.warn(
+          '⚠️  Messenger storage not available, skipping low-confidence flag storage'
+        );
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

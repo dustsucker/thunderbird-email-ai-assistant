@@ -9,12 +9,8 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
-import { ConfidenceBadge, createConfidenceBadge } from '@/interfaces/shared/components/ConfidenceBadge';
-import {
-  confidenceToPercentage,
-  getConfidenceLevel,
-  ConfidenceLevel,
-} from '@/shared/utils/confidenceUtils';
+import { createConfidenceBadge } from '@/interfaces/shared/components/ConfidenceBadge';
+import { confidenceToPercentage, getConfidenceLevel } from '@/shared/utils/confidenceUtils';
 
 // ============================================================================
 // Type Definitions
@@ -49,16 +45,6 @@ interface FlaggedEmailDisplay {
   timestamp: number;
   flags: LowConfidenceFlag[];
   reviewed: boolean;
-}
-
-/**
- * Manual review response from background script
- */
-interface ManualReviewResponse {
-  success: boolean;
-  emails?: FlaggedEmailDisplay[];
-  error?: string;
-  message?: string;
 }
 
 /**
@@ -114,7 +100,8 @@ export class ManualReviewPanel {
   private container: HTMLElement | null = null;
   private flaggedEmails: FlaggedEmailDisplay[] = [];
   private currentFilter: 'all' | 'very-low' | 'low' | 'medium' = 'all';
-  private currentSort: 'timestamp-desc' | 'timestamp-asc' | 'confidence-desc' | 'confidence-asc' = 'timestamp-desc';
+  private currentSort: 'timestamp-desc' | 'timestamp-asc' | 'confidence-desc' | 'confidence-asc' =
+    'timestamp-desc';
   private currentStatusFilter: 'all' | 'pending' | 'reviewed' = 'all';
 
   // ==========================================================================
@@ -221,7 +208,9 @@ export class ManualReviewPanel {
     });
 
     // Confidence filter
-    const confidenceFilter = document.getElementById('review-filter-confidence') as HTMLSelectElement;
+    const confidenceFilter = document.getElementById(
+      'review-filter-confidence'
+    ) as HTMLSelectElement;
     confidenceFilter?.addEventListener('change', (e) => {
       this.currentFilter = (e.target as HTMLSelectElement).value as typeof this.currentFilter;
       this.renderFilteredEmails();
@@ -230,7 +219,8 @@ export class ManualReviewPanel {
     // Status filter
     const statusFilter = document.getElementById('review-status-filter') as HTMLSelectElement;
     statusFilter?.addEventListener('change', (e) => {
-      this.currentStatusFilter = (e.target as HTMLSelectElement).value as typeof this.currentStatusFilter;
+      this.currentStatusFilter = (e.target as HTMLSelectElement)
+        .value as typeof this.currentStatusFilter;
       this.renderFilteredEmails();
     });
   }
@@ -381,7 +371,6 @@ export class ManualReviewPanel {
     const flagElement = document.createElement('div');
     flagElement.className = 'review-flag';
 
-    const percentage = confidenceToPercentage(flag.confidence);
     const level = getConfidenceLevel(flag.confidence);
 
     // Confidence badge

@@ -8,6 +8,7 @@ import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import { EventBus } from '@/domain/events/EventBus';
 
 declare global {
+  // eslint-disable-next-line no-var
   var messenger: any;
 }
 
