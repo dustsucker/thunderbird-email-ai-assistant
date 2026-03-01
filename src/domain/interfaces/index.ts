@@ -7,6 +7,8 @@
 
 export type { ILogger } from './ILogger';
 export type { ITagManager, TagUpdateOptions } from './ITagManager';
+export type { IClock } from './IClock';
+export type { IRandom } from './IRandom';
 
 // Re-export types used by ITagManager from shared types
 export type { ThunderbirdTag, StorageCustomTags, CustomTags } from './ITagManager';

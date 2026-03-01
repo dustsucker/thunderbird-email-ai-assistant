@@ -40,6 +40,10 @@ export type {
   LowConfidenceFlag,
 } from './ApplyTagsWithConfidenceUseCase';
 
+export { UndoTagChanges } from './UndoTagChanges';
+
+export { TrackAnalysisMetrics } from './TrackAnalysisMetrics';
+
 // ============================================================================
 // Interface Re-exports
 // ============================================================================

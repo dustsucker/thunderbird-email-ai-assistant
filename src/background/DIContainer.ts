@@ -18,6 +18,8 @@ import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import type { IMailReader } from '@/infrastructure/interfaces/IMailReader';
 import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
+import type { IClock } from '@/domain/interfaces/IClock';
+import type { IRandom } from '@/domain/interfaces/IRandom';
 
 // ============================================================================
 // Core Implementations
@@ -29,6 +31,7 @@ import { PriorityQueue } from '@/application/services/PriorityQueue';
 import { ThunderbirdMailReader } from '@/interfaces/adapters/ThunderbirdMailReader';
 import { ThunderbirdTagManager } from '@/interfaces/adapters/ThunderbirdTagManager';
 import { IndexedDBConfigRepository } from '@/infrastructure/repositories/IndexedDBConfigRepository';
+import { SystemClock, CryptoRandom } from '@/infrastructure/system';
 
 // ============================================================================
 // Services
@@ -52,6 +55,8 @@ import { RetrieveEmailUseCase } from '@/application/use-cases/RetrieveEmailUseCa
 import { ExtractEmailContentUseCase } from '@/application/use-cases/ExtractEmailContentUseCase';
 import { CacheAnalysisUseCase } from '@/application/use-cases/CacheAnalysisUseCase';
 import { ApplyTagsWithConfidenceUseCase } from '@/application/use-cases/ApplyTagsWithConfidenceUseCase';
+import { UndoTagChanges } from '@/application/use-cases/UndoTagChanges';
+import { TrackAnalysisMetrics } from '@/application/use-cases/TrackAnalysisMetrics';
 
 // ============================================================================
 // Background Services
@@ -59,6 +64,13 @@ import { ApplyTagsWithConfidenceUseCase } from '@/application/use-cases/ApplyTag
 
 import { EmailEventListener } from '@/interfaces/background/EmailEventListener';
 import { MessageHandler } from '@/interfaces/background/MessageHandler';
+
+// ============================================================================
+// Storage
+// ============================================================================
+
+import { TagHistoryRepository } from '@/infrastructure/storage/TagHistoryRepository';
+import { MetricsRepository } from '@/infrastructure/storage/MetricsRepository';
 
 // ============================================================================
 // Startup Logger
@@ -106,6 +118,8 @@ export function setupDIContainer(): void {
   container.registerSingleton<IMailReader>('IMailReader', ThunderbirdMailReader);
   container.registerSingleton<ITagManager>('ITagManager', ThunderbirdTagManager);
   container.registerSingleton<IConfigRepository>('IConfigRepository', IndexedDBConfigRepository);
+  container.registerSingleton<IClock>('IClock', SystemClock);
+  container.registerSingleton<IRandom>('IRandom', CryptoRandom);
 
   startupLogger.info('Core interfaces registered');
 
@@ -123,6 +137,15 @@ export function setupDIContainer(): void {
   startupLogger.info('Services registered');
 
   // ------------------------------------------------------------------------
+  // Register Storage
+  // ------------------------------------------------------------------------
+
+  container.registerSingleton(TagHistoryRepository, TagHistoryRepository);
+  container.registerSingleton(MetricsRepository, MetricsRepository);
+
+  startupLogger.info('Storage registered');
+
+  // ------------------------------------------------------------------------
   // Register Use Cases
   // ------------------------------------------------------------------------
 
@@ -136,6 +159,8 @@ export function setupDIContainer(): void {
   container.registerSingleton('AnalyzeEmail', AnalyzeEmail);
   container.registerSingleton('ApplyTagsToEmail', ApplyTagsToEmail);
   container.registerSingleton('AnalyzeBatchEmails', AnalyzeBatchEmails);
+  container.registerSingleton(UndoTagChanges, UndoTagChanges);
+  container.registerSingleton(TrackAnalysisMetrics, TrackAnalysisMetrics);
 
   startupLogger.info('Use cases registered');
 

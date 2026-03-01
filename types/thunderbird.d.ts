@@ -80,6 +80,7 @@ declare const messenger: {
   runtime: {
     onInstalled: {
       addListener(callback: (details: { reason: string }) => void): void;
+      removeListener(callback: (details: { reason: string }) => void): void;
     };
     onSuspend: {
       addListener(callback: () => void): void;
@@ -92,8 +93,10 @@ declare const messenger: {
   };
   menus: {
     create(createProperties: Record<string, unknown>, callback?: () => void): void;
+    remove(menuItemId: string): Promise<void>;
     onClicked: {
       addListener(callback: (info: FolderMenuOnClickData, tab: Tab) => void): void;
+      removeListener(callback: (info: FolderMenuOnClickData, tab: Tab) => void): void;
     };
   };
   browserAction?: {

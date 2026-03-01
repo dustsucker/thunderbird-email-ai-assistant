@@ -132,6 +132,13 @@ export class BackgroundScript {
         this.logger?.info('MessageHandler stopped');
       }
 
+      // Cleanup handlers
+      const contextMenuHandler = container.resolve<ContextMenuHandler>(ContextMenuHandler);
+      const installHandler = container.resolve<InstallHandler>(InstallHandler);
+
+      contextMenuHandler.unregisterMenus();
+      installHandler.unregister();
+
       this.isInitialized = false;
       this.logger?.info('Background script shutdown completed successfully');
     } catch (error) {

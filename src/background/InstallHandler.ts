@@ -33,6 +33,7 @@ export class InstallHandler {
   // ==========================================================================
 
   private readonly logger: ILogger;
+  private installHandler: ((details: { reason: string }) => Promise<void>) | null = null;
 
   // ==========================================================================
   // Constructor
@@ -58,10 +59,24 @@ export class InstallHandler {
     this.logger.info('Registering onInstalled handler...');
 
     if (messenger.runtime && messenger.runtime.onInstalled) {
-      messenger.runtime.onInstalled.addListener(this.handleInstall.bind(this));
+      this.installHandler = this.handleInstall.bind(this);
+      messenger.runtime.onInstalled.addListener(this.installHandler);
       this.logger.info('Install handler registered');
     } else {
       this.logger.warn('Runtime onInstalled handler not available');
+    }
+  }
+
+  /**
+   * Unregisters the onInstalled handler.
+   *
+   * Should be called during extension shutdown to prevent memory leaks.
+   */
+  unregister(): void {
+    if (this.installHandler && messenger.runtime?.onInstalled) {
+      messenger.runtime.onInstalled.removeListener(this.installHandler);
+      this.installHandler = null;
+      this.logger.info('Install handler unregistered');
     }
   }
 

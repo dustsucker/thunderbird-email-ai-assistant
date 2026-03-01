@@ -17,6 +17,90 @@ This Thunderbird MailExtension provides a powerful and flexible framework for AI
 - **Privacy-Focused**: Gives users the choice between maximum privacy with a local Ollama instance or the power of cloud-based models, with clear privacy notices for each.
 - **Secure Configuration**: Features a comprehensive options page for managing API keys and provider settings, using Thunderbird's runtime permissions API for security.
 
+## Architecture
+
+This extension follows **Hexagonal Architecture** (also known as Clean Architecture or Ports & Adapters) with **Dependency Injection** using [TSyringe](https://github.com/microsoft/tsyringe). This design ensures:
+
+- **Testability**: Easy mocking of external dependencies
+- **Maintainability**: Clear separation of concerns
+- **Flexibility**: Easy to swap implementations (e.g., different LLM providers)
+
+### Layer Structure
+
+```
+┌─────────────────────────────────────────┐
+│           Interfaces (Entry)            │  Thunderbird integration, UI components
+├─────────────────────────────────────────┤
+│          Application (Use Cases)        │  Orchestration, business workflows
+├─────────────────────────────────────────┤
+│            Domain (Business)            │  Entities, Value Objects, Events
+├─────────────────────────────────────────┤
+│        Infrastructure (External)        │  LLM providers, cache, storage
+└─────────────────────────────────────────┘
+```
+
+**Dependency Rule**: Inner layers never depend on outer layers. Domain has no dependencies.
+
+### Project Structure
+
+```
+src/
+├── domain/              # Core business logic
+│   ├── entities/        # Email, Tag
+│   ├── value-objects/   # EmailAddress, ApiKey, TagColor
+│   ├── events/          # EmailAnalyzedEvent, TagAppliedEvent
+│   ├── services/        # TagService, EmailContentExtractor
+│   └── interfaces/      # IClock, IRandom, ILogger, ITagManager
+├── application/         # Use cases & orchestration
+│   ├── use-cases/       # AnalyzeEmail, ApplyTags, UndoTagChanges
+│   └── services/        # PriorityQueue, RateLimiter
+├── infrastructure/      # External integrations
+│   ├── providers/       # 8 LLM providers with Factory pattern
+│   ├── cache/           # MemoryCache, AnalysisCache
+│   ├── storage/         # TagHistoryRepository, MetricsRepository
+│   └── logger/          # ConsoleLogger
+├── interfaces/          # Entry points & adapters
+│   ├── background/      # ContextMenuHandler, MessageHandler
+│   ├── options/         # Settings UI components
+│   └── adapters/        # ThunderbirdTagManager, ThunderbirdMailReader
+└── shared/              # Cross-cutting concerns
+    ├── types/           # TagTypes, ProviderTypes, Metrics
+    ├── errors/          # DomainError, InfrastructureError, ApplicationError
+    └── utils/           # loggingUtils, validationUtils
+```
+
+### Key Design Patterns
+
+| Pattern          | Implementation                              | Purpose                                        |
+| ---------------- | ------------------------------------------- | ---------------------------------------------- |
+| **Factory**      | `ProviderFactory`                           | Creates LLM provider instances based on config |
+| **Repository**   | `TagHistoryRepository`, `MetricsRepository` | Abstract storage operations                    |
+| **Observer**     | `EventBus` + Domain Events                  | Decouple event producers from consumers        |
+| **Strategy**     | Provider implementations                    | Swappable LLM backends                         |
+| **Value Object** | `EmailAddress`, `ApiKey`                    | Immutable, validated domain concepts           |
+
+### Supported LLM Providers
+
+| Provider       | ID           | Features                       |
+| -------------- | ------------ | ------------------------------ |
+| **Ollama**     | `ollama`     | Local inference, no API costs  |
+| **OpenAI**     | `openai`     | GPT-4, GPT-3.5-turbo           |
+| **Anthropic**  | `claude`     | Claude 3 (Opus, Sonnet, Haiku) |
+| **Google**     | `gemini`     | Gemini Pro, Gemini 1.5         |
+| **Mistral**    | `mistral`    | Mistral Large, Medium          |
+| **DeepSeek**   | `deepseek`   | Cost-effective cloud option    |
+| **ZAI PaaS**   | `zai-paas`   | Enterprise deployment          |
+| **ZAI Coding** | `zai-coding` | Developer-focused              |
+
+### Architecture Features
+
+- **Performance Monitoring**: Track analysis duration, token usage, and estimated costs
+- **Undo Mechanism**: Revert tag changes with history tracking
+- **Confidence Scores**: Tags include 0-100% confidence with threshold filtering
+- **Event-Driven**: Domain events for EmailAnalyzed, TagApplied, ProviderError
+
+For detailed architecture decisions, see [docs/adr/](docs/adr/).
+
 ## Configuration and Usage
 
 After installing the add-on, you can configure it by going to `Tools > Add-ons and Themes`, finding "Mail Assistant", and clicking the "..." button to select **Options**.
@@ -47,6 +131,7 @@ The Confidence Thresholds settings allow you to control when tags are automatica
 **Per-Tag Override**: Override the global threshold for specific tags. For example, you might require a higher confidence (e.g., 85%) for important tags like "Urgent" while allowing lower confidence (e.g., 60%) for less critical tags.
 
 **Visual Indicators**:
+
 - Green badge (≥80%): High confidence
 - Yellow badge (70-79%): Medium confidence
 - Red badge (<70%): Low confidence

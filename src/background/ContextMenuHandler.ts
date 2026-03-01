@@ -11,6 +11,7 @@ import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
+import { UndoTagChanges } from '@/application/use-cases/UndoTagChanges';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
 
 // ============================================================================
@@ -78,8 +79,11 @@ export class ContextMenuHandler {
 
   private readonly analyzeEmail: AnalyzeEmail;
   private readonly analyzeBatch: AnalyzeBatchEmails;
+  private readonly undoTagChanges: UndoTagChanges;
   private readonly appConfigService: AppConfigService;
   private readonly logger: ILogger;
+  private menuClickHandler: ((info: FolderMenuOnClickData, tab: Tab) => Promise<void>) | null =
+    null;
 
   // ==========================================================================
   // Constructor
@@ -90,17 +94,20 @@ export class ContextMenuHandler {
    *
    * @param analyzeEmail - Single email analysis use case
    * @param analyzeBatch - Batch email analysis use case
+   * @param undoTagChanges - Undo tag changes use case
    * @param appConfigService - App config service for loading provider settings
    * @param logger - Logger instance for logging operations
    */
   constructor(
     @inject(AnalyzeEmail) analyzeEmail: AnalyzeEmail,
     @inject(AnalyzeBatchEmails) analyzeBatch: AnalyzeBatchEmails,
+    @inject(UndoTagChanges) undoTagChanges: UndoTagChanges,
     @inject(AppConfigService) appConfigService: AppConfigService,
     @inject('ILogger') logger: ILogger
   ) {
     this.analyzeEmail = analyzeEmail;
     this.analyzeBatch = analyzeBatch;
+    this.undoTagChanges = undoTagChanges;
     this.appConfigService = appConfigService;
     this.logger = logger;
   }
@@ -173,13 +180,59 @@ export class ContextMenuHandler {
         }
       );
 
+      // Message list context menu: "Tags rückgängig machen" (Undo tag changes)
+      messenger.menus.create(
+        {
+          id: 'undo-tag-changes',
+          title: 'Tags rückgängig machen',
+          contexts: ['message_list'],
+          visible: true,
+        },
+        () => {
+          if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.lastError) {
+            this.logger.error(
+              'Failed to create undo tag changes context menu',
+              browser.runtime.lastError
+            );
+          } else {
+            this.logger.info('Undo tag changes context menu registered');
+          }
+        }
+      );
+
       // Register context menu click handler
-      messenger.menus.onClicked.addListener(this.handleMenuClick.bind(this));
+      this.menuClickHandler = this.handleMenuClick.bind(this);
+      messenger.menus.onClicked.addListener(this.menuClickHandler);
 
       this.logger.info('All context menus registered successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to register context menus', { error: errorMessage });
+    }
+  }
+
+  /**
+   * Unregisters all context menus and click handler.
+   *
+   * Should be called during extension shutdown to prevent memory leaks.
+   */
+  unregisterMenus(): void {
+    // Remove click handler
+    if (this.menuClickHandler && messenger.menus?.onClicked) {
+      messenger.menus.onClicked.removeListener(this.menuClickHandler);
+      this.menuClickHandler = null;
+      this.logger.info('Context menu click handler unregistered');
+    }
+
+    // Remove menu items
+    try {
+      messenger.menus.remove('batch-analyze-folder');
+      messenger.menus.remove('analyze-single-message-list');
+      messenger.menus.remove('analyze-single-message-display');
+      messenger.menus.remove('undo-tag-changes');
+      this.logger.info('Context menus removed');
+    } catch {
+      // Menus might not exist, ignore errors
     }
   }
 
@@ -225,6 +278,12 @@ export class ContextMenuHandler {
         menuItemId === 'analyze-single-message-display'
       ) {
         await this.handleSingleMessageAnalysis(info);
+        return;
+      }
+
+      // Handle undo tag changes
+      if (menuItemId === 'undo-tag-changes') {
+        await this.handleUndoTagChanges(info);
         return;
       }
 
@@ -420,6 +479,58 @@ export class ContextMenuHandler {
         iconUrl: 'icon.png',
         title: 'Fehler',
         message: `Analyse fehlgeschlagen: ${errorMessage}`,
+      });
+    }
+  }
+
+  /**
+   * Handles undo tag changes request.
+   */
+  private async handleUndoTagChanges(info: FolderMenuOnClickData): Promise<void> {
+    const messageData = info.selectedMessages;
+
+    if (!messageData) {
+      this.logger.warn('Undo tag changes requested but no messages selected');
+      return;
+    }
+
+    const messages = messageData.messages || [];
+    if (messages.length === 0) {
+      this.logger.warn('Undo tag changes requested but message list is empty');
+      return;
+    }
+
+    const messageId = messages[0].id;
+    this.logger.info('Starting undo tag changes', { messageId });
+
+    try {
+      const success = await this.undoTagChanges.execute(String(messageId));
+
+      if (success) {
+        await messenger.notifications.create({
+          type: 'basic',
+          iconUrl: 'icon.png',
+          title: 'Tags rückgängig gemacht',
+          message: `Tag-Änderungen für Nachricht ${messageId} wurden rückgängig gemacht.`,
+        });
+        this.logger.info('Undo tag changes completed successfully', { messageId });
+      } else {
+        await messenger.notifications.create({
+          type: 'basic',
+          iconUrl: 'icon.png',
+          title: 'Keine Historie gefunden',
+          message: `Keine Tag-Änderungshistorie für Nachricht ${messageId} vorhanden.`,
+        });
+        this.logger.info('No tag history found to undo', { messageId });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to undo tag changes', { messageId, error: errorMessage });
+      await messenger.notifications.create({
+        type: 'basic',
+        iconUrl: 'icon.png',
+        title: 'Fehler',
+        message: `Rückgängig machen fehlgeschlagen: ${errorMessage}`,
       });
     }
   }

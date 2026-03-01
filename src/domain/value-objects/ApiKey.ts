@@ -45,6 +45,7 @@ export class ApiKey {
     }
 
     // Check for obviously invalid characters (whitespace, control chars)
+    // eslint-disable-next-line no-control-regex
     if (/[\s\x00-\x1F\x7F]/.test(trimmed)) {
       throw new InvalidApiKeyError('API key contains invalid characters', provider);
     }

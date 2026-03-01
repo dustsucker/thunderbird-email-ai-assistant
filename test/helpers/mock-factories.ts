@@ -8,6 +8,8 @@
 
 import { vi } from 'vitest';
 import type { ILogger } from '@/domain/interfaces/ILogger';
+import type { IClock } from '@/domain/interfaces/IClock';
+import type { IRandom } from '@/domain/interfaces/IRandom';
 import type { ICache, ICacheStats } from '@/infrastructure/interfaces/ICache';
 import type {
   IConfigRepository,
@@ -184,5 +186,56 @@ export function createMockConfigRepository(): IConfigRepository {
       Object.keys(providerSettings).forEach((key) => delete providerSettings[key]);
       customTags = [];
     }),
+  };
+}
+
+// ============================================================================
+// Clock Mock
+// ============================================================================
+
+/**
+ * Creates a mock IClock instance with a fixed time.
+ *
+ * @param fixedTime - Optional fixed timestamp in milliseconds (default: 1000000)
+ * @returns Mock IClock with deterministic time values
+ *
+ * @example
+ * const mockClock = createMockClock(1709251200000);
+ * mockClock.now(); // Always returns 1709251200000
+ * mockClock.currentDate(); // Always returns new Date(1709251200000)
+ */
+export function createMockClock(fixedTime?: number): IClock {
+  const time = fixedTime ?? 1000000;
+  return {
+    now: vi.fn(() => time),
+    currentDate: vi.fn(() => new Date(time)),
+  };
+}
+
+// ============================================================================
+// Random Mock
+// ============================================================================
+
+/**
+ * Creates a mock IRandom instance with deterministic values.
+ *
+ * @param fixedUuid - Optional fixed UUID to return (default: increments counter)
+ * @returns Mock IRandom with deterministic random values
+ *
+ * @example
+ * // Fixed UUID
+ * const mockRandom = createMockRandom('test-uuid-123');
+ * mockRandom.uuid(); // Always returns 'test-uuid-123'
+ *
+ * // Incrementing UUIDs
+ * const mockRandom2 = createMockRandom();
+ * mockRandom2.uuid(); // 'mock-uuid-0'
+ * mockRandom2.uuid(); // 'mock-uuid-1'
+ */
+export function createMockRandom(fixedUuid?: string): IRandom {
+  let counter = 0;
+  return {
+    uuid: vi.fn(() => fixedUuid ?? `mock-uuid-${counter++}`),
+    randomInt: vi.fn(() => 0),
   };
 }
