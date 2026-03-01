@@ -5,7 +5,8 @@
 
 import type { AppConfig, CustomTags } from '@/shared/types/ProviderTypes';
 import type { RequestBody } from './BaseProvider';
-import { Provider, DEFAULT_CUSTOM_TAGS } from '../../../core/config';
+import { Provider } from '@/shared/types/ProviderTypes';
+import { DEFAULT_CUSTOM_TAGS } from '@/shared/types/ProviderTypes';
 
 // ============================================================================
 // TYPE DEFINITIONS AND INTERFACES

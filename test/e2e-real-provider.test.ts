@@ -6,7 +6,7 @@ import { ZaiPaaSProvider } from '../src/infrastructure/providers/impl/ZaiPaaSPro
 import type { ILogger } from '../src/infrastructure/interfaces/ILogger';
 import { loadEmailFixture } from './fixtures/fixture-loader';
 import { getTestConfig, TEST_TIMEOUT } from './test-config';
-import { DEFAULT_CUSTOM_TAGS } from '../core/config';
+import { DEFAULT_CUSTOM_TAGS } from '../src/shared/types/ProviderTypes';
 import 'reflect-metadata';
 
 function getZaiConfigErrorMessage(): string | undefined {

@@ -8,7 +8,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import { ProviderFactory } from '../../infrastructure/providers/ProviderFactory';

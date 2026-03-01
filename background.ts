@@ -48,7 +48,6 @@ import { AppConfigService } from './src/infrastructure/config/AppConfig';
 import { RateLimiterService } from './src/application/services/RateLimiterService';
 import { EmailAnalysisTracker } from './src/application/services/EmailAnalysisTracker';
 import { ProviderFactory } from './src/infrastructure/providers/ProviderFactory';
-import { ensureTagsExist } from './core/tags';
 
 // ============================================================================
 // Domain Types
@@ -63,6 +62,10 @@ import type { IProviderSettings } from './src/infrastructure/interfaces/IProvide
 import { AnalyzeEmail } from './src/application/use-cases/AnalyzeEmail';
 import { ApplyTagsToEmail } from './src/application/use-cases/ApplyTagsToEmail';
 import { AnalyzeBatchEmails } from './src/application/use-cases/AnalyzeBatchEmails';
+import { RetrieveEmailUseCase } from './src/application/use-cases/RetrieveEmailUseCase';
+import { ExtractEmailContentUseCase } from './src/application/use-cases/ExtractEmailContentUseCase';
+import { CacheAnalysisUseCase } from './src/application/use-cases/CacheAnalysisUseCase';
+import { ApplyTagsWithConfidenceUseCase } from './src/application/use-cases/ApplyTagsWithConfidenceUseCase';
 
 // ============================================================================
 // Background Services
@@ -255,7 +258,8 @@ class BackgroundScript {
 
       // Step 2.5: Ensuring all custom tags exist
       this.logger?.info('Ensuring all custom tags exist in Thunderbird...');
-      await ensureTagsExist();
+      const tagService = container.resolve<TagService>('TagService');
+      await tagService.ensureTagsExist();
       this.logger?.info('Tag initialization completed');
 
       // Step 3: Resolve background services
@@ -363,6 +367,13 @@ class BackgroundScript {
     // Register Use Cases
     // ------------------------------------------------------------------------
 
+    // Sub-use-cases for AnalyzeEmail
+    container.registerSingleton(RetrieveEmailUseCase, RetrieveEmailUseCase);
+    container.registerSingleton(ExtractEmailContentUseCase, ExtractEmailContentUseCase);
+    container.registerSingleton(CacheAnalysisUseCase, CacheAnalysisUseCase);
+    container.registerSingleton(ApplyTagsWithConfidenceUseCase, ApplyTagsWithConfidenceUseCase);
+
+    // Main use cases
     container.registerSingleton('AnalyzeEmail', AnalyzeEmail);
     container.registerSingleton('ApplyTagsToEmail', ApplyTagsToEmail);
     container.registerSingleton('AnalyzeBatchEmails', AnalyzeBatchEmails);

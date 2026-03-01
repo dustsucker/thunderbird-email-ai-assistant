@@ -1,18 +1,10 @@
 import { singleton, inject } from 'tsyringe';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
-import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
-import { Tag, CustomTags } from '@/shared/types/ProviderTypes';
+import type { ILogger, ITagManager } from '@/domain/interfaces';
+// Import all tag types from the single source of truth
+import type { Tag, CustomTags, ThunderbirdTag, StorageCustomTags } from '@/shared/types/TagTypes';
 
-export interface ThunderbirdTag {
-  key: string;
-  tag: string;
-  color: string;
-  ordinal: string;
-}
-
-export interface StorageCustomTags {
-  customTags?: CustomTags;
-}
+// Re-export ThunderbirdTag and StorageCustomTags for backward compatibility
+export type { ThunderbirdTag, StorageCustomTags };
 
 @singleton()
 export class TagService {
@@ -53,7 +45,8 @@ export class TagService {
         key: 'is_personal',
         name: 'Personal',
         color: '#4CAF50',
-        prompt: 'check if this is non-sales scenario approach from someone who likes to contact in a non-business context.',
+        prompt:
+          'check if this is non-sales scenario approach from someone who likes to contact in a non-business context.',
       },
       {
         key: 'is_business',
@@ -85,7 +78,8 @@ export class TagService {
         key: 'has_calendar_invite',
         name: 'Appointment',
         color: '#7F07f2',
-        prompt: 'check if the mail has invitation to the call or meeting (with calendar appointment attached)',
+        prompt:
+          'check if the mail has invitation to the call or meeting (with calendar appointment attached)',
       },
     ];
   }
@@ -109,10 +103,7 @@ export class TagService {
           continue;
         }
 
-        await this.tagManager.createTag(
-          this.tagNamePrefix + tagToCreate.name,
-          tagToCreate.color
-        );
+        await this.tagManager.createTag(this.tagNamePrefix + tagToCreate.name, tagToCreate.color);
 
         this.logger.info(`Created new tag`, { name: tagToCreate.name });
       }
@@ -205,15 +196,4 @@ export class TagService {
 
     return true;
   }
-}
-
-export interface ThunderbirdTag {
-  key: string;
-  tag: string;
-  color: string;
-  ordinal: string;
-}
-
-export interface StorageCustomTags {
-  customTags?: CustomTags;
 }

@@ -25,7 +25,7 @@ import type {
   IEmailQuery,
   IEMLParseResult,
 } from '@/infrastructure/interfaces/IMailReader';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 
 // ============================================================================
 // Thunderbird WebExtension API Types

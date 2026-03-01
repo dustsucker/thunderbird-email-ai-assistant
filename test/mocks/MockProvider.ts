@@ -5,8 +5,8 @@ import {
   TagResponse,
   HttpHeaders,
 } from '../../src/infrastructure/providers/BaseProvider';
-import { CustomTags } from '../../core/config';
-import { StructuredEmailData } from '../../core/analysis';
+import type { CustomTags } from '../../src/shared/types/TagTypes';
+import type { StructuredEmailData } from '../../src/shared/types/EmailPart';
 
 export interface MockResponse {
   tags: string[];

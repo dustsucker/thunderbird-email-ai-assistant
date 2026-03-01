@@ -15,7 +15,6 @@ import {
   debounce,
 } from './src/infrastructure/providers/ProviderUtils';
 
-import { ensureTagsExist } from './core/tags';
 import { logger } from './src/infrastructure/providers/ProviderUtils';
 import { fetchZaiModels } from './src/infrastructure/providers';
 
@@ -1389,7 +1388,7 @@ async function loadCustomTags(): Promise<CustomTags> {
 async function saveCustomTags(customTags: CustomTags): Promise<void> {
   try {
     await messenger.storage.local.set({ customTags });
-    await ensureTagsExist();
+    // Tags will be created by background script on next startup/initialization
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Error saving custom tags', { error: errorMessage });

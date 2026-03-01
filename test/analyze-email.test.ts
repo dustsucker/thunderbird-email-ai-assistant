@@ -6,15 +6,17 @@ import type { IProvider, IProviderSettings } from '@/infrastructure/interfaces/I
 import type { ICache } from '@/infrastructure/interfaces/ICache';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
-import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 import { EventBus } from '@/domain/events/EventBus';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
+import { RetrieveEmailUseCase } from '@/application/use-cases/RetrieveEmailUseCase';
+import { ExtractEmailContentUseCase } from '@/application/use-cases/ExtractEmailContentUseCase';
+import { CacheAnalysisUseCase } from '@/application/use-cases/CacheAnalysisUseCase';
+import { ApplyTagsWithConfidenceUseCase } from '@/application/use-cases/ApplyTagsWithConfidenceUseCase';
 
 describe('AnalyzeEmail - Logging Tests', () => {
   let logger: ILogger;
-  let queue: IQueue;
   let mailReader: IMailReader;
   let tagManager: ITagManager;
   let providerFactory: ProviderFactory;
@@ -41,13 +43,6 @@ describe('AnalyzeEmail - Logging Tests', () => {
     apiKey: 'test-key',
   };
 
-  const mockQueueStats = {
-    size: 5,
-    waiting: 2,
-    processing: 3,
-    avgWaitTime: 100,
-  };
-
   beforeEach(() => {
     logger = {
       debug: vi.fn(),
@@ -55,16 +50,6 @@ describe('AnalyzeEmail - Logging Tests', () => {
       warn: vi.fn(),
       error: vi.fn(),
       maskApiKey: vi.fn((key) => key),
-    };
-
-    queue = {
-      enqueue: vi.fn(),
-      dequeue: vi.fn(),
-      clear: vi.fn(),
-      getStats: vi.fn().mockResolvedValue(mockQueueStats),
-      peek: vi.fn(),
-      size: vi.fn(),
-      isEmpty: vi.fn(),
     };
 
     mailReader = {
@@ -148,21 +133,6 @@ describe('AnalyzeEmail - Logging Tests', () => {
       clearAll: vi.fn(),
     };
 
-    queue = {
-      enqueue: vi.fn(),
-      dequeue: vi.fn(),
-      clear: vi.fn(),
-      size: vi.fn().mockResolvedValue(0),
-      isEmpty: vi.fn().mockResolvedValue(true),
-      peek: vi.fn(),
-      getStats: vi.fn().mockResolvedValue({
-        size: 0,
-        waiting: 0,
-        processing: 0,
-        avgWaitTime: 0,
-      }),
-    };
-
     analysisTracker = {
       wasAnalyzed: vi.fn().mockResolvedValue(false),
       markAnalyzed: vi.fn().mockResolvedValue(undefined),
@@ -170,17 +140,26 @@ describe('AnalyzeEmail - Logging Tests', () => {
       getAnalyzedCount: vi.fn().mockResolvedValue(0),
     } as unknown as EmailAnalysisTracker;
 
-    analyzeEmail = new AnalyzeEmail(
-      mailReader,
+    // Create sub-use-cases
+    const retrieveEmailUseCase = new RetrieveEmailUseCase(mailReader, logger);
+    const extractEmailContentUseCase = new ExtractEmailContentUseCase(contentExtractor, logger);
+    const cacheAnalysisUseCase = new CacheAnalysisUseCase(cache, logger);
+    const applyTagsWithConfidenceUseCase = new ApplyTagsWithConfidenceUseCase(
       tagManager,
-      providerFactory,
-      cache,
-      logger,
-      contentExtractor,
-      eventBus,
       configRepository,
-      queue,
-      analysisTracker
+      logger
+    );
+
+    analyzeEmail = new AnalyzeEmail(
+      providerFactory,
+      configRepository,
+      eventBus,
+      analysisTracker,
+      logger,
+      retrieveEmailUseCase,
+      extractEmailContentUseCase,
+      cacheAnalysisUseCase,
+      applyTagsWithConfidenceUseCase
     );
   });
 
@@ -259,7 +238,6 @@ describe('AnalyzeEmail - Logging Tests', () => {
 
       // Should NOT call the mail reader or provider
       expect(mailReader.getFullMessage).not.toHaveBeenCalled();
-      expect(queue.getStats).not.toHaveBeenCalled();
     });
 
     it('should proceed with analysis if email was not analyzed', async () => {

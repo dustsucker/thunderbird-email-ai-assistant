@@ -15,7 +15,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 
 // ============================================================================
 // Type Definitions
@@ -37,9 +37,12 @@ export interface TrackerConfig {
  * Type guard to check if messenger.messages has modifyPermanent API.
  */
 interface MessengerMessagesModifyPermanent {
-  modifyPermanent(messageId: number, newProperties: {
-    headers?: Record<string, string>;
-  }): Promise<void>;
+  modifyPermanent(
+    messageId: number,
+    newProperties: {
+      headers?: Record<string, string>;
+    }
+  ): Promise<void>;
 }
 
 interface MessengerMessages {
@@ -157,7 +160,8 @@ export class EmailAnalysisTracker {
 
       // Check if X-AI-Analyzed header exists and equals 'true'
       const headerValues = fullMessage.headers[ANALYSIS_HEADER_NAME];
-      const hasAnalyzedHeader = headerValues?.length > 0 && headerValues[0] === ANALYSIS_HEADER_VALUE;
+      const hasAnalyzedHeader =
+        headerValues?.length > 0 && headerValues[0] === ANALYSIS_HEADER_VALUE;
 
       this.logger.debug('Analysis status check complete', {
         messageId,

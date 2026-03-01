@@ -8,7 +8,7 @@ import {
   DefaultConfig,
   ModelConcurrencyConfig,
 } from '@/shared/types/ProviderTypes';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 
 // ============================================================================

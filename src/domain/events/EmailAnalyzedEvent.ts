@@ -7,7 +7,7 @@
  */
 
 import type { DomainEvent } from './DomainEvent';
-import type { ITagResponse } from '@/infrastructure/interfaces/IProvider';
+import type { ITagResponse } from '@/shared/types/ProviderTypes';
 
 /**
  * Event published when email analysis is completed.

@@ -14,9 +14,8 @@ import { container, injectable } from 'tsyringe';
 // Core Interfaces
 // ============================================================================
 
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger, ITagManager } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
-import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
 import type { ICache } from '@/infrastructure/interfaces/ICache';
 
 // ============================================================================

@@ -14,7 +14,7 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { IMailReader } from '@/infrastructure/interfaces/IMailReader';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';

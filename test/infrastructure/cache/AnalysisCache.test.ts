@@ -5,8 +5,8 @@ import {
   normalizeHeaders,
   createCacheKey,
   isEmailFresh,
-} from './cache';
-import { AnalysisCache } from './cache';
+} from '../../../src/infrastructure/cache/AnalysisCache';
+import { AnalysisCache } from '../../../src/infrastructure/cache/AnalysisCache';
 
 describe('cache module', () => {
   describe('hashEmail', () => {
@@ -290,8 +290,8 @@ describe('cache module', () => {
         reasoning: 'Test reasoning',
       };
       const tagConfidence = {
-        'business': 0.9,
-        'urgent': 0.75,
+        business: 0.9,
+        urgent: 0.75,
       };
 
       await cache.set(mockHash, mockResult, tagConfidence);
@@ -329,7 +329,7 @@ describe('cache module', () => {
         reasoning: 'Business email',
       };
       const tagConfidence = {
-        'business': 0.95,
+        business: 0.95,
       };
 
       await cache.set(mockHash, mockResult, tagConfidence);

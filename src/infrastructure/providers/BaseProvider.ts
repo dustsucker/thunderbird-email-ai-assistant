@@ -1,5 +1,5 @@
-import { buildPrompt, StructuredEmailData } from '../../../core/analysis';
-import type { CustomTags } from '../../../core/config';
+import type { CustomTags } from '@/shared/types/TagTypes';
+import type { StructuredEmailData } from '@/shared/types/EmailPart';
 import {
   retryWithBackoff,
   validateLLMResponse,
@@ -7,6 +7,7 @@ import {
   maskApiKey,
   TagResponse as UtilsTagResponse,
 } from './ProviderUtils';
+import { buildPrompt } from './PromptBuilder';
 
 export type TagResponse = UtilsTagResponse;
 

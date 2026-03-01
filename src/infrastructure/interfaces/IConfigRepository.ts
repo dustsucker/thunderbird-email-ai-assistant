@@ -49,6 +49,10 @@ export interface IAppConfig {
 
 /**
  * Custom tag definition for email classification.
+ *
+ * This is the complete tag definition used for storage and UI display.
+ * For AI analysis, use ICustomTag from IProvider which contains only
+ * the fields needed for the AI model (key, name, description/prompt).
  */
 export interface ICustomTag {
   /** Unique tag key/identifier */

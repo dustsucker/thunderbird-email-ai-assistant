@@ -2,10 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   getConcurrencyLimit,
   validateConcurrencyConfig,
-  ModelConcurrencyConfig,
-  AppConfig,
-  DEFAULTS,
-} from '../core/config';
+} from '../src/shared/utils/validationUtils';
+import type { ModelConcurrencyConfig, AppConfig } from '../src/shared/types/ProviderTypes';
+import { DEFAULTS } from '../src/shared/types/ProviderTypes';
 
 describe('Concurrency Limiting - Integration Tests', () => {
   describe('End-to-End Concurrency Management', () => {

@@ -24,6 +24,22 @@ export type {
   BatchAnalysisResult,
 } from './AnalyzeBatchEmails';
 
+// New extracted use cases
+export { RetrieveEmailUseCase } from './RetrieveEmailUseCase';
+export type { RetrieveEmailResult } from './RetrieveEmailUseCase';
+
+export { ExtractEmailContentUseCase } from './ExtractEmailContentUseCase';
+
+export { CacheAnalysisUseCase } from './CacheAnalysisUseCase';
+export type { CacheKeyResult } from './CacheAnalysisUseCase';
+
+export { ApplyTagsWithConfidenceUseCase } from './ApplyTagsWithConfidenceUseCase';
+export type {
+  ApplyTagsWithConfidenceConfig,
+  ApplyTagsWithConfidenceResult,
+  LowConfidenceFlag,
+} from './ApplyTagsWithConfidenceUseCase';
+
 // ============================================================================
 // Interface Re-exports
 // ============================================================================
@@ -43,11 +59,12 @@ export type {
   StorageCustomTags,
   CustomTags,
   TagUpdateOptions,
-} from '@/infrastructure/interfaces/ITagManager';
+} from '@/domain/interfaces';
 
 export type {
   IProvider,
   IProviderSettings,
+  IRuntimeProviderSettings,
   IAttachment,
   IStructuredEmailData,
   ICustomTag,
@@ -55,16 +72,8 @@ export type {
   IAnalyzeInput,
 } from '@/infrastructure/interfaces/IProvider';
 
-export type {
-  ICache,
-  ICacheEntry,
-  ICacheStats,
-} from '@/infrastructure/interfaces/ICache';
+export type { ICache, ICacheEntry, ICacheStats } from '@/infrastructure/interfaces/ICache';
 
-export type { ILogger } from '@/infrastructure/interfaces/ILogger';
+export type { ILogger } from '@/domain/interfaces';
 
-export type {
-  IQueue,
-  IQueuedItem,
-  IQueueStats,
-} from '@/infrastructure/interfaces/IQueue';
+export type { IQueue, IQueuedItem, IQueueStats } from '@/infrastructure/interfaces/IQueue';

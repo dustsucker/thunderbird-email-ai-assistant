@@ -12,13 +12,12 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ITagManager, ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { EventBus } from '@/domain/events/EventBus';
 import { createTagAppliedEvent } from '@/domain/events/TagAppliedEvent';
 import { createTagCreatedEvent } from '@/domain/events/TagCreatedEvent';
-import { HARDCODED_TAGS } from '../../../core/config';
+import { HARDCODED_TAGS } from '@/shared/constants/TagConstants';
 
 // ============================================================================
 // Type Definitions

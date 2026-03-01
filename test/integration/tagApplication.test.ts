@@ -22,12 +22,15 @@ import type { IProvider, IProviderSettings } from '@/infrastructure/interfaces/I
 import type { ICache } from '@/infrastructure/interfaces/ICache';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
-import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 import { EventBus } from '@/domain/events/EventBus';
 import type { Tag } from '@/shared/types/ProviderTypes';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
+import { RetrieveEmailUseCase } from '@/application/use-cases/RetrieveEmailUseCase';
+import { ExtractEmailContentUseCase } from '@/application/use-cases/ExtractEmailContentUseCase';
+import { CacheAnalysisUseCase } from '@/application/use-cases/CacheAnalysisUseCase';
+import { ApplyTagsWithConfidenceUseCase } from '@/application/use-cases/ApplyTagsWithConfidenceUseCase';
 
 /**
  * NOTE: This test file must be run as part of the full test suite (npm test)
@@ -40,7 +43,6 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
   // ==========================================================================
 
   let logger: ILogger;
-  let queue: IQueue;
   let mailReader: IMailReader;
   let tagManager: ITagManager;
   let providerFactory: ProviderFactory;
@@ -114,22 +116,6 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       warn: vi.fn(),
       error: vi.fn(),
       maskApiKey: vi.fn((key) => key),
-    };
-
-    // Mock Queue
-    queue = {
-      enqueue: vi.fn(),
-      dequeue: vi.fn(),
-      clear: vi.fn(),
-      getStats: vi.fn().mockResolvedValue({
-        size: 0,
-        waiting: 0,
-        processing: 0,
-        avgWaitTime: 0,
-      }),
-      peek: vi.fn(),
-      size: vi.fn().mockResolvedValue(0),
-      isEmpty: vi.fn().mockResolvedValue(true),
     };
 
     // Mock MailReader
@@ -226,18 +212,27 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       getAnalyzedCount: vi.fn().mockResolvedValue(0),
     } as unknown as EmailAnalysisTracker;
 
+    // Create sub-use-cases
+    const retrieveEmailUseCase = new RetrieveEmailUseCase(mailReader, logger);
+    const extractEmailContentUseCase = new ExtractEmailContentUseCase(contentExtractor, logger);
+    const cacheAnalysisUseCase = new CacheAnalysisUseCase(cache, logger);
+    const applyTagsWithConfidenceUseCase = new ApplyTagsWithConfidenceUseCase(
+      tagManager,
+      configRepository,
+      logger
+    );
+
     // Create AnalyzeEmail use case instance
     analyzeEmail = new AnalyzeEmail(
-      mailReader,
-      tagManager,
       providerFactory,
-      cache,
-      logger,
-      contentExtractor,
-      eventBus,
       configRepository,
-      queue,
-      analysisTracker
+      eventBus,
+      analysisTracker,
+      logger,
+      retrieveEmailUseCase,
+      extractEmailContentUseCase,
+      cacheAnalysisUseCase,
+      applyTagsWithConfidenceUseCase
     );
   });
 
@@ -766,7 +761,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       };
 
       // Execute
-      const result = await analyzeEmail.execute('123', mockProviderSettings);
+      const _result = await analyzeEmail.execute('123', mockProviderSettings);
 
       // Verify: Tag not applied (70% < 90% custom threshold)
       expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []);

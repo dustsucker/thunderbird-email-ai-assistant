@@ -9,7 +9,7 @@
 
 import { injectable, inject } from 'tsyringe';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 
 // ============================================================================
 // DOM Element Interfaces

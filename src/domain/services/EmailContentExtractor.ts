@@ -14,7 +14,7 @@ import {
   convertHtmlToText,
 } from '@/shared/utils/emailPartUtils';
 import { singleton, inject } from 'tsyringe';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 
 @singleton()
 export class EmailContentExtractor {

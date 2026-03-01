@@ -14,7 +14,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 
 // ============================================================================
 // Type Definitions
@@ -205,10 +205,7 @@ export class RateLimiterService {
    * @param config - Rate limiter configuration for each provider
    * @param modelConcurrency - Optional per-model concurrency limits
    */
-  configure(
-    config: RateLimiterConfigMap,
-    modelConcurrency: ModelConcurrencyConfig = {}
-  ): void {
+  configure(config: RateLimiterConfigMap, modelConcurrency: ModelConcurrencyConfig = {}): void {
     this.logger.info('Configuring rate limiter', {
       providers: Object.keys(config),
       modelConcurrency,

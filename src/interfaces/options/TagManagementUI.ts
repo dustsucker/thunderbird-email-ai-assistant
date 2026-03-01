@@ -8,8 +8,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ITagManager, ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import type { ICustomTag } from '@/infrastructure/interfaces/IConfigRepository';
 

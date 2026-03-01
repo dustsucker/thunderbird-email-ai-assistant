@@ -12,6 +12,7 @@
 export type {
   IProvider,
   IProviderSettings,
+  IRuntimeProviderSettings,
   IAttachment,
   IStructuredEmailData,
   ICustomTag,

@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { MockProvider } from './mocks/MockProvider';
 import { BaseProviderSettings, TagResponse } from '../src/infrastructure/providers/BaseProvider';
-import { DEFAULT_CUSTOM_TAGS } from '../core/config';
+import { DEFAULT_CUSTOM_TAGS } from '../src/shared/types/ProviderTypes';
 import { loadEmailFixture } from './fixtures/fixture-loader';
 
 export const MOCK_SETTINGS: BaseProviderSettings = {
@@ -32,7 +32,7 @@ export async function runTaggingTest(
 
   if (params.expectedTag) {
     if (Array.isArray(params.expectedTag)) {
-      params.expectedTag.forEach(tag => {
+      params.expectedTag.forEach((tag) => {
         expect(result.tags).toContain(tag);
       });
       expect(result.tags.length).toBe(params.expectedTag.length);

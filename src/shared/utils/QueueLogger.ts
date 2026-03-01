@@ -6,7 +6,7 @@
  * @module shared/utils/QueueLogger
  */
 
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 
 /**

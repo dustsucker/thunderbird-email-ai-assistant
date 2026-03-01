@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MockProvider } from './mocks/MockProvider';
-import { StructuredEmailData } from '../core/analysis';
-import { DEFAULT_CUSTOM_TAGS } from '../core/config';
+import type { StructuredEmailData } from '../src/shared/types/EmailPart';
+import { DEFAULT_CUSTOM_TAGS } from '../src/shared/types/ProviderTypes';
 import {
   createTestProvider,
   runTaggingTest,

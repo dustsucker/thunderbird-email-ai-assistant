@@ -6,7 +6,7 @@ import {
 } from '../../infrastructure/interfaces/ITagManager';
 import { ILogger } from '../../infrastructure/interfaces/ILogger';
 import { IConfigRepository, ICustomTag } from '../../infrastructure/interfaces/IConfigRepository';
-import { HARDCODED_TAGS, TAG_KEY_PREFIX } from '../../../core/config';
+import { HARDCODED_TAGS, TAG_KEY_PREFIX } from '@/shared/constants/TagConstants';
 
 // ============================================================================
 // Thunderbird WebExtension API Types
@@ -156,7 +156,10 @@ export class ThunderbirdTagManager implements ITagManager {
 
     // Check if key exists in dynamic map
     if (tagKeyMap[key]) {
-      this.logger.debug('Converted tag key using dynamic map', { key, internalKey: tagKeyMap[key] });
+      this.logger.debug('Converted tag key using dynamic map', {
+        key,
+        internalKey: tagKeyMap[key],
+      });
       return tagKeyMap[key];
     }
 
@@ -186,7 +189,10 @@ export class ThunderbirdTagManager implements ITagManager {
    * ```
    */
   async convertToInternalKeys(keys: string[]): Promise<string[]> {
-    this.logger.debug('Converting array of tag keys to internal keys', { keys, count: keys.length });
+    this.logger.debug('Converting array of tag keys to internal keys', {
+      keys,
+      count: keys.length,
+    });
 
     // Handle empty array case
     if (keys.length === 0) {

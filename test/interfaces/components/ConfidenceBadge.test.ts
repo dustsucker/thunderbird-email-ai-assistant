@@ -13,8 +13,11 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ConfidenceBadge, createConfidenceBadge, createConfidenceBadges } from '@/interfaces/shared/components/ConfidenceBadge';
-import { ConfidenceLevel } from '@/shared/utils/confidenceUtils';
+import {
+  ConfidenceBadge,
+  createConfidenceBadge,
+  createConfidenceBadges,
+} from '@/interfaces/shared/components/ConfidenceBadge';
 
 // ============================================================================
 // Test Setup
@@ -77,7 +80,7 @@ describe('ConfidenceBadge Component', () => {
 
   describe('Color Coding', () => {
     it('should apply high confidence color (green) for >= 80%', () => {
-      const badge80 = badgeComponent.createCompact(0.80);
+      const badge80 = badgeComponent.createCompact(0.8);
       expect(badge80.className).toContain('confidence-high');
       expect(badge80.style.backgroundColor).toBe('#4CAF50');
 
@@ -89,7 +92,7 @@ describe('ConfidenceBadge Component', () => {
     });
 
     it('should apply medium confidence color (yellow) for 70-79%', () => {
-      const badge70 = badgeComponent.createCompact(0.70);
+      const badge70 = badgeComponent.createCompact(0.7);
       expect(badge70.className).toContain('confidence-medium');
       expect(badge70.style.backgroundColor).toBe('#FFC107');
 
@@ -105,7 +108,7 @@ describe('ConfidenceBadge Component', () => {
       expect(badge69.className).toContain('confidence-low');
       expect(badge69.style.backgroundColor).toBe('#F44336');
 
-      const badge50 = badgeComponent.createCompact(0.50);
+      const badge50 = badgeComponent.createCompact(0.5);
       expect(badge50.className).toContain('confidence-low');
 
       const badge0 = badgeComponent.createCompact(0);
@@ -117,14 +120,14 @@ describe('ConfidenceBadge Component', () => {
       const badge69 = badgeComponent.createCompact(0.699);
       expect(badge69.className).toContain('confidence-low');
 
-      const badge70 = badgeComponent.createCompact(0.700);
+      const badge70 = badgeComponent.createCompact(0.7);
       expect(badge70.className).toContain('confidence-medium');
 
       // Test boundaries: 0.799 (79%) should be medium, 0.800 (80%) should be high
       const badge79 = badgeComponent.createCompact(0.799);
       expect(badge79.className).toContain('confidence-medium');
 
-      const badge80 = badgeComponent.createCompact(0.800);
+      const badge80 = badgeComponent.createCompact(0.8);
       expect(badge80.className).toContain('confidence-high');
     });
   });

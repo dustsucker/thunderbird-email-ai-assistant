@@ -6,17 +6,25 @@
  * dependency injection architecture.
  */
 
+// Import ITagResponse from shared types for use in this interface
+import type { ITagResponse } from '@/shared/types/ProviderTypes';
+
+// Re-export for backward compatibility
+export type { ITagResponse };
+
 // ============================================================================
 // Type Definitions
 // ============================================================================
 
 /**
- * Provider settings interface.
+ * Runtime provider settings interface.
  *
- * Extensible settings object for AI provider configuration.
- * Specific providers can add custom properties.
+ * Extensible settings object for AI provider configuration at runtime.
+ * Specific providers can add custom properties via index signature.
+ *
+ * Note: For persistent storage settings, use IProviderSettings from IConfigRepository.
  */
-export interface IProviderSettings {
+export interface IRuntimeProviderSettings {
   /** API authentication key */
   apiKey?: string;
   /** API endpoint URL */
@@ -26,6 +34,11 @@ export interface IProviderSettings {
   /** Additional provider-specific settings */
   [key: string]: unknown;
 }
+
+/**
+ * @deprecated Use IRuntimeProviderSettings instead. This alias will be removed.
+ */
+export type IProviderSettings = IRuntimeProviderSettings;
 
 /**
  * Email attachment metadata.
@@ -54,43 +67,19 @@ export interface IStructuredEmailData {
 }
 
 /**
- * Custom tag configuration.
+ * Custom tag configuration for AI analysis.
  *
- * Defines a custom tag that can be applied to emails by the AI analysis.
+ * This is a subset of ICustomTag from IConfigRepository, containing only
+ * the fields needed for AI analysis. The full tag definition includes
+ * color and threshold settings for UI display.
  */
 export interface ICustomTag {
   /** Unique tag identifier */
   key: string;
   /** Human-readable tag name */
   name: string;
-  /** Description for the AI model */
+  /** Description/prompt for the AI model */
   description: string;
-}
-
-/**
- * AI analysis response with assigned tags.
- *
- * Result of email analysis containing tags, confidence score, and reasoning.
- */
-export interface ITagResponse {
-  /** List of tag keys that apply to this email */
-  tags: string[];
-  /** Overall confidence score (0.0 to 1.0) */
-  confidence: number;
-  /** AI reasoning for the tag assignment */
-  reasoning: string;
-  /** Whether the email appears to be a scam */
-  is_scam?: boolean;
-  /** Detected sender name */
-  sender?: string;
-  /** Whether sender is consistent with headers */
-  sender_consistent?: boolean | null;
-  /** SPF authentication result */
-  spf_pass?: boolean | null;
-  /** DKIM authentication result */
-  dkim_pass?: boolean | null;
-  /** Additional provider-specific response data */
-  [key: string]: unknown;
 }
 
 /**
@@ -100,7 +89,7 @@ export interface ITagResponse {
  */
 export interface IAnalyzeInput {
   /** Provider configuration settings */
-  settings: IProviderSettings;
+  settings: IRuntimeProviderSettings;
   /** Structured email data to analyze */
   data: IStructuredEmailData;
   /** Custom tag configurations for analysis */
@@ -145,7 +134,7 @@ export interface IProvider {
    *
    * @throws {Error} If settings validation fails (implementation-specific)
    */
-  validateSettings(settings: IProviderSettings): Promise<boolean>;
+  validateSettings(settings: IRuntimeProviderSettings): Promise<boolean>;
 
   /**
    * Analyzes an email and assigns tags.
@@ -167,7 +156,7 @@ export interface IProvider {
    * @param settings - Provider settings (API key, etc.)
    * @returns Promise resolving to array of available model names
    */
-  listModels?(settings: IProviderSettings): Promise<string[]>;
+  listModels?(settings: IRuntimeProviderSettings): Promise<string[]>;
 
   /**
    * Unique provider identifier.

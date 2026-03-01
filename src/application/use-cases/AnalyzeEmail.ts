@@ -1,69 +1,38 @@
 /**
  * AnalyzeEmail Use Case
  *
- * Orchestrates email analysis by coordinating email retrieval, content extraction,
- * AI provider analysis, caching, and tag application.
+ * Orchestrates email analysis by coordinating specialized use cases:
+ * - RetrieveEmailUseCase: Email retrieval from Thunderbird
+ * - ExtractEmailContentUseCase: Content extraction for AI analysis
+ * - CacheAnalysisUseCase: Caching operations
+ * - ApplyTagsWithConfidenceUseCase: Tag application with confidence filtering
  *
  * This use case implements the complete email analysis workflow:
- * 1. Retrieves email from Thunderbird via IMailReader
- * 2. Extracts structured content via EmailContentExtractor
- * 3. Checks cache for cached analysis results
- * 4. Performs AI analysis via Provider (if cache miss)
- * 5. Caches the analysis result
- * 6. Applies tags to the message via ITagManager
+ * 1. Checks if email was already analyzed
+ * 2. Retrieves email from Thunderbird
+ * 3. Extracts structured content
+ * 4. Loads custom tags from config
+ * 5. Checks cache for cached analysis results
+ * 6. Performs AI analysis via Provider (if cache miss)
+ * 7. Caches the analysis result
+ * 8. Applies tags to the message
  *
  * @module application/use-cases/AnalyzeEmail
  */
 
 import { injectable, inject } from 'tsyringe';
-import type { IMailReader } from '@/infrastructure/interfaces/IMailReader';
-import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
-import type { IProvider } from '@/infrastructure/interfaces/IProvider';
-import type { ICache } from '@/infrastructure/interfaces/ICache';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
-import type { IEmailMessage } from '@/infrastructure/interfaces/IMailReader';
-import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
-import type { IQueue } from '@/infrastructure/interfaces/IQueue';
-import type {
-  ITagResponse,
-  IProviderSettings,
-  IStructuredEmailData,
-} from '@/infrastructure/interfaces/IProvider';
-import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
+import type { ITagResponse, IProviderSettings } from '@/infrastructure/interfaces/IProvider';
+import type { ILogger } from '@/domain/interfaces';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 import { EventBus } from '@/domain/events/EventBus';
 import { createEmailAnalyzedEvent } from '@/domain/events/EmailAnalyzedEvent';
 import { createProviderErrorEvent } from '@/domain/events/ProviderErrorEvent';
-import { meetsTagThreshold, getEffectiveThreshold } from '@/shared/utils/confidenceUtils';
-import type { Tag } from '@/shared/types/ProviderTypes';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
-
-// ============================================================================
-// Browser-compatible Crypto Utilities
-// ============================================================================
-
-/**
- * SHA-256 hash function using Web Crypto API (browser-compatible).
- *
- * @param message - String to hash
- * @returns Promise resolving to hex-encoded SHA-256 hash
- * @throws {Error} If Web Crypto API is not available
- */
-async function sha256(message: string): Promise<string> {
-  // Get crypto.subtle from global window or self (for Web Workers)
-  const subtleCrypto =
-    (typeof window !== 'undefined' && window.crypto?.subtle) ||
-    (typeof self !== 'undefined' && self.crypto?.subtle);
-
-  if (!subtleCrypto) {
-    throw new Error('Web Crypto API (crypto.subtle) is not available in this environment');
-  }
-
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await subtleCrypto.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+import { RetrieveEmailUseCase } from './RetrieveEmailUseCase';
+import { ExtractEmailContentUseCase } from './ExtractEmailContentUseCase';
+import { CacheAnalysisUseCase } from './CacheAnalysisUseCase';
+import { ApplyTagsWithConfidenceUseCase } from './ApplyTagsWithConfidenceUseCase';
+import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 
 // ============================================================================
 // Type Definitions
@@ -106,7 +75,7 @@ export interface AnalyzeEmailConfig {
 /**
  * AnalyzeEmail Use Case
  *
- * Orchestrates the complete email analysis workflow.
+ * Orchestrates the complete email analysis workflow using specialized sub-use-cases.
  * Uses dependency injection for all dependencies.
  *
  * @example
@@ -123,22 +92,23 @@ export interface AnalyzeEmailConfig {
 @injectable()
 export class AnalyzeEmail {
   // ==========================================================================
-  // Constructor
+  // Constructor (6 dependencies, down from 10)
   // ==========================================================================
 
   constructor(
-    @inject('IMailReader') private readonly mailReader: IMailReader,
-    @inject('ITagManager') private readonly tagManager: ITagManager,
     @inject('ProviderFactory') private readonly providerFactory: ProviderFactory,
-    @inject('ICache') private readonly cache: ICache,
-    @inject('ILogger') private readonly logger: ILogger,
-    @inject(EmailContentExtractor) private readonly contentExtractor: EmailContentExtractor,
-    @inject(EventBus) private readonly eventBus: EventBus,
     @inject('IConfigRepository') private readonly configRepository: IConfigRepository,
-    @inject('IQueue') private readonly queue: IQueue,
-    @inject(EmailAnalysisTracker) private readonly analysisTracker: EmailAnalysisTracker
+    @inject(EventBus) private readonly eventBus: EventBus,
+    @inject(EmailAnalysisTracker) private readonly analysisTracker: EmailAnalysisTracker,
+    @inject('ILogger') private readonly logger: ILogger,
+    // Sub-use-cases
+    @inject(RetrieveEmailUseCase) private readonly retrieveEmail: RetrieveEmailUseCase,
+    @inject(ExtractEmailContentUseCase) private readonly extractContent: ExtractEmailContentUseCase,
+    @inject(CacheAnalysisUseCase) private readonly cacheAnalysis: CacheAnalysisUseCase,
+    @inject(ApplyTagsWithConfidenceUseCase)
+    private readonly applyTagsWithConfidence: ApplyTagsWithConfidenceUseCase
   ) {
-    this.logger.debug('✅ AnalyzeEmail use case initialized');
+    this.logger.debug('✅ AnalyzeEmail use case initialized (refactored)');
   }
 
   // ==========================================================================
@@ -157,15 +127,6 @@ export class AnalyzeEmail {
    * @throws {Error} If content extraction fails
    * @throws {Error} If provider analysis fails
    * @throws {Error} If tag application fails
-   *
-   * @example
-   * ```typescript
-   * const result = await analyzeEmail.execute('12345', {
-   *   provider: 'openai',
-   *   apiKey: 'sk-...',
-   *   model: 'gpt-4'
-   * }, { applyTags: true });
-   * ```
    */
   async execute(
     messageId: string,
@@ -188,16 +149,8 @@ export class AnalyzeEmail {
 
     const startTime = Date.now();
 
-    this.logger.debug('📋 Analysis configuration', {
-      cacheTtl: `${cacheTtl / 1000 / 60 / 60}h`,
-      forceReanalyze,
-      applyTags,
-      hasCustomTags: customTags !== undefined,
-      customTagsCount: customTags?.length ?? 0,
-    });
-
     try {
-      // Check if email was already analyzed (skip if header exists)
+      // Check if email was already analyzed
       this.logger.debug('🔍 Checking if email was already analyzed');
       const messageIdNum = parseInt(messageId, 10);
       if (isNaN(messageIdNum)) {
@@ -207,111 +160,56 @@ export class AnalyzeEmail {
       const wasAnalyzed = await this.analysisTracker.wasAnalyzed(messageIdNum);
       if (wasAnalyzed) {
         this.logger.info('⏭️ Skipping already-analyzed email', { messageId });
-        return {
-          tags: [],
-          confidence: 0,
-          reasoning: '',
-        };
+        return { tags: [], confidence: 0, reasoning: '' };
       }
 
-      // Step 1: Retrieve email from Thunderbird
-      this.logger.debug('➡️  Step 1: Retrieving email from Thunderbird');
-      const email = await this.retrieveEmail(messageId);
+      // Step 1: Retrieve email
+      this.logger.debug('➡️  Step 1: Retrieving email');
+      const { email } = await this.retrieveEmail.execute(messageId);
       this.logger.debug('✅ Step 1 complete: Email retrieved');
 
-      // Step 2: Extract structured content
-      this.logger.debug('➡️  Step 2: Extracting structured content');
-      const structuredData = this.extractEmailContent(email);
-      this.logger.debug('✅ Step 2 complete: Content extracted', {
-        bodyLength: structuredData.body.length,
-        attachmentCount: structuredData.attachments.length,
-      });
+      // Step 2: Extract content
+      this.logger.debug('➡️  Step 2: Extracting content');
+      const structuredData = await this.extractContent.execute(email);
+      this.logger.debug('✅ Step 2 complete', { bodyLength: structuredData.body.length });
 
-      // Step 3: Load custom tags from ConfigRepository if not provided
-      this.logger.debug('➡️  Step 3: Loading custom tags', {
-        hasCustomTags: customTags !== undefined,
-      });
+      // Step 3: Load custom tags
+      this.logger.debug('➡️  Step 3: Loading custom tags');
       const tagsToUse = customTags ?? (await this.loadCustomTags());
-      this.logger.debug('✅ Step 3 complete: Tags loaded', { tagCount: tagsToUse.length });
+      this.logger.debug('✅ Step 3 complete', { tagCount: tagsToUse.length });
 
       // Step 4: Generate cache key
       this.logger.debug('➡️  Step 4: Generating cache key');
-      const cacheKey = await this.generateCacheKey(email, providerSettings);
-      this.logger.debug('✅ Step 4 complete: Cache key generated', {
-        cacheKey: cacheKey.substring(0, 16) + '...',
-      });
+      const { cacheKey } = await this.cacheAnalysis.generateKey(email, providerSettings);
+      this.logger.debug('✅ Step 4 complete', { cacheKey: cacheKey.substring(0, 16) + '...' });
 
-      // Step 5: Check cache (unless force re-analysis)
+      // Step 5: Check cache
       if (!forceReanalyze) {
         this.logger.debug('➡️  Step 5: Checking cache');
-        const cachedResult = await this.checkCache(cacheKey);
+        const cachedResult = await this.cacheAnalysis.get(cacheKey);
         if (cachedResult) {
-          this.logger.info('✅ Cache HIT - Retrieved analysis from cache', { cacheKey });
-
-          if (applyTags) {
-            this.logger.debug('➡️  Applying cached tags to email');
-            const lowConfidenceFlags = await this.applyTagsToEmail(
-              messageId,
-              cachedResult.tags,
-              cachedResult.confidence,
-              cachedResult.reasoning
-            );
-            this.logger.debug('✅ Cached tags applied', {
-              lowConfidenceFlagCount: lowConfidenceFlags.length,
-            });
-
-            // Mark email as analyzed
-            try {
-              await this.analysisTracker.markAnalyzed(messageIdNum);
-              this.logger.debug('✅ Email marked as analyzed', { messageId });
-            } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : String(error);
-              this.logger.warn('⚠️  Failed to mark email as analyzed', {
-                messageId,
-                error: errorMessage,
-              });
-              // Non-fatal error, continue execution
-            }
-
-            // Store low-confidence flags from cache
-            if (lowConfidenceFlags.length > 0) {
-              await this.storeLowConfidenceFlags(cacheKey, lowConfidenceFlags);
-            }
-          }
-
-          // Publish EmailAnalyzedEvent (from cache)
-          this.logger.debug('➡️  Publishing EmailAnalyzedEvent (from cache)');
-          await this.eventBus.publish(
-            createEmailAnalyzedEvent(
-              messageId,
-              providerSettings.provider as string,
-              providerSettings.model as string,
-              cachedResult,
-              {
-                fromCache: true,
-                cacheKey,
-                duration: Date.now() - startTime,
-              }
-            )
+          this.logger.info('✅ Cache HIT', { cacheKey });
+          await this.handleCachedResult(
+            messageId,
+            messageIdNum,
+            cachedResult,
+            cacheKey,
+            providerSettings,
+            startTime,
+            applyTags
           );
-
-          this.logger.info('✅ Analysis completed from cache', {
-            duration: `${Date.now() - startTime}ms`,
-            tagsFound: cachedResult.tags.length,
-          });
           return cachedResult;
         }
-        this.logger.debug('⚠️  Cache MISS - No cached result found');
+        this.logger.debug('⚠️  Cache MISS');
       } else {
-        this.logger.debug('⏭️  Skipping cache check (forceReanalyze=true)');
+        this.logger.debug('⏭️  Skipping cache (forceReanalyze)');
       }
 
-      // Step 6: Get provider from factory (if providerId is specified)
-      this.logger.debug('➡️  Step 6: Getting provider from factory');
+      // Step 6: Get provider and analyze
+      this.logger.debug('➡️  Step 6: Getting provider');
       const provider = await this.getProvider(providerSettings);
-      this.logger.debug('✅ Step 6 complete: Provider retrieved');
+      this.logger.debug('✅ Step 6 complete');
 
-      // Step 7: Perform AI analysis
       this.logger.debug('➡️  Step 7: Performing AI analysis');
       const analysisResult = await this.analyzeWithProvider(
         structuredData,
@@ -319,17 +217,17 @@ export class AnalyzeEmail {
         tagsToUse,
         provider
       );
-      this.logger.debug('✅ Step 7 complete: AI analysis finished', {
+      this.logger.debug('✅ Step 7 complete', {
         tagsFound: analysisResult.tags.length,
         confidence: analysisResult.confidence,
       });
 
-      // Step 8: Cache the result
+      // Step 8: Cache result
       this.logger.debug('➡️  Step 8: Caching result');
-      await this.cacheResult(cacheKey, analysisResult, cacheTtl);
-      this.logger.debug('✅ Step 8 complete: Result cached');
+      await this.cacheAnalysis.set(cacheKey, analysisResult, cacheTtl);
+      this.logger.debug('✅ Step 8 complete');
 
-      // Step 9: Apply tags to the message and get low-confidence flags
+      // Step 9: Apply tags
       let lowConfidenceFlags: Array<{
         tagKey: string;
         confidence: number;
@@ -339,53 +237,35 @@ export class AnalyzeEmail {
       }> = [];
 
       if (applyTags) {
-        this.logger.debug('➡️  Step 9: Applying tags to message');
-        lowConfidenceFlags = await this.applyTagsToEmail(
+        this.logger.debug('➡️  Step 9: Applying tags');
+        const tagResult = await this.applyTagsWithConfidence.execute(
           messageId,
           analysisResult.tags,
           analysisResult.confidence,
           analysisResult.reasoning
         );
-        this.logger.debug('✅ Step 9 complete: Tags applied', {
-          lowConfidenceFlagCount: lowConfidenceFlags.length,
-        });
+        lowConfidenceFlags = tagResult.lowConfidenceFlags;
+        this.logger.debug('✅ Step 9 complete', { flags: lowConfidenceFlags.length });
 
-        // Mark email as analyzed
-        try {
-          await this.analysisTracker.markAnalyzed(messageIdNum);
-          this.logger.debug('✅ Email marked as analyzed', { messageId });
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          this.logger.warn('⚠️  Failed to mark email as analyzed', {
-            messageId,
-            error: errorMessage,
-          });
-          // Non-fatal error, continue execution
-        }
+        // Mark as analyzed
+        await this.markAnalyzed(messageIdNum, messageId);
       } else {
         this.logger.debug('⏭️  Skipping tag application (applyTags=false)');
       }
 
-      // Step 9.5: Store low-confidence flags for manual review
+      // Store low-confidence flags
       if (lowConfidenceFlags.length > 0) {
-        this.logger.debug('➡️  Step 9.5: Storing low-confidence flags');
         await this.storeLowConfidenceFlags(cacheKey, lowConfidenceFlags);
-        this.logger.debug('✅ Step 9.5 complete: Low-confidence flags stored');
       }
 
-      // Publish EmailAnalyzedEvent
-      this.logger.debug('➡️  Publishing EmailAnalyzedEvent (new analysis)');
+      // Publish event
       await this.eventBus.publish(
         createEmailAnalyzedEvent(
           messageId,
           providerSettings.provider as string,
           providerSettings.model as string,
           analysisResult,
-          {
-            fromCache: false,
-            cacheKey,
-            duration: Date.now() - startTime,
-          }
+          { fromCache: false, cacheKey, duration: Date.now() - startTime }
         )
       );
 
@@ -401,17 +281,12 @@ export class AnalyzeEmail {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('❌ Email analysis failed', { messageId, error: errorMessage });
 
-      // Publish ProviderErrorEvent
       await this.eventBus.publish(
         createProviderErrorEvent(
           providerSettings.provider as string,
           providerSettings.model as string,
           errorMessage,
-          {
-            messageId,
-            error: error instanceof Error ? error : undefined,
-            errorType: 'api_error',
-          }
+          { messageId, error: error instanceof Error ? error : undefined, errorType: 'api_error' }
         )
       );
 
@@ -424,321 +299,128 @@ export class AnalyzeEmail {
   // ==========================================================================
 
   /**
+   * Handles a cached analysis result.
+   */
+  private async handleCachedResult(
+    messageId: string,
+    messageIdNum: number,
+    cachedResult: ITagResponse,
+    cacheKey: string,
+    providerSettings: IProviderSettings,
+    startTime: number,
+    applyTags: boolean
+  ): Promise<void> {
+    if (applyTags) {
+      this.logger.debug('➡️  Applying cached tags');
+      const tagResult = await this.applyTagsWithConfidence.execute(
+        messageId,
+        cachedResult.tags,
+        cachedResult.confidence,
+        cachedResult.reasoning
+      );
+      await this.markAnalyzed(messageIdNum, messageId);
+
+      // Store low-confidence flags from cache result
+      if (tagResult.lowConfidenceFlags.length > 0) {
+        await this.storeLowConfidenceFlags(cacheKey, tagResult.lowConfidenceFlags);
+      }
+    }
+
+    await this.eventBus.publish(
+      createEmailAnalyzedEvent(
+        messageId,
+        providerSettings.provider as string,
+        providerSettings.model as string,
+        cachedResult,
+        { fromCache: true, cacheKey, duration: Date.now() - startTime }
+      )
+    );
+
+    this.logger.info('✅ Analysis completed from cache', {
+      duration: `${Date.now() - startTime}ms`,
+      tagsFound: cachedResult.tags.length,
+    });
+  }
+
+  /**
+   * Marks email as analyzed, handling errors gracefully.
+   */
+  private async markAnalyzed(messageIdNum: number, messageId: string): Promise<void> {
+    try {
+      await this.analysisTracker.markAnalyzed(messageIdNum);
+      this.logger.debug('✅ Email marked as analyzed', { messageId });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.warn('⚠️  Failed to mark email as analyzed', {
+        messageId,
+        error: errorMessage,
+      });
+    }
+  }
+
+  /**
    * Loads custom tags from ConfigRepository.
-   *
-   * @returns Array of custom tags for analysis
    */
   private async loadCustomTags(): Promise<
     Array<{ key: string; name: string; description: string }>
   > {
-    this.logger.debug('🔍 Loading custom tags from ConfigRepository');
     try {
       const customTags = await this.configRepository.getCustomTags();
-      const mappedTags = customTags.map((tag) => ({
+      return customTags.map((tag) => ({
         key: tag.key,
         name: tag.name,
         description: tag.prompt ?? '',
       }));
-      this.logger.debug('✅ Custom tags loaded from ConfigRepository', {
-        count: mappedTags.length,
-      });
-      return mappedTags;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.warn('⚠️  Failed to load custom tags from ConfigRepository, using empty array', {
-        error: errorMessage,
-      });
+      this.logger.warn('⚠️  Failed to load custom tags', { error: errorMessage });
       return [];
     }
   }
 
   /**
-   * Retrieves email from Thunderbird.
-   *
-   * @param messageId - Message ID to retrieve
-   * @returns Complete email message
-   * @throws {Error} If message cannot be retrieved
-   */
-  private async retrieveEmail(messageId: string): Promise<IEmailMessage> {
-    this.logger.debug('📬 Retrieving email from Thunderbird', { messageId });
-
-    try {
-      const messageIdNum = parseInt(messageId, 10);
-      if (isNaN(messageIdNum)) {
-        throw new Error(`Invalid message ID: ${messageId}`);
-      }
-
-      const email = await this.mailReader.getFullMessage(messageIdNum);
-
-      if (!email) {
-        throw new Error(`Email not found: ${messageId}`);
-      }
-
-      this.logger.debug('✅ Email retrieved successfully', {
-        messageId,
-        subject: email.subject,
-        from: email.from,
-      });
-
-      return email;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('❌ Failed to retrieve email', { messageId, error: errorMessage });
-      throw error;
-    }
-  }
-
-  /**
-   * Extracts structured content from email.
-   *
-   * @param email - Email message to extract from
-   * @returns Structured email data for AI analysis
-   * @throws {Error} If content extraction fails
-   */
-  private extractEmailContent(email: IEmailMessage): IStructuredEmailData {
-    this.logger.debug('📄 Extracting email content', { messageId: email.id });
-
-    try {
-      // Parse email parts if available
-      let body = email.body || '';
-      const attachments: IAttachment[] = [];
-
-      if (email.parts && email.parts.length > 0) {
-        this.logger.debug('📎 Processing email parts', { partCount: email.parts.length });
-        const parsed = this.contentExtractor.findEmailParts(email.parts);
-        body = parsed.body;
-        parsed.attachments.forEach((att) => {
-          attachments.push({
-            name: att.name,
-            mimeType: att.mimeType,
-            size: att.size,
-          });
-        });
-        this.logger.debug('✅ Email parts processed', {
-          bodyLength: body.length,
-          attachmentCount: attachments.length,
-        });
-      }
-
-      // Also check direct attachments
-      if (email.attachments && email.attachments.length > 0) {
-        this.logger.debug('📎 Processing direct attachments', {
-          attachmentCount: email.attachments.length,
-        });
-        email.attachments.forEach((att) => {
-          if (!attachments.some((a) => a.name === att.name)) {
-            attachments.push({
-              name: att.name,
-              mimeType: att.mimeType,
-              size: att.size,
-            });
-          }
-        });
-      }
-
-      const structuredData: IStructuredEmailData = {
-        headers: email.headers || {},
-        body,
-        attachments,
-      };
-
-      this.logger.debug('✅ Email content extracted', {
-        bodyLength: body.length,
-        attachmentsCount: attachments.length,
-      });
-
-      return structuredData;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('❌ Failed to extract email content', {
-        messageId: email.id,
-        error: errorMessage,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Generates cache key from email content and provider settings.
-   *
-   * Uses SHA-256 hash of email headers + body + provider ID + model.
-   *
-   * @param email - Email message
-   * @param providerSettings - Provider settings
-   * @returns Promise resolving to SHA-256 hash as cache key
-   */
-  private async generateCacheKey(
-    email: IEmailMessage,
-    providerSettings: IProviderSettings
-  ): Promise<string> {
-    const keyData = JSON.stringify({
-      subject: email.subject,
-      from: email.from,
-      to: email.to,
-      body: email.body,
-      providerId: providerSettings.provider,
-      model: providerSettings.model,
-    });
-
-    const hash = await sha256(keyData);
-    this.logger.debug('🔐 Generated cache key', { hash: hash.substring(0, 16) + '...' });
-
-    return hash;
-  }
-
-  /**
-   * Checks cache for existing analysis result.
-   *
-   * @param cacheKey - Cache key to check
-   * @returns Cached result or null if not found
-   */
-  private async checkCache(cacheKey: string): Promise<ITagResponse | null> {
-    this.logger.debug('💾 Checking cache', { cacheKey: cacheKey.substring(0, 16) + '...' });
-
-    try {
-      const cached = await this.cache.get<ITagResponse>(cacheKey);
-      if (cached) {
-        this.logger.debug('✅ Cache HIT', { cacheKey: cacheKey.substring(0, 16) + '...' });
-        return cached;
-      }
-
-      this.logger.debug('⚠️  Cache MISS', { cacheKey: cacheKey.substring(0, 16) + '...' });
-      return null;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.warn('⚠️  Failed to check cache', {
-        cacheKey: cacheKey.substring(0, 16) + '...',
-        error: errorMessage,
-      });
-      return null;
-    }
-  }
-
-  /**
    * Gets provider instance from factory.
-   *
-   * @param providerSettings - Provider settings with providerId
-   * @returns Promise resolving to provider instance
-   * @throws {Error} If provider cannot be resolved
    */
-  private async getProvider(providerSettings: IProviderSettings): Promise<IProvider> {
+  private async getProvider(providerSettings: IProviderSettings) {
     const providerId = providerSettings.provider as string;
     if (!providerId) {
-      throw new Error('Provider ID not specified in provider settings');
+      throw new Error('Provider ID not specified');
     }
-
-    this.logger.debug('🏭 Getting provider from factory', { providerId });
-
-    try {
-      return await this.providerFactory.getProvider(providerId);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('❌ Failed to get provider', { providerId, error: errorMessage });
-      throw error;
-    }
+    return this.providerFactory.getProvider(providerId);
   }
 
   /**
    * Performs AI analysis with provider.
-   *
-   * @param structuredData - Structured email data
-   * @param providerSettings - Provider settings
-   * @param customTags - Custom tag definitions
-   * @param provider - Provider instance
-   * @returns Analysis result with tags
-   * @throws {Error} If analysis fails
    */
   private async analyzeWithProvider(
-    structuredData: IStructuredEmailData,
+    structuredData: ReturnType<ExtractEmailContentUseCase['execute']> extends Promise<infer T>
+      ? T
+      : never,
     providerSettings: IProviderSettings,
     customTags: Array<{ key: string; name: string; description: string }>,
-    provider: IProvider
+    provider: Awaited<ReturnType<typeof this.getProvider>>
   ): Promise<ITagResponse> {
     this.logger.debug('🤖 Starting provider analysis', {
       providerId: provider.providerId,
       tagCount: customTags.length,
     });
 
-    try {
-      // Validate provider settings
-      const isValid = await provider.validateSettings(providerSettings);
-      if (!isValid) {
-        throw new Error(`Invalid provider settings for ${provider.providerId}`);
-      }
-      this.logger.debug('✅ Provider settings validated');
-
-      // Build analysis input
-      const analysisInput = {
-        settings: providerSettings,
-        data: structuredData,
-        tags: customTags.map((tag) => ({
-          key: tag.key,
-          name: tag.name,
-          description: tag.description,
-        })),
-      };
-
-      this.logger.debug('➡️  Calling provider.analyze() with input', {
-        bodyLength: structuredData.body.length,
-        tags: customTags.map((t) => t.key),
-      });
-
-      // Perform analysis
-      const result = await provider.analyze(analysisInput);
-
-      this.logger.debug('✅ Provider analysis completed', {
-        providerId: provider.providerId,
-        tags: result.tags,
-        confidence: result.confidence,
-      });
-
-      return result;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('❌ Provider analysis failed', {
-        providerId: provider.providerId,
-        error: errorMessage,
-      });
-      throw error;
+    const isValid = await provider.validateSettings(providerSettings);
+    if (!isValid) {
+      throw new Error(`Invalid provider settings for ${provider.providerId}`);
     }
-  }
 
-  /**
-   * Caches analysis result.
-   *
-   * @param cacheKey - Cache key
-   * @param result - Analysis result to cache
-   * @param ttl - Time-to-live in milliseconds
-   */
-  private async cacheResult(cacheKey: string, result: ITagResponse, ttl: number): Promise<void> {
-    this.logger.debug('💾 Caching analysis result', {
-      cacheKey: cacheKey.substring(0, 16) + '...',
-      ttl: `${ttl / 1000 / 60}min`,
-    });
+    const analysisInput = {
+      settings: providerSettings,
+      data: structuredData,
+      tags: customTags,
+    };
 
-    try {
-      await this.cache.set(cacheKey, result, ttl);
-      this.logger.debug('✅ Analysis result cached', {
-        cacheKey: cacheKey.substring(0, 16) + '...',
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.warn('⚠️  Failed to cache result', {
-        cacheKey: cacheKey.substring(0, 16) + '...',
-        error: errorMessage,
-      });
-      // Non-fatal error, continue execution
-    }
+    return provider.analyze(analysisInput);
   }
 
   /**
    * Stores low-confidence flags for manual review.
-   *
-   * Uses messenger.storage.local to persist low-confidence flags for queryability.
-   * Stores flags under a key that can be retrieved later for manual review.
-   *
-   * @param cacheKey - Cache key for the email analysis
-   * @param flags - Array of low-confidence flags
    */
   private async storeLowConfidenceFlags(
     cacheKey: string,
@@ -750,190 +432,26 @@ export class AnalyzeEmail {
       reasoning: string;
     }>
   ): Promise<void> {
-    this.logger.debug('🚩 Storing low-confidence flags', {
-      cacheKey: cacheKey.substring(0, 16) + '...',
-      flagCount: flags.length,
-    });
-
     try {
-      // Use messenger.storage.local to persist low-confidence flags
-      // This provides a queryable list of emails needing manual review
       const storageKey = `lowConfidence_${cacheKey}`;
-      const flagData = {
-        cacheKey,
-        flags,
-        timestamp: Date.now(),
-      };
+      const flagData = { cacheKey, flags, timestamp: Date.now() };
 
       if (typeof messenger !== 'undefined' && messenger.storage) {
         await messenger.storage.local.set({ [storageKey]: flagData });
-        this.logger.debug('✅ Low-confidence flags stored', {
-          storageKey,
-          flagCount: flags.length,
-        });
-      } else {
-        this.logger.warn(
-          '⚠️  Messenger storage not available, skipping low-confidence flag storage'
-        );
+        this.logger.debug('✅ Low-confidence flags stored', { count: flags.length });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.warn('⚠️  Failed to store low-confidence flags', {
-        cacheKey: cacheKey.substring(0, 16) + '...',
-        error: errorMessage,
-      });
-      // Non-fatal error, continue execution
-    }
-  }
-
-  /**
-   * Applies tags to email message, filtering by confidence thresholds.
-   *
-   * Tags are only applied if their confidence meets the configured threshold.
-   * Per-tag threshold overrides take precedence over the global threshold.
-   *
-   * @param messageId - Message ID to apply tags to
-   * @param tagKeys - Tag keys to apply
-   * @param confidence - Overall confidence score (0-1 range)
-   * @param reasoning - AI reasoning for the classification (optional)
-   * @returns Promise resolving to array of low-confidence flags for skipped tags
-   * @throws {Error} If tag application fails
-   */
-  private async applyTagsToEmail(
-    messageId: string,
-    tagKeys: string[],
-    confidence: number,
-    reasoning?: string
-  ): Promise<
-    Array<{
-      tagKey: string;
-      confidence: number;
-      threshold: number;
-      thresholdType: 'custom' | 'global';
-      reasoning: string;
-    }>
-  > {
-    this.logger.debug('🏷️  Applying tags to email with confidence filtering', {
-      messageId,
-      tagKeys,
-      confidence,
-    });
-
-    try {
-      const messageIdNum = parseInt(messageId, 10);
-      if (isNaN(messageIdNum)) {
-        throw new Error(`Invalid message ID: ${messageId}`);
-      }
-
-      // Load app config to get global confidence threshold
-      this.logger.debug('➡️  Loading app config for confidence threshold');
-      const appConfig = await this.configRepository.getAppConfig();
-      const globalThreshold = appConfig.minConfidenceThreshold ?? 70;
-      this.logger.debug('✅ Global threshold loaded', { globalThreshold });
-
-      // Load custom tags to get per-tag threshold overrides
-      this.logger.debug('➡️  Loading custom tags for threshold overrides');
-      const customTags = await this.configRepository.getCustomTags();
-      this.logger.debug('✅ Custom tags loaded', { count: customTags.length });
-
-      // Build tag lookup map for threshold overrides
-      const tagMap = new Map<string, Tag>();
-      customTags.forEach((tag) => tagMap.set(tag.key, tag));
-
-      // Filter tags based on confidence thresholds
-      const tagsToApply: string[] = [];
-      const lowConfidenceFlags: Array<{
-        tagKey: string;
-        confidence: number;
-        threshold: number;
-        thresholdType: 'custom' | 'global';
-        reasoning: string;
-      }> = [];
-
-      for (const tagKey of tagKeys) {
-        const tag = tagMap.get(tagKey);
-        const effectiveThreshold = getEffectiveThreshold(tag ?? {}, globalThreshold);
-        const thresholdType = tag?.minConfidenceThreshold !== undefined ? 'custom' : 'global';
-
-        if (meetsTagThreshold(confidence, tag ?? {}, globalThreshold)) {
-          tagsToApply.push(tagKey);
-          this.logger.debug('✅ Tag meets threshold', {
-            tag: tagKey,
-            confidence: `${(confidence * 100).toFixed(1)}%`,
-            threshold: effectiveThreshold,
-            thresholdType,
-          });
-        } else {
-          // Create low-confidence flag with reasoning
-          lowConfidenceFlags.push({
-            tagKey,
-            confidence,
-            threshold: effectiveThreshold,
-            thresholdType,
-            reasoning:
-              reasoning ??
-              `Confidence ${(confidence * 100).toFixed(1)}% below threshold ${effectiveThreshold}% (${thresholdType} threshold)`,
-          });
-          this.logger.debug('⏭️  Tag below threshold, skipping', {
-            tag: tagKey,
-            confidence: `${(confidence * 100).toFixed(1)}%`,
-            threshold: effectiveThreshold,
-            thresholdType,
-          });
-        }
-      }
-
-      // Apply only tags that meet thresholds
-      if (tagsToApply.length > 0) {
-        await this.tagManager.setTagsOnMessage(messageIdNum, tagsToApply);
-        this.logger.info('✅ Tags applied successfully', {
-          messageId,
-          applied: tagsToApply.length,
-          total: tagKeys.length,
-        });
-      } else {
-        this.logger.warn('⚠️  No tags met confidence threshold', {
-          messageId,
-          total: tagKeys.length,
-          confidence: `${(confidence * 100).toFixed(1)}%`,
-          globalThreshold,
-        });
-      }
-
-      // Log low-confidence flags
-      if (lowConfidenceFlags.length > 0) {
-        this.logger.info('📋 Low-confidence flags created', {
-          messageId,
-          flagCount: lowConfidenceFlags.length,
-          flags: lowConfidenceFlags.map(
-            (f) => `${f.tagKey}: ${f.confidence * 100}% < ${f.threshold}%`
-          ),
-        });
-      }
-
-      return lowConfidenceFlags;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('❌ Failed to apply tags', {
-        messageId,
-        tagKeys,
-        confidence,
-        error: errorMessage,
-      });
-      throw error;
+      this.logger.warn('⚠️  Failed to store low-confidence flags', { error: errorMessage });
     }
   }
 }
 
-// ============================================================================
-// Helper Types
-// ============================================================================
-
-/**
- * Attachment interface for AI analysis.
- */
-interface IAttachment {
-  name: string;
-  mimeType: string;
-  size: number;
-}
+// TypeScript declare for Thunderbird messenger API
+declare const messenger: {
+  storage: {
+    local: {
+      set(items: Record<string, unknown>): Promise<void>;
+    };
+  };
+};

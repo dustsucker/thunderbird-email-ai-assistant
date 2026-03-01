@@ -15,7 +15,7 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { AnalyzeEmail } from './AnalyzeEmail';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';

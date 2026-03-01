@@ -5,10 +5,10 @@ import {
   validateConfidenceThreshold,
   validateCustomTagsThresholds,
   isValidConfidenceThreshold,
-  ModelConcurrencyConfig,
-} from '../core/config';
-import { DEFAULTS } from '../core/config';
-import type { Tag } from '../core/config';
+} from '../src/shared/utils/validationUtils';
+import type { ModelConcurrencyConfig } from '../src/shared/types/ProviderTypes';
+import { DEFAULTS } from '../src/shared/types/ProviderTypes';
+import type { Tag } from '../src/shared/types/TagTypes';
 
 describe('Config - getConcurrencyLimit', () => {
   describe('Provider Default Concurrency', () => {

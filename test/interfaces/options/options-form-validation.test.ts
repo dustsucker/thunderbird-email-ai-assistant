@@ -315,7 +315,7 @@ describe('Options Page - Save/Load Functionality', () => {
     });
 
     it('should use default threshold when input is invalid', async () => {
-      const invalidThreshold = 150; // Above 100
+      const _invalidThreshold = 150; // Above 100 - unused but documents intent
       const defaultThreshold = 70;
       const appConfig = { minConfidenceThreshold: defaultThreshold };
 
@@ -631,7 +631,7 @@ describe('Options Page - Integration', () => {
   describe('Backward Compatibility', () => {
     it('should use default when loading old config without threshold', async () => {
       const defaultThreshold = 70;
-      const oldConfig = {}; // No minConfidenceThreshold field
+      const _oldConfig = {}; // No minConfidenceThreshold field - unused but documents scenario
 
       mockStorage.local.get.mockResolvedValue({
         appConfig: { minConfidenceThreshold: defaultThreshold },
