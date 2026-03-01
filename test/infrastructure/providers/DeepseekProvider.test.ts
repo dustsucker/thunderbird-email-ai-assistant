@@ -68,7 +68,13 @@ describe('DeepseekProvider', () => {
 
     it('should log error when apiKey is not set', () => {
       provider.validateSettings({});
-      expect(mockLogger.error).toHaveBeenCalledWith('DeepSeek Error: API key is not set.');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'DeepSeek settings validation failed',
+        expect.objectContaining({
+          error: expect.any(String),
+          hasApiKey: false,
+        })
+      );
     });
   });
 

@@ -7,6 +7,10 @@ import type { AppConfig, CustomTags } from '@/shared/types/ProviderTypes';
 import type { RequestBody } from './BaseProvider';
 import { Provider } from '@/shared/types/ProviderTypes';
 import { DEFAULT_CUSTOM_TAGS } from '@/shared/types/ProviderTypes';
+import {
+  sanitizeForLogging as sharedSanitizeForLogging,
+  maskSensitiveValue,
+} from '@/shared/utils/loggingUtils';
 
 // ============================================================================
 // TYPE DEFINITIONS AND INTERFACES
@@ -199,7 +203,7 @@ const TAG_RESPONSE_SCHEMA: SchemaDefinition = {
 
 /**
  * Masks an API key for logging purposes
- * Shows first 7 and last 3 characters with ellipsis in between
+ * Uses the shared maskSensitiveValue utility for consistency
  *
  * @param key - The API key to mask
  * @returns Masked key string
@@ -210,9 +214,7 @@ const TAG_RESPONSE_SCHEMA: SchemaDefinition = {
  * maskApiKey(null) // Returns 'not set'
  */
 export function maskApiKey(key: unknown): string {
-  if (!key || typeof key !== 'string') return 'not set';
-  if (key.length <= 10) return '***';
-  return key.slice(0, 7) + '...' + key.slice(-3);
+  return maskSensitiveValue(key);
 }
 
 // ============================================================================
@@ -252,43 +254,15 @@ function log(level: LogLevel, message: string, context: LoggerContext = {}): voi
 
 /**
  * Sanitizes context object by masking sensitive fields recursively
- * Handles nested objects and arrays to ensure API keys are never logged
+ * Uses the shared loggingUtils for consistent sanitization
  *
  * @param context - The context object to sanitize
  * @param depth - Current recursion depth (prevents infinite recursion)
  * @returns Sanitized context object
  */
-function sanitizeContext(context: LoggerContext, depth: number = 0): SanitizedContext {
-  const MAX_DEPTH = 10;
-
-  if (!context || typeof context !== 'object') return context;
-  if (depth > MAX_DEPTH) return '[Max depth reached]';
-
-  const sanitized: SanitizedContext = {};
-  const keyPatterns = ['key', 'token', 'password', 'secret'];
-
-  for (const [key, value] of Object.entries(context)) {
-    const isSensitive = keyPatterns.some((pattern) => key.toLowerCase().includes(pattern));
-
-    if (isSensitive) {
-      // Mask sensitive values
-      sanitized[key] = maskApiKey(value);
-    } else if (Array.isArray(value)) {
-      // Recursively sanitize array elements
-      sanitized[key] = value.map((item) =>
-        typeof item === 'object' && item !== null
-          ? sanitizeContext(item as LoggerContext, depth + 1)
-          : item
-      );
-    } else if (typeof value === 'object' && value !== null) {
-      // Recursively sanitize nested objects
-      sanitized[key] = sanitizeContext(value as LoggerContext, depth + 1);
-    } else {
-      sanitized[key] = value;
-    }
-  }
-
-  return sanitized;
+function sanitizeContext(context: LoggerContext, _depth: number = 0): SanitizedContext {
+  // Use the shared sanitization utility
+  return sharedSanitizeForLogging(context) as SanitizedContext;
 }
 
 /**

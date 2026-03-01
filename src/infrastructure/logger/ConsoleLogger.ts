@@ -8,6 +8,7 @@
 
 import { injectable } from 'tsyringe';
 import type { ILogger } from '../interfaces/ILogger';
+import { sanitizeForLogging } from '@/shared/utils/loggingUtils';
 
 /**
  * ConsoleLogger implementation.
@@ -16,11 +17,13 @@ import type { ILogger } from '../interfaces/ILogger';
  * This implementation is suitable for both browser extensions (console methods
  * available in extension contexts) and Node.js environments. Messages are
  * formatted with a [LOG] prefix to distinguish them from other console output.
+ * All context objects are automatically sanitized to prevent API key leakage.
  */
 @injectable()
 export class ConsoleLogger implements ILogger {
   /**
    * Format a log message with optional context.
+   * Context is sanitized to prevent sensitive data leakage.
    *
    * @param message - The message to format
    * @param context - Optional context object with additional metadata
@@ -30,7 +33,9 @@ export class ConsoleLogger implements ILogger {
     if (!context || Object.keys(context).length === 0) {
       return `[LOG] ${message}`;
     }
-    return `[LOG] ${message} ${JSON.stringify(context)}`;
+    // SECURITY: Sanitize context before stringifying to prevent API key leakage
+    const sanitizedContext = sanitizeForLogging(context);
+    return `[LOG] ${message} ${JSON.stringify(sanitizedContext)}`;
   }
 
   /**

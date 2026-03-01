@@ -3,6 +3,7 @@ import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
+import { validateApiKeyFormat } from '@/shared/utils/loggingUtils';
 
 const GEMINI_MODEL = 'gemini-1.5-flash-latest';
 
@@ -126,13 +127,23 @@ export class GeminiProvider extends BaseProvider {
   }
 
   public validateSettings(settings: BaseProviderSettings): boolean {
-    const isValid = typeof settings.apiKey === 'string' && settings.apiKey.length > 0;
-    if (isValid) {
-      this.geminiApiKey = settings.apiKey;
-    } else {
-      this.logger.error('Gemini Error: API key is not set.');
+    // SECURITY: Enhanced validation with format checks
+    const validation = validateApiKeyFormat(settings.apiKey, {
+      minLength: 10,
+      providerName: 'Gemini',
+    });
+
+    if (!validation.valid) {
+      this.logger.error('Gemini settings validation failed', {
+        error: validation.error,
+        hasApiKey: !!settings.apiKey,
+      });
+      return false;
     }
-    return isValid;
+
+    // Store the key for URL generation
+    this.geminiApiKey = settings.apiKey;
+    return true;
   }
 
   protected override getHeaders(_settings: BaseProviderSettings): Record<string, string> {

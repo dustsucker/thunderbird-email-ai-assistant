@@ -5,6 +5,7 @@ import { extractJson } from '../ProviderUtils';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
 import type { IProviderSettings } from '../../interfaces/IProvider';
+import { validateApiKeyFormat } from '@/shared/utils/loggingUtils';
 
 // ============================================================================
 // Zai API Types
@@ -142,18 +143,29 @@ export class ZaiPaaSProvider extends BaseProvider {
   }
 
   public validateSettings(settings: BaseProviderSettings): boolean {
-    const isValid = typeof settings.apiKey === 'string' && settings.apiKey.length > 0;
-    if (isValid) {
-      if (settings.model && typeof settings.model === 'string') {
-        this.zaiModel = settings.model;
-      }
-      if (settings.apiUrl && typeof settings.apiUrl === 'string') {
-        this.zaiBaseUrl = settings.apiUrl;
-      }
-    } else {
-      this.logger.error('Z.ai PaaS Error: API key is not set.');
+    // SECURITY: Enhanced validation with format checks
+    const validation = validateApiKeyFormat(settings.apiKey, {
+      minLength: 20,
+      providerName: 'Z.ai PaaS',
+    });
+
+    if (!validation.valid) {
+      this.logger.error('Z.ai PaaS settings validation failed', {
+        error: validation.error,
+        hasApiKey: !!settings.apiKey,
+      });
+      return false;
     }
-    return isValid;
+
+    // Store additional settings
+    if (settings.model && typeof settings.model === 'string') {
+      this.zaiModel = settings.model;
+    }
+    if (settings.apiUrl && typeof settings.apiUrl === 'string') {
+      this.zaiBaseUrl = settings.apiUrl;
+    }
+
+    return true;
   }
 
   // ==========================================================================

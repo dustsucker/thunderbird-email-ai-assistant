@@ -3,6 +3,7 @@ import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
+import { validateApiKeyFormat } from '@/shared/utils/loggingUtils';
 
 interface DeepSeekResponseMessage {
   role: string;
@@ -109,11 +110,22 @@ export class DeepseekProvider extends BaseProvider {
   }
 
   public validateSettings(settings: BaseProviderSettings): boolean {
-    const isValid = typeof settings.apiKey === 'string' && settings.apiKey.length > 0;
-    if (!isValid) {
-      this.logger.error('DeepSeek Error: API key is not set.');
+    // SECURITY: Enhanced validation with format checks
+    const validation = validateApiKeyFormat(settings.apiKey, {
+      minLength: 20,
+      expectedPrefix: 'sk-',
+      providerName: 'DeepSeek',
+    });
+
+    if (!validation.valid) {
+      this.logger.error('DeepSeek settings validation failed', {
+        error: validation.error,
+        hasApiKey: !!settings.apiKey,
+      });
+      return false;
     }
-    return isValid;
+
+    return true;
   }
 
   /**

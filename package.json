@@ -26,6 +26,7 @@
     "@types/webextension-polyfill": "^0.10.7",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.16",
     "archiver": "^7.0.1",
     "dotenv": "^17.2.3",

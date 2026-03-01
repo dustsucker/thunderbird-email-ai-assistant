@@ -3,6 +3,7 @@ import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
+import { validateApiKeyFormat } from '@/shared/utils/loggingUtils';
 
 type OpenAIMessageRole = 'system' | 'user' | 'assistant' | 'tool';
 
@@ -131,11 +132,23 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   public validateSettings(settings: BaseProviderSettings): boolean {
-    const isValid = typeof settings.apiKey === 'string' && settings.apiKey.length > 0;
-    if (!isValid) {
-      this.logger.error('OpenAI Error: API key is not set.');
+    // SECURITY: Enhanced validation with format checks
+    const validation = validateApiKeyFormat(settings.apiKey, {
+      minLength: 20,
+      expectedPrefix: 'sk-',
+      providerName: 'OpenAI',
+    });
+
+    if (!validation.valid) {
+      // SECURITY: Never log the actual API key, only the error message
+      this.logger.error('OpenAI settings validation failed', {
+        error: validation.error,
+        hasApiKey: !!settings.apiKey,
+      });
+      return false;
     }
-    return isValid;
+
+    return true;
   }
 
   /**

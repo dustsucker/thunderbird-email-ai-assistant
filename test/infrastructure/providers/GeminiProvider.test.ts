@@ -68,7 +68,13 @@ describe('GeminiProvider', () => {
 
     it('should log error when apiKey is not set', () => {
       provider.validateSettings({});
-      expect(mockLogger.error).toHaveBeenCalledWith('Gemini Error: API key is not set.');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Gemini settings validation failed',
+        expect.objectContaining({
+          error: expect.any(String),
+          hasApiKey: false,
+        })
+      );
     });
 
     it('should store apiKey after successful validation', () => {

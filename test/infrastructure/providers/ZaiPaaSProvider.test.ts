@@ -61,7 +61,7 @@ describe('ZaiPaaSProvider', () => {
 
     it('should store custom model when provided', () => {
       const customModelSettings: BaseProviderSettings = {
-        apiKey: 'test-key',
+        apiKey: 'test-api-key-long-enough-123',
         model: 'glm-4-plus',
       };
       provider.validateSettings(customModelSettings);
@@ -72,7 +72,7 @@ describe('ZaiPaaSProvider', () => {
 
     it('should store custom API URL when provided', () => {
       const customUrlSettings: BaseProviderSettings = {
-        apiKey: 'test-key',
+        apiKey: 'test-api-key-long-enough-123',
         apiUrl: 'https://custom.api.z.ai/v1/chat',
       };
       provider.validateSettings(customUrlSettings);
@@ -90,7 +90,13 @@ describe('ZaiPaaSProvider', () => {
 
     it('should log error when apiKey is not set', () => {
       provider.validateSettings({});
-      expect(mockLogger.error).toHaveBeenCalledWith('Z.ai PaaS Error: API key is not set.');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Z.ai PaaS settings validation failed',
+        expect.objectContaining({
+          error: expect.any(String),
+          hasApiKey: false,
+        })
+      );
     });
   });
 
@@ -192,7 +198,7 @@ describe('ZaiPaaSProvider', () => {
     it('should use custom base URL when configured', async () => {
       const customUrl = 'https://custom.z.ai/api/v1/chat';
       const settingsWithCustomUrl: BaseProviderSettings = {
-        apiKey: 'test-key',
+        apiKey: 'test-api-key-long-enough-123',
         apiUrl: customUrl,
         model: 'glm-4.5',
       };

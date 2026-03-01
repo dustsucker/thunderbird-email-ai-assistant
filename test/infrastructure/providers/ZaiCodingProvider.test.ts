@@ -61,7 +61,7 @@ describe('ZaiCodingProvider', () => {
 
     it('should store custom model when provided', () => {
       const customModelSettings: BaseProviderSettings = {
-        apiKey: 'test-key',
+        apiKey: 'test-api-key-long-enough-123',
         model: 'glm-4.7-custom',
       };
       provider.validateSettings(customModelSettings);
@@ -71,7 +71,7 @@ describe('ZaiCodingProvider', () => {
 
     it('should store custom API URL when provided', () => {
       const customUrlSettings: BaseProviderSettings = {
-        apiKey: 'test-key',
+        apiKey: 'test-api-key-long-enough-123',
         apiUrl: 'https://custom.api.z.ai/v1/chat',
       };
       provider.validateSettings(customUrlSettings);
@@ -89,7 +89,13 @@ describe('ZaiCodingProvider', () => {
 
     it('should log error when apiKey is not set', () => {
       provider.validateSettings({});
-      expect(mockLogger.error).toHaveBeenCalledWith('Z.ai Coding Error: API key is not set.');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Z.ai Coding settings validation failed',
+        expect.objectContaining({
+          error: expect.any(String),
+          hasApiKey: false,
+        })
+      );
     });
   });
 
@@ -191,7 +197,7 @@ describe('ZaiCodingProvider', () => {
     it('should use custom base URL when configured', async () => {
       const customUrl = 'https://custom.z.ai/api/v1/chat';
       const settingsWithCustomUrl: BaseProviderSettings = {
-        apiKey: 'test-key',
+        apiKey: 'test-api-key-long-enough-123',
         apiUrl: customUrl,
         model: 'glm-4.7',
       };

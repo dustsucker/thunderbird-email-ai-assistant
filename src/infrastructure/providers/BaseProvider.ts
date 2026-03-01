@@ -8,6 +8,7 @@ import {
   TagResponse as UtilsTagResponse,
 } from './ProviderUtils';
 import { buildPrompt } from './PromptBuilder';
+import { sanitizeForLogging } from '@/shared/utils/loggingUtils';
 
 export type TagResponse = UtilsTagResponse;
 
@@ -401,7 +402,12 @@ export abstract class BaseProvider {
       });
 
       if (!this.validateSettings(settings)) {
-        this.logError('Invalid provider settings', { settings });
+        // SECURITY: Never log raw settings - they contain API keys
+        this.logError('Invalid provider settings', {
+          hasApiKey: !!settings.apiKey,
+          hasModel: !!settings.model,
+          sanitizedSettings: sanitizeForLogging(settings),
+        });
         throw new Error('Invalid provider settings: Missing required API key or model');
       }
 

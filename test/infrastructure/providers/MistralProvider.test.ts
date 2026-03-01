@@ -68,7 +68,13 @@ describe('MistralProvider', () => {
 
     it('should log error when apiKey is not set', () => {
       provider.validateSettings({});
-      expect(mockLogger.error).toHaveBeenCalledWith('Mistral Error: API key is not set.');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Mistral settings validation failed',
+        expect.objectContaining({
+          error: expect.any(String),
+          hasApiKey: false,
+        })
+      );
     });
   });
 

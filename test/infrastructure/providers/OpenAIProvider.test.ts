@@ -58,9 +58,9 @@ describe('OpenAIProvider', () => {
       expect(provider.validateSettings(validSettings)).toBe(true);
     });
 
-    it('should return true for any non-empty string apiKey', () => {
+    it('should return true for valid OpenAI API key with sk- prefix', () => {
       const settings: BaseProviderSettings = {
-        apiKey: 'any-key-will-work',
+        apiKey: 'sk-valid-openai-key-12345678',
       };
       expect(provider.validateSettings(settings)).toBe(true);
     });
@@ -85,7 +85,13 @@ describe('OpenAIProvider', () => {
 
     it('should log error when apiKey is not set', () => {
       provider.validateSettings({});
-      expect(mockLogger.error).toHaveBeenCalledWith('OpenAI Error: API key is not set.');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'OpenAI settings validation failed',
+        expect.objectContaining({
+          error: expect.any(String),
+          hasApiKey: false,
+        })
+      );
     });
   });
 
