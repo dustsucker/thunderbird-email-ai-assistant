@@ -429,12 +429,27 @@ export function extractJson(text: unknown): string {
 
   let firstBrace = -1;
   let braceCount = 0;
+  let inString = false;
 
   for (let i = 0; i < text.length; i++) {
-    if (text[i] === '{') {
+    const char = text[i];
+
+    // Skip characters inside JSON string values (braces there don't count)
+    if (inString) {
+      if (char === '\\') {
+        i++; // skip escaped character
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    } else if (char === '{') {
       if (firstBrace === -1) firstBrace = i;
       braceCount++;
-    } else if (text[i] === '}') {
+    } else if (char === '}') {
       braceCount--;
       if (braceCount === 0 && firstBrace !== -1) {
         const extracted = text.substring(firstBrace, i + 1);
@@ -539,7 +554,10 @@ export async function retryWithBackoff<T>(
 
       // Check if result has retryable status
       if (hasStatus(result) && isRetryableStatus(result.status)) {
-        throw new Error(`HTTP ${result.status}`);
+        // Carry numeric .status so the error is classified transient and retried
+        const statusError = new Error(`HTTP ${result.status}`) as Error & { status: number };
+        statusError.status = result.status;
+        throw statusError;
       }
 
       return result;
@@ -757,6 +775,12 @@ export function validateLLMResponse(response: unknown): TagResponse {
       confidence: 0.5,
       reasoning: '',
     };
+  }
+
+  // Normalize percent-scale confidence (e.g., 85) to 0-1 range before validation
+  const rawConfidence = parsed.confidence;
+  if (typeof rawConfidence === 'number' && rawConfidence > 1 && rawConfidence <= 100) {
+    parsed.confidence = rawConfidence / 100;
   }
 
   // Validate each field against schema

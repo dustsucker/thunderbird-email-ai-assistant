@@ -5,6 +5,7 @@ import {
   validateLLMResponse,
   logger,
   maskApiKey,
+  type RetryConfig as UtilsRetryConfig,
   TagResponse as UtilsTagResponse,
 } from './ProviderUtils';
 import { buildPrompt } from './PromptBuilder';
@@ -99,11 +100,14 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+  // ponytail: one shared abort listener, always removed in finally (no leak per request)
+  const onExternalAbort = () => controller.abort();
   if (externalSignal) {
-    externalSignal.addEventListener('abort', () => {
-      clearTimeout(timeoutId);
+    if (externalSignal.aborted) {
       controller.abort();
-    });
+    } else {
+      externalSignal.addEventListener('abort', onExternalAbort);
+    }
   }
 
   try {
@@ -111,12 +115,34 @@ async function fetchWithTimeout(
       ...options,
       signal: controller.signal,
     });
-    clearTimeout(timeoutId);
     return response;
-  } catch (error) {
+  } finally {
     clearTimeout(timeoutId);
-    throw error;
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', onExternalAbort);
+    }
   }
+}
+
+/**
+ * Error thrown for non-OK HTTP responses.
+ * Carries the numeric `.status` so `retryWithBackoff` can decide retryability.
+ */
+export interface HttpError extends Error {
+  status: number;
+}
+
+/**
+ * Creates an HTTP error carrying the numeric status code
+ * @param status - HTTP status code
+ * @param statusText - HTTP status text
+ * @returns Error with numeric `.status` property
+ */
+function createHttpError(status: number, statusText: string): HttpError {
+  const error: HttpError = Object.assign(new Error(`API request failed: ${status} ${statusText}`), {
+    status,
+  });
+  return error;
 }
 
 /**
@@ -139,11 +165,14 @@ function isOkResponse(response: Response): response is Response & { ok: true } {
  */
 export abstract class BaseProvider {
   protected readonly timeout: number;
-  protected readonly retryConfig: Readonly<typeof DEFAULT_RETRY_CONFIG>;
+  protected readonly retryConfig: Readonly<UtilsRetryConfig>;
 
-  constructor(timeout: number = DEFAULT_TIMEOUT) {
+  constructor(
+    timeout: number = DEFAULT_TIMEOUT,
+    retryConfig: Readonly<UtilsRetryConfig> = DEFAULT_RETRY_CONFIG
+  ) {
     this.timeout = timeout;
-    this.retryConfig = DEFAULT_RETRY_CONFIG;
+    this.retryConfig = retryConfig;
   }
 
   // ========================================================================
@@ -152,8 +181,10 @@ export abstract class BaseProvider {
 
   /**
    * Returns the API URL for the provider
+   * Settings-aware providers (e.g., Ollama) read the URL from the passed-in
+   * settings per call; the settings parameter is optional for subclasses.
    */
-  protected abstract getApiUrl(): string;
+  protected abstract getApiUrl(settings?: BaseProviderSettings): string;
 
   /**
    * Builds the request body for the API call
@@ -335,7 +366,7 @@ export abstract class BaseProvider {
     requestBody: RequestBody,
     externalSignal?: AbortSignal
   ): Promise<Response> {
-    const apiUrl = this.getApiUrl();
+    const apiUrl = this.getApiUrl(settings);
     const headers = this.getHeaders(settings);
 
     this.logDebug('Executing API request', {
@@ -364,7 +395,8 @@ export abstract class BaseProvider {
             statusText: res.statusText,
             error: errorText,
           });
-          throw new Error(`API request failed: ${res.status} ${res.statusText}`);
+          // Attach numeric status so retryWithBackoff can retry 429/5xx
+          throw createHttpError(res.status, res.statusText);
         }
 
         return res;

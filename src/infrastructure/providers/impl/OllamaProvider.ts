@@ -49,26 +49,24 @@ const DEFAULT_OLLAMA_MODEL = 'gemma3:27b';
 @injectable()
 export class OllamaProvider extends BaseProvider {
   public readonly providerId = 'ollama';
-  private ollamaApiUrl: string | undefined;
-  private ollamaModel: string | undefined;
 
   constructor(@inject('ILogger') protected readonly logger: ILogger) {
     super();
     this.logger.debug('OllamaProvider initialized');
   }
 
-  protected getApiUrl(): string {
-    return this.ollamaApiUrl ?? DEFAULT_OLLAMA_URL;
+  protected getApiUrl(settings?: BaseProviderSettings): string {
+    return settings?.apiUrl || DEFAULT_OLLAMA_URL;
   }
 
   protected buildRequestBody(
-    _settings: BaseProviderSettings,
+    settings: BaseProviderSettings,
     prompt: string,
     _structuredData: StructuredEmailData,
     _customTags: CustomTags
   ): Record<string, unknown> {
     return {
-      model: this.ollamaModel ?? DEFAULT_OLLAMA_MODEL,
+      model: settings.model || DEFAULT_OLLAMA_MODEL,
       prompt,
       format: 'json',
       stream: false,
@@ -88,8 +86,6 @@ export class OllamaProvider extends BaseProvider {
     const validatedResponse = this.validateResponse(rawText);
 
     this.logger.info('Ollama analysis completed successfully', {
-      url: this.ollamaApiUrl,
-      model: this.ollamaModel,
       tags: validatedResponse.tags,
       confidence: validatedResponse.confidence,
     });
@@ -104,10 +100,7 @@ export class OllamaProvider extends BaseProvider {
       typeof settings.model === 'string' &&
       settings.model.length > 0;
 
-    if (isValid) {
-      this.ollamaApiUrl = settings.apiUrl;
-      this.ollamaModel = settings.model;
-    } else {
+    if (!isValid) {
       this.logger.error('Ollama Error: Invalid settings provided');
     }
 

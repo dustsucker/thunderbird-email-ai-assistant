@@ -60,10 +60,12 @@ IMPORTANT: Return ONLY the JSON object, not the individual tag values!
   const attachmentsJSON: string = JSON.stringify(structuredData.attachments, null, 2);
 
   // 4. Replace placeholders
+  // Replacer functions prevent `$&`, `` $` ``, `$'` etc. in email content
+  // from being interpreted as replacement patterns
   const finalPrompt: string = `${PROMPT_BASE}\n${instructionsText}`
-    .replace('{headers}', headersJSON)
-    .replace('{body}', structuredData.body)
-    .replace('{attachments}', attachmentsJSON);
+    .replace('{headers}', () => headersJSON)
+    .replace('{body}', () => structuredData.body)
+    .replace('{attachments}', () => attachmentsJSON);
 
   // 5. Debug log
   logger.debug('[DEBUG-PROMPT] Generated prompt:', {

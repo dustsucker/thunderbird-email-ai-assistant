@@ -213,6 +213,31 @@ describe('OllamaProvider', () => {
       const body = JSON.parse(fetchCall[1]?.body as string);
       expect(body.model).toBe('gemma3:27b');
     });
+    it('should not cross-contaminate settings: validate(A) then analyze(B) uses B (DW11b)', async () => {
+      const ollamaResponse = {
+        model: 'llama3',
+        response: JSON.stringify(validTagResponse),
+        done: true,
+      };
+      fetchSpy.mockResolvedValue(createMockFetchResponse(ollamaResponse));
+
+      // Simulates a cached adapter shared by concurrent workers
+      provider.validateSettings({ apiUrl: 'http://a:11434/api/generate', model: 'modelA' });
+
+      const settingsB: BaseProviderSettings = {
+        apiUrl: 'http://b:11435/api/generate',
+        model: 'modelB',
+      };
+      await provider.analyze({
+        settings: settingsB,
+        structuredData: createMockStructuredData(),
+        customTags: createMockCustomTags(),
+      });
+
+      const fetchCall = fetchSpy.mock.calls[0];
+      expect(fetchCall[0]).toBe('http://b:11435/api/generate');
+      expect(JSON.parse(fetchCall[1]?.body as string).model).toBe('modelB');
+    });
   });
 
   // ==========================================================================
