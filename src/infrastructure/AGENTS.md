@@ -19,7 +19,7 @@ src/infrastructure/
 ├── providers/               # AI provider implementations
 │   ├── BaseProvider.ts      # Abstract base with retry/timeout
 │   ├── BaseProviderAdapter.ts # Adapter: BaseProvider → IProvider
-│   ├── ProviderFactory.ts   # Factory with lazy-loading & DI
+│   ├── ProviderFactory.ts   # Factory with static provider registry & DI
 │   └── impl/                # OpenAI, Claude, Gemini, Mistral, Ollama, Deepseek, ZaiPaaS, ZaiCoding
 ├── cache/MemoryCache.ts     # In-memory cache with SHA-256 hashing
 ├── logger/ConsoleLogger.ts  # Console-based logger (implements domain ILogger)
@@ -64,7 +64,7 @@ Abstracts configuration persistence via `IndexedDBConfigRepository` using browse
 
 ### Factory Pattern (ProviderFactory)
 
-Manages provider lifecycle with lazy loading and code-splitting for optimal bundle size.
+Manages provider lifecycle. All providers are statically imported and bundled — **no dynamic import() / code-splitting** (the packaged extension ships only the main bundles; async chunks would 404 at runtime).
 
 ## Adding a New Provider
 
@@ -85,8 +85,9 @@ export class NewProvider extends BaseProvider {
   }
 }
 
-// 2. Register in ProviderFactory PROVIDER_LOADERS Map
-['newprovider', () => import('./impl/NewProvider').then((m) => ({ default: m.NewProvider }))];
+// 2. Register statically in ProviderFactory PROVIDER_REGISTRY
+import { NewProvider } from './impl/NewProvider';
+PROVIDER_REGISTRY.set('newprovider', NewProvider);
 ```
 
 ## Interface Implementation Checklist

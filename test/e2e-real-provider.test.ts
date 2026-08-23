@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ConsoleLogger } from '../src/infrastructure/logger/ConsoleLogger';
 import { BaseProviderAdapter } from '../src/infrastructure/providers';
-// Direct import for testing - bypasses lazy loading
+// Direct import for testing
 import { ZaiPaaSProvider } from '../src/infrastructure/providers/impl/ZaiPaaSProvider';
 import type { ILogger } from '../src/infrastructure/interfaces/ILogger';
 import { loadEmailFixture } from './fixtures/fixture-loader';

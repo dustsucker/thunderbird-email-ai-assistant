@@ -4,8 +4,8 @@
  * This factory registers and resolves provider instances, wrapping legacy BaseProvider
  * implementations with BaseProviderAdapter for dependency injection compatibility.
  *
- * Uses dynamic imports for code-splitting - providers are loaded on-demand to reduce
- * initial bundle size.
+ * Providers are statically imported — the background bundle is self-contained
+ * (dynamic import() would emit async chunks that a MailExtension cannot ship).
  */
 
 import { injectable, container, inject, InjectionToken } from 'tsyringe';
@@ -13,10 +13,19 @@ import { BaseProviderAdapter } from './BaseProviderAdapter';
 import type { BaseProvider } from './BaseProvider';
 import type { IProvider } from '../interfaces/IProvider';
 import type { ILogger } from '../interfaces/ILogger';
+import { OpenAIProvider } from './impl/OpenAIProvider';
+import { ClaudeProvider } from './impl/ClaudeProvider';
+import { GeminiProvider } from './impl/GeminiProvider';
+import { MistralProvider } from './impl/MistralProvider';
+import { OllamaProvider } from './impl/OllamaProvider';
+import { DeepseekProvider } from './impl/DeepseekProvider';
+import { OpenRouterProvider } from './impl/OpenRouterProvider';
+import { ZaiPaaSProvider } from './impl/ZaiPaaSProvider';
+import { ZaiCodingProvider } from './impl/ZaiCodingProvider';
 import 'reflect-metadata';
 
 // ============================================================================
-// LAZY PROVIDER LOADER (Code-Splitting)
+// PROVIDER REGISTRY
 // ============================================================================
 
 /**
@@ -25,96 +34,21 @@ import 'reflect-metadata';
 type ProviderConstructor = new (logger: ILogger) => BaseProvider;
 
 /**
- * Lazy loader function type - dynamically imports provider module.
+ * Static provider registry: provider ID → provider class.
+ * All providers are bundled into the background script (no code-splitting —
+ * async chunks are not shippable in a MailExtension xpi).
  */
-type ProviderLoader = () => Promise<
-  { default: ProviderConstructor } | { [key: string]: ProviderConstructor }
->;
-
-/**
- * Map of provider IDs to their lazy loader functions.
- * Using dynamic imports enables webpack code-splitting - each provider
- * becomes a separate chunk that's loaded only when needed.
- */
-const PROVIDER_LOADERS: ReadonlyMap<string, ProviderLoader> = new Map([
-  [
-    'openai',
-    () =>
-      import(
-        /* webpackChunkName: "provider-openai" */
-        './impl/OpenAIProvider'
-      ).then((m) => ({ default: m.OpenAIProvider })),
-  ],
-  [
-    'claude',
-    () =>
-      import(
-        /* webpackChunkName: "provider-claude" */
-        './impl/ClaudeProvider'
-      ).then((m) => ({ default: m.ClaudeProvider })),
-  ],
-  [
-    'gemini',
-    () =>
-      import(
-        /* webpackChunkName: "provider-gemini" */
-        './impl/GeminiProvider'
-      ).then((m) => ({ default: m.GeminiProvider })),
-  ],
-  [
-    'mistral',
-    () =>
-      import(
-        /* webpackChunkName: "provider-mistral" */
-        './impl/MistralProvider'
-      ).then((m) => ({ default: m.MistralProvider })),
-  ],
-  [
-    'ollama',
-    () =>
-      import(
-        /* webpackChunkName: "provider-ollama" */
-        './impl/OllamaProvider'
-      ).then((m) => ({ default: m.OllamaProvider })),
-  ],
-  [
-    'deepseek',
-    () =>
-      import(
-        /* webpackChunkName: "provider-deepseek" */
-        './impl/DeepseekProvider'
-      ).then((m) => ({ default: m.DeepseekProvider })),
-  ],
-  [
-    'openrouter',
-    () =>
-      import(
-        /* webpackChunkName: "provider-openrouter" */
-        './impl/OpenRouterProvider'
-      ).then((m) => ({ default: m.OpenRouterProvider })),
-  ],
-  [
-    'zai-paas',
-    () =>
-      import(
-        /* webpackChunkName: "provider-zai-paas" */
-        './impl/ZaiPaaSProvider'
-      ).then((m) => ({ default: m.ZaiPaaSProvider })),
-  ],
-  [
-    'zai-coding',
-    () =>
-      import(
-        /* webpackChunkName: "provider-zai-coding" */
-        './impl/ZaiCodingProvider'
-      ).then((m) => ({ default: m.ZaiCodingProvider })),
-  ],
+const PROVIDER_REGISTRY: ReadonlyMap<string, ProviderConstructor> = new Map<string, ProviderConstructor>([
+  ['openai', OpenAIProvider as ProviderConstructor],
+  ['claude', ClaudeProvider as ProviderConstructor],
+  ['gemini', GeminiProvider as ProviderConstructor],
+  ['mistral', MistralProvider as ProviderConstructor],
+  ['ollama', OllamaProvider as ProviderConstructor],
+  ['deepseek', DeepseekProvider as ProviderConstructor],
+  ['openrouter', OpenRouterProvider as ProviderConstructor],
+  ['zai-paas', ZaiPaaSProvider as ProviderConstructor],
+  ['zai-coding', ZaiCodingProvider as ProviderConstructor],
 ]);
-
-/**
- * Cache for loaded provider classes to avoid repeated dynamic imports.
- */
-const loadedProviderClasses = new Map<string, ProviderConstructor>();
 
 // ============================================================================
 // TOKEN DEFINITIONS
@@ -177,7 +111,7 @@ function isIProvider(value: unknown): value is IProvider {
  * ProviderFactory manages the lifecycle and registration of AI Provider instances.
  *
  * This factory is responsible for:
- * - Loading providers on-demand using dynamic imports (code-splitting)
+ * - Resolving statically registered provider classes
  * - Caching loaded provider instances for performance
  * - Wrapping legacy BaseProvider implementations with BaseProviderAdapter
  * - Maintaining a registry of available providers
@@ -223,8 +157,8 @@ export class ProviderFactory {
   /**
    * Initializes the ProviderFactory and registers provider tokens.
    *
-   * This method is called by the constructor. It prepares the provider
-   * registry but does NOT load provider modules - they are loaded on-demand.
+   * This method is called by the constructor. Providers are statically
+   * imported, so registration is purely bookkeeping.
    *
    * @remarks
    * This method is idempotent - calling it multiple times has no effect.
@@ -235,9 +169,9 @@ export class ProviderFactory {
       return;
     }
 
-    this.logger.info('Initializing ProviderFactory with lazy loading');
+    this.logger.info('Initializing ProviderFactory');
 
-    // Register provider IDs (but don't load the modules yet)
+    // Register provider IDs
     for (const providerId of PROVIDER_ID_TO_TOKEN.keys()) {
       const token = PROVIDER_ID_TO_TOKEN.get(providerId);
       if (token) {
@@ -252,40 +186,17 @@ export class ProviderFactory {
   }
 
   /**
-   * Loads a provider class dynamically using code-splitting.
+   * Resolves a provider class from the static registry.
    *
-   * @param providerId - The provider ID to load
+   * @param providerId - The provider ID to resolve
    * @returns The provider class constructor
-   * @throws {Error} If provider cannot be loaded
+   * @throws {Error} If provider is not in the registry
    */
-  private async loadProviderClass(providerId: string): Promise<ProviderConstructor> {
-    // Check cache first
-    const cachedClass = loadedProviderClasses.get(providerId);
-    if (cachedClass) {
-      this.logger.debug('Provider class loaded from cache', { providerId });
-      return cachedClass;
-    }
-
-    // Get the loader function
-    const loader = PROVIDER_LOADERS.get(providerId);
-    if (!loader) {
-      throw new Error(`No loader found for provider: ${providerId}`);
-    }
-
-    this.logger.debug('Loading provider module (code-split)', { providerId });
-
-    // Dynamic import - webpack will create a separate chunk
-    const module = await loader();
-    const ProviderClass = module.default;
-
+  private getProviderClass(providerId: string): ProviderConstructor {
+    const ProviderClass = PROVIDER_REGISTRY.get(providerId);
     if (!ProviderClass) {
-      throw new Error(`Provider class not found in module for: ${providerId}`);
+      throw new Error(`No provider class registered for: ${providerId}`);
     }
-
-    // Cache for future use
-    loadedProviderClasses.set(providerId, ProviderClass);
-    this.logger.debug('Provider class loaded and cached', { providerId });
-
     return ProviderClass;
   }
 
@@ -298,8 +209,8 @@ export class ProviderFactory {
   private async createProviderAdapter(providerId: string): Promise<IProvider> {
     this.logger.debug('Creating provider adapter', { providerId });
 
-    // Load the provider class dynamically
-    const ProviderClass = await this.loadProviderClass(providerId);
+    // Resolve the statically imported provider class
+    const ProviderClass = this.getProviderClass(providerId);
 
     // Instantiate the provider with logger
     const providerInstance = new ProviderClass(this.logger) as BaseProvider;
@@ -316,8 +227,9 @@ export class ProviderFactory {
   /**
    * Gets a provider instance by its provider ID.
    *
-   * This method loads the provider module on-demand using dynamic imports,
-   * enabling code-splitting to reduce initial bundle size.
+   * All providers are statically imported and bundled — dynamic import()
+   * code-splitting is intentionally avoided because the packaged extension
+   * only ships the main bundles (async chunks would 404 at runtime).
    *
    * @param providerId - The unique identifier for the provider (e.g., 'openai', 'claude')
    * @returns Promise resolving to the IProvider instance
@@ -350,9 +262,9 @@ export class ProviderFactory {
     }
 
     try {
-      this.logger.debug('Loading provider (lazy load)', { providerId });
+      this.logger.debug('Resolving provider', { providerId });
 
-      // Create the adapter (which loads the provider class dynamically)
+      // Create the adapter (resolves the statically imported provider class)
       const adapter = await this.createProviderAdapter(providerId);
 
       // Validate the adapter implements IProvider
@@ -494,7 +406,6 @@ export class ProviderFactory {
     container.reset();
     this.registeredProviders.clear();
     this.adapterCache.clear();
-    loadedProviderClasses.clear();
     this.initialized = false;
   }
 }

@@ -4,9 +4,9 @@
  * Provides access to IProvider interface, BaseProviderAdapter implementation,
  * and ProviderFactory.
  *
- * Note: Provider implementations are lazy-loaded via ProviderFactory.getProvider()
- * to enable code-splitting and reduce initial bundle size. Direct imports of
- * provider classes are available but should be avoided in production code.
+ * Note: Provider implementations are statically bundled and resolved via
+ * ProviderFactory.getProvider() (no async chunks — MailExtensions cannot ship
+ * split chunks in an xpi).
  */
 
 export type {
@@ -22,6 +22,7 @@ export type {
 
 export { BaseProviderAdapter } from './BaseProviderAdapter';
 export { ProviderFactory, ProviderTokens } from './ProviderFactory';
+import { ZaiPaaSProvider } from './impl/ZaiPaaSProvider';
 
 export { BaseProvider } from './BaseProvider';
 
@@ -33,18 +34,12 @@ export { BaseProvider } from './BaseProvider';
  * Fetches available models from Z.ai API.
  *
  * Helper function for UI code that needs to fetch models without DI.
- * Uses dynamic import for code-splitting - ZaiPaaSProvider is loaded on demand.
+ * ZaiPaaSProvider is statically imported (no async chunks in MailExtensions).
  *
  * @param apiKey - The API key for authentication
  * @returns Promise resolving to an array of available model names
  */
 export async function fetchZaiModels(apiKey: string): Promise<string[]> {
-  // Dynamic import for code-splitting
-  const { ZaiPaaSProvider } = await import(
-    /* webpackChunkName: "provider-zai-paas" */
-    './impl/ZaiPaaSProvider'
-  );
-
   const provider = new ZaiPaaSProvider({
     debug: () => {},
     info: () => {},

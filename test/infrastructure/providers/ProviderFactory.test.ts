@@ -55,9 +55,7 @@ describe('ProviderFactory', () => {
     });
 
     it('should log initialization', () => {
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'Initializing ProviderFactory with lazy loading'
-      );
+      expect(mockLogger.info).toHaveBeenCalledWith('Initializing ProviderFactory');
     });
   });
 
@@ -290,20 +288,21 @@ describe('ProviderFactory', () => {
   });
 
   // ==========================================================================
-  // Code-Splitting Tests
+  // Static Registry Tests
   // ==========================================================================
 
-  describe('code-splitting', () => {
-    it('should lazy load providers on demand', async () => {
-      // Provider should not be loaded until requested
+  describe('static registry', () => {
+    it('should resolve providers via the static registry', async () => {
+      // All providers are statically imported — no async chunk loading
       const provider = await factory.getProvider('gemini');
       expect(provider).toBeDefined();
-      expect(mockLogger.debug).toHaveBeenCalledWith('Loading provider module (code-split)', {
+      expect(provider.providerId).toBe('gemini');
+      expect(mockLogger.debug).toHaveBeenCalledWith('Resolving provider', {
         providerId: 'gemini',
       });
     });
 
-    it('should serve from cache after first load', async () => {
+    it('should serve from cache after first resolution', async () => {
       await factory.getProvider('claude');
 
       // Second call should use cache
@@ -312,6 +311,25 @@ describe('ProviderFactory', () => {
       expect(mockLogger.debug).toHaveBeenCalledWith('Provider adapter served from cache', {
         providerId: 'claude',
       });
+    });
+
+    it('should resolve every registered provider with correct providerId', async () => {
+      const expected: Record<string, string> = {
+        openai: 'openai',
+        claude: 'claude',
+        gemini: 'gemini',
+        mistral: 'mistral',
+        ollama: 'ollama',
+        deepseek: 'deepseek',
+        openrouter: 'openrouter',
+        'zai-paas': 'zai-paas',
+        'zai-coding': 'zai-coding',
+      };
+
+      for (const [id, expectedId] of Object.entries(expected)) {
+        const provider = await factory.getProvider(id);
+        expect(provider.providerId).toBe(expectedId);
+      }
     });
   });
 });
