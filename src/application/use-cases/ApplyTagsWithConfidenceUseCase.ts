@@ -11,6 +11,7 @@ import { injectable, inject } from 'tsyringe';
 import type { ITagManager, ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { meetsTagThreshold, getEffectiveThreshold } from '@/shared/utils/confidenceUtils';
+import { HARDCODED_TAG_KEYS } from '@/shared/constants/TagConstants';
 import type { Tag } from '@/shared/types/ProviderTypes';
 
 // ============================================================================
@@ -148,13 +149,29 @@ export class ApplyTagsWithConfidenceUseCase {
 
       // Build tag lookup map for threshold overrides
       const tagMap = new Map<string, Tag>();
-      customTags.forEach((tag) => tagMap.set(tag.key, tag));
+      customTags.forEach((tag) => {
+        tagMap.set(tag.key, tag);
+      });
+
+      // Whitelist: drop tag keys not in the known set (hardcoded + custom).
+      // LLM hallucinations must never reach threshold/apply logic or throw.
+      const knownKeys = new Set<string>(HARDCODED_TAG_KEYS);
+      customTags.forEach((tag) => {
+        knownKeys.add(tag.key);
+      });
+      const validTagKeys = tagKeys.filter((tagKey) => {
+        if (knownKeys.has(tagKey)) {
+          return true;
+        }
+        this.logger.warn('⚠️  Dropping unknown tag key from LLM result', { tagKey });
+        return false;
+      });
 
       // Filter tags based on confidence thresholds
       const tagsToApply: string[] = [];
       const lowConfidenceFlags: LowConfidenceFlag[] = [];
 
-      for (const tagKey of tagKeys) {
+      for (const tagKey of validTagKeys) {
         const tag = tagMap.get(tagKey);
         const effectiveThreshold = getEffectiveThreshold(tag ?? {}, globalThreshold);
         const thresholdType = tag?.minConfidenceThreshold !== undefined ? 'custom' : 'global';

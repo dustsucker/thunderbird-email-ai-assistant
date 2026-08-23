@@ -15,20 +15,30 @@ import type { Tag } from '../../../src/shared/types/ProviderTypes';
 import {
   createMockLogger,
   createMockConfigRepository,
-  createDefaultAppConfig,
 } from '../../helpers/mock-factories';
 
 // ============================================================================
 // Test Fixtures
 // ============================================================================
 
-const createMockTag = (overrides: Partial<Tag> = {}): Tag => ({
+const _createMockTag = (overrides: Partial<Tag> = {}): Tag => ({
   key: 'business',
   name: 'Business',
   color: '#FF0000',
   prompt: 'Test prompt',
   ...overrides,
 });
+
+/**
+ * Known custom tags (the whitelist used by the use case). Tests that apply
+ * 'business' / 'personal' / 'newsletter' rely on these being known keys.
+ */
+const KNOWN_CUSTOM_TAGS: ICustomTag[] = ['business', 'personal', 'newsletter'].map((key) => ({
+  key,
+  name: key,
+  color: '#FF0000',
+  prompt: 'Test prompt',
+}));
 
 // ============================================================================
 // Tests
@@ -95,7 +105,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
         minConfidenceThreshold: 70,
       } as IAppConfig);
 
-      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue([]);
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue(KNOWN_CUSTOM_TAGS);
       vi.mocked(mockTagManager.setTagsOnMessage).mockResolvedValue();
     });
 
@@ -145,7 +155,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
         minConfidenceThreshold: 70,
       } as IAppConfig);
 
-      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue([]);
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue(KNOWN_CUSTOM_TAGS);
       vi.mocked(mockTagManager.setTagsOnMessage).mockResolvedValue();
     });
 
@@ -267,7 +277,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
         minConfidenceThreshold: 70,
       } as IAppConfig);
 
-      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue([]);
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue(KNOWN_CUSTOM_TAGS);
       vi.mocked(mockTagManager.setTagsOnMessage).mockResolvedValue();
     });
 
@@ -307,7 +317,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
         minConfidenceThreshold: 70,
       } as IAppConfig);
 
-      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue([]);
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue(KNOWN_CUSTOM_TAGS);
 
       const error = new Error('Tag manager error');
       vi.mocked(mockTagManager.setTagsOnMessage).mockRejectedValue(error);
@@ -328,7 +338,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
         minConfidenceThreshold: 70,
       } as IAppConfig);
 
-      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue([]);
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue(KNOWN_CUSTOM_TAGS);
       vi.mocked(mockTagManager.setTagsOnMessage).mockRejectedValue('String error');
 
       await expect(useCase.execute('123', ['business'], 0.85)).rejects.toThrow('String error');
@@ -352,7 +362,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
         minConfidenceThreshold: 70,
       } as IAppConfig);
 
-      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue([]);
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue(KNOWN_CUSTOM_TAGS);
       vi.mocked(mockTagManager.setTagsOnMessage).mockResolvedValue();
     });
 
@@ -399,7 +409,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
         minConfidenceThreshold: 70,
       } as IAppConfig);
 
-      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue([]);
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue(KNOWN_CUSTOM_TAGS);
       vi.mocked(mockTagManager.setTagsOnMessage).mockResolvedValue();
     });
 
@@ -437,9 +447,50 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
     });
 
     it('should handle negative message IDs', async () => {
-      const result = await useCase.execute('-1', ['business'], 0.85);
+      await useCase.execute('-1', ['business'], 0.85);
 
       expect(mockTagManager.setTagsOnMessage).toHaveBeenCalledWith(-1, ['business']);
+    });
+  });
+
+  // ==========================================================================
+  // DW4: LLM Tag Whitelist - unknown keys are dropped, not errors
+  // ==========================================================================
+
+  describe('tag whitelist (DW4)', () => {
+    beforeEach(() => {
+      vi.mocked(mockConfigRepository.getAppConfig).mockResolvedValue({
+        defaultProvider: 'openai',
+        minConfidenceThreshold: 70,
+      } as IAppConfig);
+
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue(KNOWN_CUSTOM_TAGS);
+      vi.mocked(mockTagManager.setTagsOnMessage).mockResolvedValue();
+    });
+
+    it('should drop unknown tag keys and apply only known keys (no error)', async () => {
+      const result = await useCase.execute('123', ['business', 'hallucinated_tag_xyz'], 0.85);
+
+      // Only the known key is applied; no throw, no all-or-nothing failure
+      expect(mockTagManager.setTagsOnMessage).toHaveBeenCalledWith(123, ['business']);
+      expect(result.appliedTags).toEqual(['business']);
+      expect(result.lowConfidenceFlags).toEqual([]);
+    });
+
+    it('should drop unknown keys before threshold logic (no low-confidence flag)', async () => {
+      const result = await useCase.execute('123', ['hallucinated_tag_xyz'], 0.5);
+
+      expect(result.appliedTags).toEqual([]);
+      expect(result.lowConfidenceFlags).toEqual([]);
+    });
+
+    it('should accept hardcoded tag keys even without custom tags', async () => {
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue([]);
+
+      const result = await useCase.execute('123', ['is_scam'], 0.85);
+
+      expect(result.appliedTags).toEqual(['is_scam']);
+      expect(mockTagManager.setTagsOnMessage).toHaveBeenCalledWith(123, ['is_scam']);
     });
   });
 });

@@ -18,14 +18,13 @@ interface MessageProperties {
 
 declare const messenger: {
   messages: {
-    listTags(): Promise<unknown[]>;
+    get(id: number): Promise<{ id: number; tags?: string[] }>;
     tags: {
+      list(): Promise<unknown[]>;
       create(key: string, tag: string, color: string): Promise<ThunderbirdTag>;
       update(key: string, updateData: { color?: string; tag?: string }): Promise<ThunderbirdTag>;
       delete(key: string): Promise<void>;
     };
-    addTags(ids: number[], tags: string[]): Promise<void>;
-    removeTags(ids: number[], tags: string[]): Promise<void>;
     update(id: number, properties: MessageProperties): Promise<MessageProperties>;
   };
 };
@@ -223,7 +222,7 @@ export class ThunderbirdTagManager implements ITagManager {
     this.logger.debug('Fetching all tags from Thunderbird');
 
     try {
-      const tags = await messenger.messages.listTags();
+      const tags = await messenger.messages.tags.list();
 
       if (!isThunderbirdTagArray(tags)) {
         this.logger.error('Invalid tag list received from Thunderbird', { tags });
@@ -498,6 +497,30 @@ export class ThunderbirdTagManager implements ITagManager {
   // ==========================================================================
 
   /**
+   * Replaces all AI-namespace (`_ma_`-prefixed) tags on a message while
+   * preserving every non-AI tag (e.g. `$label1`).
+   *
+   * Reads the current tag list via `messages.get()`, strips only `_ma_` keys,
+   * merges in the given AI keys, and writes the full list back via
+   * `messages.update()`.
+   *
+   * @param messageId - Thunderbird message ID
+   * @param aiKeys - Internal (`_ma_`-prefixed) tag keys to set (empty = clear AI tags)
+   */
+  private async replaceAiTags(messageId: number, aiKeys: string[]): Promise<void> {
+    const header = await messenger.messages.get(messageId);
+    const currentTags = header.tags ?? [];
+    const preservedTags = currentTags.filter((key) => !key.startsWith(TAG_KEY_PREFIX));
+    const newTags = [...preservedTags, ...aiKeys];
+    await messenger.messages.update(messageId, { tags: newTags });
+    this.logger.debug('Replaced AI tags on message (non-AI tags preserved)', {
+      messageId,
+      preservedTags,
+      aiKeys,
+    });
+  }
+
+  /**
    * @inheritdoc
    */
   async addTagToMessage(messageId: number, tagKey: string): Promise<void> {
@@ -513,7 +536,13 @@ export class ThunderbirdTagManager implements ITagManager {
         throw new Error(`Tag '${tagKey}' does not exist`);
       }
 
-      await messenger.messages.addTags([messageId], [internalKey]);
+      // Keep all current tags (AI and non-AI), add the new internal key
+      const header = await messenger.messages.get(messageId);
+      const currentTags = header.tags ?? [];
+      if (!currentTags.includes(internalKey)) {
+        const currentAiTags = currentTags.filter((key) => key.startsWith(TAG_KEY_PREFIX));
+        await this.replaceAiTags(messageId, [...currentAiTags, internalKey]);
+      }
       this.logger.debug('Tag added to message', { messageId, internalKey });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -532,7 +561,10 @@ export class ThunderbirdTagManager implements ITagManager {
       // Convert defined key to internal key (with _ma_ prefix)
       const internalKey = await this.convertToInternalKey(tagKey);
 
-      await messenger.messages.removeTags([messageId], [internalKey]);
+      // Keep everything except the removed internal key (non-AI tags preserved)
+      const header = await messenger.messages.get(messageId);
+      const remainingTags = (header.tags ?? []).filter((key) => key !== internalKey);
+      await messenger.messages.update(messageId, { tags: remainingTags });
       this.logger.debug('Tag removed from message', { messageId, internalKey });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -581,7 +613,8 @@ export class ThunderbirdTagManager implements ITagManager {
         throw new Error(`Tags do not exist: ${invalidTags.join(', ')}`);
       }
 
-      await messenger.messages.update(messageId, { tags: internalTagKeys });
+      // Replace only AI-namespace tags; preserve all other tags
+      await this.replaceAiTags(messageId, internalTagKeys);
       this.logger.debug('Tags set on message', { messageId, tagKeys: internalTagKeys });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -598,11 +631,12 @@ export class ThunderbirdTagManager implements ITagManager {
    * @inheritdoc
    */
   async clearTagsFromMessage(messageId: number): Promise<void> {
-    this.logger.debug('Clearing tags from message', { messageId });
+    this.logger.debug('Clearing AI tags from message', { messageId });
 
     try {
-      await messenger.messages.update(messageId, { tags: [] });
-      this.logger.debug('Tags cleared from message', { messageId });
+      // Remove only AI-namespace tags; preserve all other tags
+      await this.replaceAiTags(messageId, []);
+      this.logger.debug('AI tags cleared from message', { messageId });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to clear tags from message', { messageId, error: errorMessage });
@@ -695,7 +729,10 @@ export class ThunderbirdTagManager implements ITagManager {
         throw new Error(`Tag '${tagKey}' does not exist`);
       }
 
-      await messenger.messages.addTags(messageIds, [internalKey]);
+      // Add tag to each message, preserving all existing (non-replaced) tags
+      for (const messageId of messageIds) {
+        await this.addTagToMessage(messageId, tagKey);
+      }
       this.logger.debug('Tag added to messages', { count: messageIds.length, internalKey });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -728,9 +765,9 @@ export class ThunderbirdTagManager implements ITagManager {
       throw new Error(`Tags do not exist: ${invalidTags.join(', ')}`);
     }
 
-    // Use update() instead of setTags() for each message
+    // Replace only AI-namespace tags on each message; preserve all other tags
     for (const messageId of messageIds) {
-      await messenger.messages.update(messageId, { tags: internalTagKeys });
+      await this.replaceAiTags(messageId, internalTagKeys);
     }
     this.logger.debug('Tags set on messages', {
       messageIds,

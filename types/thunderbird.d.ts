@@ -51,6 +51,33 @@ interface Tab {
 // ============================================================================
 
 /**
+ * A message header as returned by the Thunderbird messages API.
+ */
+interface MessageHeader {
+  id: number;
+  tags?: string[];
+  [key: string]: unknown;
+}
+
+/**
+ * A paginated message list (Thunderbird WebExtension schema).
+ */
+interface MessageList {
+  id: string | null;
+  messages: MessageHeader[];
+}
+
+/**
+ * A Thunderbird message tag definition.
+ */
+interface MessageTag {
+  key: string;
+  tag: string;
+  color: string;
+  ordinal: string;
+}
+
+/**
  * Thunderbird messenger global object.
  */
 declare const messenger: {
@@ -64,12 +91,23 @@ declare const messenger: {
       ): void;
     };
     getFull(messageId: number): Promise<unknown>;
-    list(folderId?: string): Promise<{ messages: Array<{ id: number }> }>;
-    get(messageId: number): Promise<{ id: number; tags?: string[] }>;
-    update(messageId: number, properties: { tags: string[] }): Promise<void>;
+    list(folderId?: string): Promise<MessageList>;
+    continueList(listId: string): Promise<MessageList>;
+    abortList(listId: string): Promise<boolean>;
+    get(messageId: number): Promise<MessageHeader>;
+    update(messageId: number, properties: { tags?: string[] }): Promise<void>;
+    tags: {
+      list(): Promise<MessageTag[]>;
+      create(key?: string, tag?: string, color?: string): Promise<MessageTag>;
+      update(
+        key: string,
+        updateProperties: { tag?: string; color?: string; ordinal?: string }
+      ): Promise<MessageTag>;
+      delete(key: string): Promise<boolean>;
+    };
   };
   messageDisplay: {
-    getDisplayedMessage(tabId?: number): Promise<{ id: number } | null>;
+    getDisplayedMessages(tabId?: number): Promise<MessageHeader[]>;
   };
   storage: {
     local: {

@@ -24,7 +24,6 @@ import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
-import { EventBus } from '@/domain/events/EventBus';
 import type { Tag } from '@/shared/types/ProviderTypes';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 import { RetrieveEmailUseCase } from '@/application/use-cases/RetrieveEmailUseCase';
@@ -48,7 +47,6 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
   let providerFactory: ProviderFactory;
   let cache: ICache;
   let contentExtractor: EmailContentExtractor;
-  let eventBus: EventBus;
   let configRepository: IConfigRepository;
   let analysisTracker: EmailAnalysisTracker;
   let analyzeEmail: AnalyzeEmail;
@@ -176,13 +174,6 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       cleanupExpired: vi.fn(),
     };
 
-    // Mock EventBus
-    eventBus = {
-      publish: vi.fn().mockResolvedValue(undefined),
-      subscribe: vi.fn(),
-      unsubscribe: vi.fn(),
-    } as unknown as EventBus;
-
     // Mock ConfigRepository
     configRepository = {
       getProviderSettings: vi.fn(),
@@ -226,7 +217,6 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
     analyzeEmail = new AnalyzeEmail(
       providerFactory,
       configRepository,
-      eventBus,
       analysisTracker,
       logger,
       retrieveEmailUseCase,
@@ -653,7 +643,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       expect(result.confidence).toBe(0.0);
     });
 
-    it('should handle tag not in custom tags list', async () => {
+    it('should drop tag not in known tag list (LLM whitelist)', async () => {
       // Setup: Provider returns unknown tag
       mockProvider.analyze = vi.fn().mockResolvedValue({
         tags: ['unknown_tag'],
@@ -664,9 +654,9 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       // Execute
       const result = await analyzeEmail.execute('123', mockProviderSettings);
 
-      // Verify: Tag should use global threshold (no custom override found)
-      // 85% >= 70% global threshold, so should be applied
-      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, ['unknown_tag']);
+      // Verify: Unknown tag is dropped before threshold/apply logic (no error)
+      expect(tagManager.setTagsOnMessage).toHaveBeenCalledWith(123, []);
+      // Note: result.tags reflects the provider output (AnalyzeEmail does not filter it)
       expect(result.tags).toEqual(['unknown_tag']);
     });
 

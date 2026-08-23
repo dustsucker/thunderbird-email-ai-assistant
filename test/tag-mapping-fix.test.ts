@@ -20,7 +20,6 @@ import { ApplyTagsToEmail } from '@/application/use-cases/ApplyTagsToEmail';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository, ICustomTag } from '@/infrastructure/interfaces/IConfigRepository';
 import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
-import { EventBus } from '@/domain/events/EventBus';
 import { HARDCODED_TAGS, TAG_KEY_PREFIX } from '../src/shared/constants/TagConstants';
 
 /**
@@ -59,18 +58,17 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
     },
   ];
 
-  // Mock messenger API
+  // Mock messenger API (real API surface: tags.list, messages.get/update)
   const mockMessenger = {
     messages: {
-      listTags: vi.fn().mockResolvedValue([]),
       tags: {
+        list: vi.fn().mockResolvedValue([]),
         create: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
       },
-      addTags: vi.fn(),
-      removeTags: vi.fn(),
-      update: vi.fn(),
+      get: vi.fn().mockResolvedValue({ id: 0, tags: [] }),
+      update: vi.fn().mockResolvedValue(undefined),
     },
   };
 
@@ -615,7 +613,6 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
 
   describe('ensureAllTagsExist() - Hardcoded and Custom Tag Creation', () => {
     let applyTagsToEmail: ApplyTagsToEmail;
-    let eventBus: EventBus;
     let mockTagManager: ITagManager;
 
     // Track created tags
@@ -624,13 +621,6 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
     beforeEach(() => {
       vi.clearAllMocks();
       createdTags.length = 0; // Reset created tags tracker
-
-      // Mock EventBus
-      eventBus = {
-        publish: vi.fn().mockResolvedValue(undefined),
-        subscribe: vi.fn(),
-        unsubscribe: vi.fn(),
-      } as unknown as EventBus;
 
       // Mock messenger tags.create to track created tags
       mockMessenger.messages.tags.create = vi
@@ -686,7 +676,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
       };
 
       // Create ApplyTagsToEmail instance with mocked tag manager
-      applyTagsToEmail = new ApplyTagsToEmail(mockTagManager, logger, eventBus, configRepository);
+      applyTagsToEmail = new ApplyTagsToEmail(mockTagManager, logger, configRepository);
     });
 
     describe('Hardcoded Tag Creation', () => {
@@ -1096,7 +1086,6 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
 
   describe('Integration - Tag Application Flow with Custom Tags', () => {
     let applyTagsToEmail: ApplyTagsToEmail;
-    let eventBus: EventBus;
     let mockTagManager: ITagManager;
     let existingTags: Map<string, any>;
 
@@ -1106,15 +1095,8 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
       // Track existing tags
       existingTags = new Map();
 
-      // Mock EventBus
-      eventBus = {
-        publish: vi.fn().mockResolvedValue(undefined),
-        subscribe: vi.fn(),
-        unsubscribe: vi.fn(),
-      } as unknown as EventBus;
-
       // Mock messenger API
-      mockMessenger.messages.listTags = vi.fn().mockResolvedValue([]);
+      mockMessenger.messages.tags.list = vi.fn().mockResolvedValue([]);
       mockMessenger.messages.tags.create = vi
         .fn()
         .mockImplementation(async (key: string, tag: string, color: string) => {
@@ -1122,7 +1104,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
           existingTags.set(key, createdTag);
           return createdTag;
         });
-      mockMessenger.messages.addTags = vi.fn().mockResolvedValue(undefined);
+      mockMessenger.messages.update = vi.fn().mockResolvedValue(undefined);
 
       // Create a proper mock ITagManager
       mockTagManager = {
@@ -1176,8 +1158,8 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
               return key.startsWith(TAG_KEY_PREFIX) ? key : `${TAG_KEY_PREFIX}${key}`;
             });
 
-            // Apply tags via messenger API
-            await mockMessenger.messages.addTags(messageId, internalKeys);
+            // Apply tags via messenger API (mock replaces the AI tag list)
+            await mockMessenger.messages.update(messageId, { tags: internalKeys });
 
             // Return success (actual implementation doesn't return anything)
             return undefined;
@@ -1188,7 +1170,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
       };
 
       // Create ApplyTagsToEmail instance
-      applyTagsToEmail = new ApplyTagsToEmail(mockTagManager, logger, eventBus, configRepository);
+      applyTagsToEmail = new ApplyTagsToEmail(mockTagManager, logger, configRepository);
     });
 
     describe('Custom Tag Application Flow', () => {
@@ -1199,10 +1181,10 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         });
 
         // Verify: Tags were applied with correct internal keys
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, [
+        expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, { tags: [
           '_ma_is_advertise',
           '_ma_newsletter',
-        ]);
+        ] });
 
         // Verify: Result includes applied tags
         expect(result.appliedTags).toEqual(['is_advertise', 'newsletter']);
@@ -1230,10 +1212,10 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         );
 
         // Verify: Tags were applied after creation
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, [
+        expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, { tags: [
           '_ma_is_advertise',
           '_ma_newsletter',
-        ]);
+        ] });
 
         // Verify: Result indicates success
         expect(result.appliedTags).toEqual(['is_advertise', 'newsletter']);
@@ -1248,11 +1230,11 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         );
 
         // Verify: All tags applied with correct internal keys
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, [
+        expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, { tags: [
           '_ma_is_scam',
           '_ma_is_advertise',
           '_ma_tagged',
-        ]);
+        ] });
 
         // Verify: All tags in result
         expect(result.appliedTags).toEqual(['is_scam', 'is_advertise', 'tagged']);
@@ -1271,7 +1253,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         expect(result.skippedTags).toEqual(['undefined_tag_xyz']);
 
         // Verify: Only valid tag was sent to messenger API
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, ['_ma_is_advertise']);
+        expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, { tags: ['_ma_is_advertise'] });
       });
 
       it('should filter out empty tag keys', async () => {
@@ -1285,7 +1267,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         expect(result.skippedTags).toEqual(['']);
 
         // Verify: addTags was called with empty array (implementation still calls it)
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, []);
+        expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, { tags: [] });
       });
     });
 
@@ -1297,9 +1279,9 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         });
 
         // Verify: Applied using internal key
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, [
+        expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, { tags: [
           '_ma_is_service_not_important',
-        ]);
+        ] });
         expect(result.appliedTags).toEqual(['is_service_not_important']);
       });
 
@@ -1323,7 +1305,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         });
 
         // Verify: Correct mapping
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, ['_ma_my_custom_tag']);
+        expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, { tags: ['_ma_my_custom_tag'] });
         expect(result.appliedTags).toEqual(['my_custom_tag']);
       });
 
@@ -1343,7 +1325,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
     describe('Error Handling in Application Flow', () => {
       it('should handle tag application failure gracefully', async () => {
         // Setup: addTags throws error
-        mockMessenger.messages.addTags = vi.fn().mockRejectedValue(new Error('API Error'));
+        mockMessenger.messages.update = vi.fn().mockRejectedValue(new Error('API Error'));
 
         // Execute: Should throw error (ApplyTagsToEmail propagates errors)
         await expect(
@@ -1364,7 +1346,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
 
       it('should throw error when tag application fails', async () => {
         // Setup: addTags throws error
-        mockMessenger.messages.addTags = vi.fn().mockRejectedValue(new Error('Network Error'));
+        mockMessenger.messages.update = vi.fn().mockRejectedValue(new Error('Network Error'));
 
         // Execute: Should throw error
         await expect(
@@ -1381,7 +1363,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         });
 
         // Verify: Duplicates are handled (deduplicated in result)
-        expect(mockMessenger.messages.addTags).toHaveBeenCalled();
+        expect(mockMessenger.messages.update).toHaveBeenCalled();
         expect(result.appliedTags).toContain('is_advertise');
         // Note: Implementation may deduplicate, so we just verify the tag was applied
       });
@@ -1409,7 +1391,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         expect(createdKeys).toContain('_ma_newsletter');
 
         // Verify: Tag applied
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, ['_ma_is_advertise']);
+        expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, { tags: ['_ma_is_advertise'] });
         expect(result.appliedTags).toEqual(['is_advertise']);
       });
 
@@ -1439,11 +1421,11 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         );
 
         // Verify: All applied
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, [
+        expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, { tags: [
           '_ma_is_advertise',
           '_ma_newsletter',
           '_ma_is_service_not_important',
-        ]);
+        ] });
 
         // Verify: Result
         expect(result.appliedTags).toHaveLength(3);
@@ -1468,52 +1450,37 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
       });
     });
 
-    describe('Event Publishing in Application Flow', () => {
-      it('should publish event when custom tags applied successfully', async () => {
+    describe('Result reporting in application flow (events removed)', () => {
+      it('should report applied tags when custom tags applied successfully', async () => {
         // Execute
-        await applyTagsToEmail.execute('123', ['is_advertise'], {
+        const result = await applyTagsToEmail.execute('123', ['is_advertise'], {
           createMissingTags: false,
         });
 
-        // Verify: Event published with correct structure
-        expect(eventBus.publish).toHaveBeenCalledWith(
-          expect.objectContaining({
-            eventType: 'TagApplied',
-            messageId: '123',
-            appliedTags: ['is_advertise'],
-          })
-        );
+        // Verify: result reports the applied tags
+        expect(result.messageId).toBe('123');
+        expect(result.appliedTags).toEqual(['is_advertise']);
       });
 
-      it('should publish event with both hardcoded and custom tags', async () => {
+      it('should report both hardcoded and custom tags', async () => {
         // Execute
-        await applyTagsToEmail.execute('123', ['is_scam', 'is_advertise'], {
+        const result = await applyTagsToEmail.execute('123', ['is_scam', 'is_advertise'], {
           createMissingTags: false,
         });
 
-        // Verify: Event includes both tag types
-        expect(eventBus.publish).toHaveBeenCalledWith(
-          expect.objectContaining({
-            eventType: 'TagApplied',
-            appliedTags: ['is_scam', 'is_advertise'],
-          })
-        );
+        // Verify: result includes both tag types
+        expect(result.appliedTags).toEqual(['is_scam', 'is_advertise']);
       });
 
-      it('should publish event with skipped tags when invalid tags provided', async () => {
+      it('should report skipped tags when invalid tags provided', async () => {
         // Execute with valid and invalid tags
-        await applyTagsToEmail.execute('123', ['is_advertise', 'undefined_tag_xyz'], {
+        const result = await applyTagsToEmail.execute('123', ['is_advertise', 'undefined_tag_xyz'], {
           createMissingTags: false,
         });
 
-        // Verify: Event includes applied and skipped tags
-        expect(eventBus.publish).toHaveBeenCalledWith(
-          expect.objectContaining({
-            eventType: 'TagApplied',
-            appliedTags: ['is_advertise'],
-            skippedTags: ['undefined_tag_xyz'],
-          })
-        );
+        // Verify: result includes applied and skipped tags
+        expect(result.appliedTags).toEqual(['is_advertise']);
+        expect(result.skippedTags).toEqual(['undefined_tag_xyz']);
       });
     });
 
@@ -1553,13 +1520,80 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         const tagKeys = ['is_advertise', 'newsletter', 'is_service_not_important'];
         await applyTagsToEmail.execute('123', tagKeys, { createMissingTags: false });
 
-        // Verify: Single batch call to addTags
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledTimes(1);
-        expect(mockMessenger.messages.addTags).toHaveBeenCalledWith(123, [
-          '_ma_is_advertise',
-          '_ma_newsletter',
-          '_ma_is_service_not_important',
-        ]);
+        // Verify: Single batch call to update
+        expect(mockMessenger.messages.update).toHaveBeenCalledTimes(1);
+        expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, {
+          tags: ['_ma_is_advertise', '_ma_newsletter', '_ma_is_service_not_important'],
+        });
+      });
+    });
+  });
+
+  // ==========================================================================
+  // DW3: Merge-preserving tag writes (non-AI tags must survive)
+  // ==========================================================================
+
+  describe('Merge-preserving tag writes (DW3)', () => {
+    it('should preserve non-AI tags (e.g. $label1) when setting AI tags', async () => {
+      // Setup: message has a user tag and a stale AI tag
+      mockMessenger.messages.get = vi
+        .fn()
+        .mockResolvedValue({ id: 123, tags: ['$label1', '_ma_is_scam'] });
+      mockMessenger.messages.update = vi.fn().mockResolvedValue(undefined);
+      // Tag definitions exist so validation passes
+      mockMessenger.messages.tags.list = vi
+        .fn()
+        .mockResolvedValue([{ key: '_ma_is_advertise', tag: 'Advertisement', color: '#FFC107', ordinal: '0' }]);
+
+      // Execute: apply AI tag via real TagManager
+      await tagManager.setTagsOnMessage(123, ['is_advertise']);
+
+      // Verify: $label1 preserved, old AI tag replaced, new AI tag set
+      expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, {
+        tags: ['$label1', '_ma_is_advertise'],
+      });
+    });
+
+    it('should preserve non-AI tags when clearing AI tags', async () => {
+      mockMessenger.messages.get = vi
+        .fn()
+        .mockResolvedValue({ id: 123, tags: ['$label1', '_ma_is_scam'] });
+      mockMessenger.messages.update = vi.fn().mockResolvedValue(undefined);
+
+      await tagManager.clearTagsFromMessage(123);
+
+      expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, { tags: ['$label1'] });
+    });
+
+    it('should preserve non-AI tags when adding a tag to a message', async () => {
+      mockMessenger.messages.get = vi
+        .fn()
+        .mockResolvedValue({ id: 123, tags: ['$label1', '_ma_other_ai'] });
+      mockMessenger.messages.update = vi.fn().mockResolvedValue(undefined);
+      mockMessenger.messages.tags.list = vi
+        .fn()
+        .mockResolvedValue([{ key: '_ma_is_scam', tag: 'Scam Alert', color: '#FF5722', ordinal: '0' }]);
+
+      await tagManager.addTagToMessage(123, 'is_scam');
+
+      expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, {
+        tags: ['$label1', '_ma_other_ai', '_ma_is_scam'],
+      });
+    });
+
+    it('should preserve non-AI tags in batch setTagsOnMessages', async () => {
+      mockMessenger.messages.get = vi
+        .fn()
+        .mockResolvedValue({ id: 123, tags: ['$label1'] });
+      mockMessenger.messages.update = vi.fn().mockResolvedValue(undefined);
+      mockMessenger.messages.tags.list = vi
+        .fn()
+        .mockResolvedValue([{ key: '_ma_is_advertise', tag: 'Advertisement', color: '#FFC107', ordinal: '0' }]);
+
+      await tagManager.setTagsOnMessages([123], ['is_advertise']);
+
+      expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, {
+        tags: ['$label1', '_ma_is_advertise'],
       });
     });
   });
