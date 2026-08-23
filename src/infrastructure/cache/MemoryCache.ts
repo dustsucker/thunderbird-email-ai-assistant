@@ -50,6 +50,11 @@ import type { ICache, ICacheEntry, ICacheStats } from '../interfaces/ICache';
  */
 const DEFAULT_TTL = 24 * 60 * 60 * 1000;
 
+// ponytail: hard entry cap with FIFO eviction (Map insertion order).
+// Adequate for transient rate-limit/temp data; switch to true LRU if
+// skewed access patterns ever matter.
+const MAX_ENTRIES = 500;
+
 // ============================================================================
 // HASH FUNCTIONS
 // ============================================================================
@@ -179,6 +184,13 @@ export class MemoryCache implements ICache {
       };
 
       this.cache.set(hashedKey, entry);
+
+      // Evict oldest entries (FIFO) when over the cap
+      while (this.cache.size > MAX_ENTRIES) {
+        const oldestKey = this.cache.keys().next().value;
+        if (oldestKey === undefined) break;
+        this.cache.delete(oldestKey);
+      }
     } catch {
       // Silently fail (graceful degradation)
     }
