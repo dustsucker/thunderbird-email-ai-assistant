@@ -98,9 +98,6 @@ export class BackgroundScript {
       const installHandler = container.resolve<InstallHandler>(InstallHandler);
       installHandler.register();
 
-      // Step 8: Register shutdown handler
-      this.registerShutdownHandler();
-
       this.isInitialized = true;
       this.logger.info('Background script initialization completed successfully');
     } catch (error) {
@@ -146,27 +143,5 @@ export class BackgroundScript {
       console.error('[Background Startup] Failed to shutdown background script', error);
       throw new Error(`Background script shutdown failed: ${errorMessage}`);
     }
-  }
-
-  // ==========================================================================
-  // Private Methods
-  // ==========================================================================
-
-  /**
-   * Registers shutdown handler for extension cleanup.
-   */
-  private registerShutdownHandler(): void {
-    this.logger?.info('Registering shutdown handler...');
-
-    if (messenger.runtime && messenger.runtime.onSuspend) {
-      messenger.runtime.onSuspend.addListener(async () => {
-        this.logger?.info('Extension suspending, cleaning up...');
-        await this.shutdown();
-      });
-    } else {
-      this.logger?.warn('Runtime suspend handler not available');
-    }
-
-    this.logger?.info('Shutdown handler registered');
   }
 }

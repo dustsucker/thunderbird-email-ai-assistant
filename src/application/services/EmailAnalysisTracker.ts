@@ -1,15 +1,10 @@
 /**
  * EmailAnalysisTracker Service
  *
- * Tracks which emails have been analyzed by the AI to prevent duplicate analysis
- * during development. Uses custom email headers (X-AI-Analyzed: true) to persist
- * analysis status across extension reinstallations.
- *
- * This service:
- * - Reads the X-AI-Analyzed header to check if an email was analyzed
- * - Writes the X-AI-Analyzed header after successful analysis
- * - Falls back to storage.local if header operations fail (experimental API)
- * - Provides dependency injection support for testability
+ * Tracks which emails have been analyzed by the AI to prevent duplicate analysis.
+ * Uses storage.local keys (`processed_<messageId>`) as the only mechanism:
+ * Thunderbird's WebExtension API has no messages.modifyPermanent(), so writing
+ * analysis state into message headers is not possible.
  *
  * @module application/services/EmailAnalysisTracker
  */
@@ -18,63 +13,24 @@ import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/domain/interfaces';
 
 // ============================================================================
-// Type Definitions
-// ============================================================================
-
-/**
- * Configuration for tracker operations.
- */
-export interface TrackerConfig {
-  /** Whether to use fallback storage if header operations fail */
-  useFallback?: boolean;
-}
-
-// ============================================================================
 // Thunderbird WebExtension API Types
 // ============================================================================
 
-/**
- * Type guard to check if messenger.messages has modifyPermanent API.
- */
-interface MessengerMessagesModifyPermanent {
-  modifyPermanent(
-    messageId: number,
-    newProperties: {
-      headers?: Record<string, string>;
-    }
-  ): Promise<void>;
-}
-
-interface MessengerMessages {
-  getFull(messageId: number): Promise<ThunderbirdFullMessage>;
-}
-
-interface ThunderbirdFullMessage {
-  id: number;
-  headers: Record<string, string[]>;
-  parts: unknown[];
-}
-
-interface MessengerWithModify {
-  messages: MessengerMessages & Partial<MessengerMessagesModifyPermanent>;
+interface MessengerWithStorage {
   storage: {
     local: {
-      get(keys: string | string[] | null): Promise<Record<string, unknown>>;
+      get(keys?: Record<string, unknown> | string[] | string): Promise<Record<string, unknown>>;
       set(items: Record<string, unknown>): Promise<void>;
     };
   };
 }
 
 interface BrowserApi {
-  browser?: {
-    messenger?: MessengerWithModify;
-  };
+  browser?: { messenger?: MessengerWithStorage };
 }
 
 interface ChromeApi {
-  chrome?: {
-    messenger?: MessengerWithModify;
-  };
+  chrome?: { messenger?: MessengerWithStorage };
 }
 
 // ============================================================================
@@ -82,17 +38,9 @@ interface ChromeApi {
 // ============================================================================
 
 /**
- * The custom header name used to track analyzed emails.
- */
-const ANALYSIS_HEADER_NAME = 'X-AI-Analyzed';
-
-/**
- * The header value that indicates an email has been analyzed.
- */
-const ANALYSIS_HEADER_VALUE = 'true';
-
-/**
- * Storage key prefix for fallback tracking mechanism.
+ * Storage key prefix for analysis tracking.
+ * // ponytail: unbounded per-id keys in storage.local; collapse into one
+ * Set under a single key if storage size ever becomes a problem.
  */
 const STORAGE_KEY_PREFIX = 'processed_';
 
@@ -103,14 +51,12 @@ const STORAGE_KEY_PREFIX = 'processed_';
 /**
  * EmailAnalysisTracker Service
  *
- * Tracks email analysis status using custom headers with fallback to storage.local.
- * Uses dependency injection for testability and follows established patterns.
+ * Tracks email analysis status via storage.local.
  *
  * @example
  * ```typescript
  * const tracker = container.resolve(EmailAnalysisTracker);
- * const wasAnalyzed = await tracker.wasAnalyzed(12345);
- * if (!wasAnalyzed) {
+ * if (!(await tracker.wasAnalyzed(12345))) {
  *   await tracker.markAnalyzed(12345);
  * }
  * ```
@@ -122,7 +68,7 @@ export class EmailAnalysisTracker {
   // ==========================================================================
 
   constructor(@inject('ILogger') private readonly logger: ILogger) {
-    this.logger.debug('✅ EmailAnalysisTracker service initialized');
+    this.logger.debug('EmailAnalysisTracker service initialized');
   }
 
   // ==========================================================================
@@ -130,100 +76,55 @@ export class EmailAnalysisTracker {
   // ==========================================================================
 
   /**
-   * Checks if an email has been analyzed by reading the X-AI-Analyzed header.
+   * Checks if an email has been analyzed by reading its storage key.
    *
    * @param messageId - Thunderbird message ID
    * @returns Promise resolving to true if the email has been analyzed
-   *
-   * @throws {Error} If messenger API is not available
-   *
-   * @example
-   * ```typescript
-   * const isAnalyzed = await tracker.wasAnalyzed(12345);
-   * if (isAnalyzed) {
-   *   console.log('Email was already analyzed');
-   * }
-   * ```
    */
   async wasAnalyzed(messageId: number): Promise<boolean> {
-    this.logger.debug('🔍 Checking if email was analyzed', { messageId });
+    this.logger.debug('Checking if email was analyzed', { messageId });
 
     try {
-      // Check messenger API availability
       const messenger = this.getMessengerApi();
       if (!messenger) {
         throw new Error('messenger API not available');
       }
 
-      // Retrieve full message to access headers
-      const fullMessage = await messenger.messages.getFull(messageId);
+      const storageKey = this.getStorageKey(messageId);
+      const result = await messenger.storage.local.get(storageKey);
+      const value = result[storageKey];
 
-      // Check if X-AI-Analyzed header exists and equals 'true'
-      const headerValues = fullMessage.headers[ANALYSIS_HEADER_NAME];
-      const hasAnalyzedHeader =
-        headerValues?.length > 0 && headerValues[0] === ANALYSIS_HEADER_VALUE;
+      // Accept boolean true and legacy string 'true' (former fallback writes)
+      const wasAnalyzed = value === true || value === 'true';
 
-      this.logger.debug('Analysis status check complete', {
-        messageId,
-        hasAnalyzedHeader,
-        headerPresent: headerValues?.length > 0,
-      });
-
-      return hasAnalyzedHeader;
+      this.logger.debug('Analysis status check complete', { messageId, wasAnalyzed });
+      return wasAnalyzed;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('❌ Failed to check analysis status', {
-        messageId,
-        error: errorMessage,
-      });
+      this.logger.error('Failed to check analysis status', { messageId, error: errorMessage });
       throw new Error(`Failed to check analysis status for message ${messageId}: ${errorMessage}`);
     }
   }
 
   /**
-   * Marks an email as analyzed by writing the X-AI-Analyzed header.
-   *
-   * Attempts to write the header via messagesModifyPermanent API.
-   * Falls back to storage.local with key pattern `processed_<messageId>` if header write fails.
+   * Marks an email as analyzed by writing its storage key.
    *
    * @param messageId - Thunderbird message ID
-   * @param config - Optional configuration
-   * @returns Promise that resolves when the email is marked
-   *
-   * @example
-   * ```typescript
-   * await tracker.markAnalyzed(12345);
-   * console.log('Email marked as analyzed');
-   * ```
    */
-  async markAnalyzed(messageId: number, config: TrackerConfig = {}): Promise<void> {
-    this.logger.debug('🏷️  Marking email as analyzed', { messageId, config });
+  async markAnalyzed(messageId: number): Promise<void> {
+    this.logger.debug('Marking email as analyzed', { messageId });
 
     try {
-      // Check messenger API availability
       const messenger = this.getMessengerApi();
       if (!messenger) {
         throw new Error('messenger API not available');
       }
 
-      // Attempt to write header via modifyPermanent API
-      const headerWriteSuccess = await this.tryWriteHeader(messenger, messageId);
-
-      if (headerWriteSuccess) {
-        this.logger.info('✅ Email marked as analyzed via header', { messageId });
-        return;
-      }
-
-      // Fallback to storage.local if header write failed
-      this.logger.debug('Header write failed, using fallback storage', { messageId });
-      await this.writeToFallbackStorage(messenger, messageId);
-      this.logger.info('✅ Email marked as analyzed via fallback storage', { messageId });
+      await messenger.storage.local.set({ [this.getStorageKey(messageId)]: 'true' });
+      this.logger.info('Email marked as analyzed', { messageId });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('❌ Failed to mark email as analyzed', {
-        messageId,
-        error: errorMessage,
-      });
+      this.logger.error('Failed to mark email as analyzed', { messageId, error: errorMessage });
       throw new Error(`Failed to mark email ${messageId} as analyzed: ${errorMessage}`);
     }
   }
@@ -235,11 +136,9 @@ export class EmailAnalysisTracker {
   /**
    * Gets the messenger API from global scope.
    *
-   * Checks both browser.messenger and chrome.messenger for compatibility.
-   *
    * @returns Messenger API or undefined if not available
    */
-  private getMessengerApi(): MessengerWithModify | undefined {
+  private getMessengerApi(): MessengerWithStorage | undefined {
     const browserApi = (globalThis as unknown as BrowserApi).browser;
     const chromeApi = (globalThis as unknown as ChromeApi).chrome;
 
@@ -247,80 +146,12 @@ export class EmailAnalysisTracker {
   }
 
   /**
-   * Gets the storage key for fallback tracking.
+   * Gets the storage key for analysis tracking.
    *
    * @param messageId - Thunderbird message ID
    * @returns Storage key for the message
    */
   private getStorageKey(messageId: number): string {
     return `${STORAGE_KEY_PREFIX}${messageId}`;
-  }
-
-  /**
-   * Attempts to write the X-AI-Analyzed header via modifyPermanent API.
-   *
-   * @param messenger - Messenger API instance
-   * @param messageId - Thunderbird message ID
-   * @returns Promise resolving to true if header write succeeded
-   */
-  private async tryWriteHeader(
-    messenger: MessengerWithModify,
-    messageId: number
-  ): Promise<boolean> {
-    this.logger.debug('Attempting to write analysis header', { messageId });
-
-    try {
-      // Check if modifyPermanent API is available
-      if (!messenger.messages.modifyPermanent) {
-        this.logger.debug('modifyPermanent API not available', { messageId });
-        return false;
-      }
-
-      // Attempt to write the header
-      await messenger.messages.modifyPermanent(messageId, {
-        headers: {
-          [ANALYSIS_HEADER_NAME]: ANALYSIS_HEADER_VALUE,
-        },
-      });
-
-      this.logger.debug('Analysis header written successfully', { messageId });
-      return true;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.debug('Failed to write analysis header', {
-        messageId,
-        error: errorMessage,
-      });
-      return false;
-    }
-  }
-
-  /**
-   * Writes the analysis status to fallback storage.local.
-   *
-   * @param messenger - Messenger API instance
-   * @param messageId - Thunderbird message ID
-   * @returns Promise that resolves when the write is complete
-   * @throws {Error} If storage write fails
-   */
-  private async writeToFallbackStorage(
-    messenger: MessengerWithModify,
-    messageId: number
-  ): Promise<void> {
-    this.logger.debug('Writing to fallback storage', { messageId });
-
-    try {
-      const storageKey = this.getStorageKey(messageId);
-      await messenger.storage.local.set({ [storageKey]: ANALYSIS_HEADER_VALUE });
-
-      this.logger.debug('Fallback storage write successful', { messageId, storageKey });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to write to fallback storage', {
-        messageId,
-        error: errorMessage,
-      });
-      throw new Error(`Failed to write to fallback storage: ${errorMessage}`);
-    }
   }
 }

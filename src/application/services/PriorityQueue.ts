@@ -48,12 +48,32 @@ interface QueueItem<T> {
 export class PriorityQueue implements IQueue {
   private readonly queue: QueueItem<unknown>[];
   private readonly processing: Set<string>;
+  // ponytail: Map keyed by item reference — duplicate item objects collide,
+  // switch to per-id handles if that ever matters.
+  private readonly processingByItem: Map<unknown, string>;
   private waitTimes: number[];
 
   constructor() {
     this.queue = [];
     this.processing = new Set();
+    this.processingByItem = new Map();
     this.waitTimes = [];
+  }
+
+  /**
+   * Marks a dequeued item as fully processed.
+   *
+   * Call this after finishing work on an item returned by dequeue(),
+   * otherwise the item stays counted as processing and isEmpty() lies.
+   *
+   * @param item - The previously dequeued item
+   */
+  async complete(item: unknown): Promise<void> {
+    const id = this.processingByItem.get(item);
+    if (id !== undefined) {
+      this.processing.delete(id);
+      this.processingByItem.delete(item);
+    }
   }
 
   // ========================================================================
@@ -96,6 +116,7 @@ export class PriorityQueue implements IQueue {
 
     // Track processing and calculate wait time
     this.processing.add(queueItem.id);
+    this.processingByItem.set(queueItem.item, queueItem.id);
     const waitTime = Date.now() - queueItem.enqueuedAt;
     this.waitTimes.push(waitTime);
 
@@ -148,6 +169,7 @@ export class PriorityQueue implements IQueue {
 
     if (cancelRunning) {
       this.processing.clear();
+      this.processingByItem.clear();
     }
 
     return clearedWaiting + clearedProcessing;

@@ -98,6 +98,17 @@ export interface IQueue {
   clear(cancelRunning?: boolean): Promise<number>;
 
   /**
+   * Marks a previously dequeued item as fully processed.
+   *
+   * Optional: implementations that track in-flight items should implement
+   * this so isEmpty()/getStats() reflect completions.
+   *
+   * @param item - The previously dequeued item
+   * @returns Promise resolving when the item is marked complete
+   */
+  complete?(item: unknown): Promise<void>;
+
+  /**
    * Returns current statistics about the queue state
    *
    * @returns Promise resolving to queue statistics including size, wait time,

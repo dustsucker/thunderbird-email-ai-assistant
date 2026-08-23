@@ -163,7 +163,6 @@ export class AnalyzeBatchEmails {
   private processedMessageIds: string[] = [];
   private failedMessageIds: string[] = [];
   private analysisResults: EmailAnalysisResult[] = [];
-  private resolvePromise: ((value: BatchAnalysisResult) => void) | null = null;
   private activeWorkers: Promise<void>[] = [];
 
   // ==========================================================================
@@ -263,10 +262,6 @@ export class AnalyzeBatchEmails {
       this.analysisResults = [];
       this.logger.debug('✅ Batch state initialized');
 
-      new Promise<BatchAnalysisResult>((resolve) => {
-        this.resolvePromise = resolve;
-      });
-
       // Enqueue all messages
       this.logger.debug('➡️  Enqueuing messages', { count: messageIds.length });
       for (const messageId of messageIds) {
@@ -291,7 +286,6 @@ export class AnalyzeBatchEmails {
       await Promise.all(this.activeWorkers);
       this.logger.debug('✅ All workers completed');
 
-      // Resolve the batch promise
       const result: BatchAnalysisResult = {
         total: this.totalCount,
         successCount: this.processedCount,
@@ -299,10 +293,6 @@ export class AnalyzeBatchEmails {
         results: this.analysisResults,
         cancelled: this.isCancelled,
       };
-
-      if (this.resolvePromise) {
-        this.resolvePromise(result);
-      }
 
       this.logger.info('✅ Batch analysis completed', {
         total: result.total,
@@ -380,18 +370,6 @@ export class AnalyzeBatchEmails {
     this.logger.debug('➡️  Clearing queue');
     const clearedCount = await this.queue.clear(false);
     this.logger.debug('✅ Queue cleared', { clearedCount });
-
-    // Resolve the batch promise with partial results
-    if (this.resolvePromise) {
-      const result: BatchAnalysisResult = {
-        total: this.totalCount,
-        successCount: this.processedCount,
-        failureCount: this.failedCount,
-        results: this.analysisResults,
-        cancelled: true,
-      };
-      this.resolvePromise(result);
-    }
 
     this.logger.info('✅ Batch analysis cancelled', {
       processed: this.processedCount,
@@ -514,8 +492,12 @@ export class AnalyzeBatchEmails {
 
         this.logger.debug('✅ Item dequeued', { messageId: item.messageId });
 
-        // Process the item
-        await this.processQueueItem(item);
+        // Process the item, then mark it complete so queue stats stay honest
+        try {
+          await this.processQueueItem(item);
+        } finally {
+          await this.queue.complete?.(item);
+        }
 
         // Delay between analyses if configured
         if (delayBetweenAnalyses > 0) {
@@ -610,7 +592,6 @@ export class AnalyzeBatchEmails {
     this.processedMessageIds = [];
     this.failedMessageIds = [];
     this.analysisResults = [];
-    this.resolvePromise = null;
     this.activeWorkers = [];
   }
 

@@ -15,58 +15,44 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/domain/interfaces';
+import type { ICache, ICacheStats } from '@/infrastructure/interfaces/ICache';
+import type { IQueue, IQueueStats } from '@/infrastructure/interfaces/IQueue';
+import type { ITagManager } from '@/domain/interfaces';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { ApplyTagsToEmail } from '@/application/use-cases/ApplyTagsToEmail';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
-import { EventBus } from '@/domain/events/EventBus';
-import { createProviderErrorEvent } from '@/domain/events/ProviderErrorEvent';
 
-declare const browser: {
-  runtime?: {
-    onMessage?: {
-      addListener(
-        callback: (
-          message: unknown,
-          sender: unknown,
-          sendResponse: (response?: unknown) => void
-        ) => boolean
-      ): void;
-      removeListener(
-        callback: (
-          message: unknown,
-          sender: unknown,
-          sendResponse: (response?: unknown) => void
-        ) => boolean
-      ): void;
-    };
-  };
-};
+/** Runtime onMessage event registry (not part of the central thunderbird.d.ts). */
+interface RuntimeOnMessageRegistry {
+  addListener(
+    callback: (
+      message: unknown,
+      sender: unknown,
+      sendResponse: (response?: unknown) => void
+    ) => boolean
+  ): void;
+  removeListener(
+    callback: (
+      message: unknown,
+      sender: unknown,
+      sendResponse: (response?: unknown) => void
+    ) => boolean
+  ): void;
+}
 
-declare const messenger: {
-  runtime?: {
-    onMessage?: {
-      addListener(
-        callback: (
-          message: unknown,
-          sender: unknown,
-          sendResponse: (response?: unknown) => void
-        ) => boolean
-      ): void;
-      removeListener(
-        callback: (
-          message: unknown,
-          sender: unknown,
-          sendResponse: (response?: unknown) => void
-        ) => boolean
-      ): void;
-    };
+/**
+ * Gets the runtime.onMessage registry from browser or messenger globals.
+ */
+function getRuntimeOnMessage(): RuntimeOnMessageRegistry | undefined {
+  const globals = globalThis as unknown as {
+    browser?: { runtime?: { onMessage?: RuntimeOnMessageRegistry } };
+    messenger?: { runtime?: { onMessage?: RuntimeOnMessageRegistry } };
   };
-  messages?: {
-    list(folderId?: string): Promise<{ messages: Array<{ id: number }> }>;
-  };
-};
+
+  return globals.browser?.runtime?.onMessage ?? globals.messenger?.runtime?.onMessage;
+}
 
 // ============================================================================
 // Type Definitions
@@ -157,6 +143,8 @@ interface ApplyTagManuallyMessage {
   action: 'applyTagManually';
   tagKey: string;
   confidence: number;
+  /** Message to apply the tag to (required for a real effect) */
+  messageId?: string;
 }
 
 /**
@@ -391,6 +379,9 @@ export class MessageHandler {
   private readonly analyzeBatch: AnalyzeBatchEmails;
   private readonly logger: ILogger;
   private readonly appConfigService: AppConfigService;
+  private readonly queue: IQueue;
+  private readonly cache: ICache;
+  private readonly tagManager: ITagManager;
 
   private handlerState: HandlerState = {
     isRegistered: false,
@@ -424,21 +415,28 @@ export class MessageHandler {
    * @param analyzeBatch - Batch email analysis use case
    * @param _applyTags - Tag application use case (reserved for future use)
    * @param logger - Logger instance for logging operations
-   * @param eventBus - Event bus for publishing events
    * @param appConfigService - App config service for loading provider settings
+   * @param queue - Queue for clearQueue operations
+   * @param cache - Cache for clearCache/getCacheStats operations
+   * @param tagManager - Tag manager for manual tag application
    */
   constructor(
     @inject(AnalyzeEmail) analyzeEmail: AnalyzeEmail,
     @inject(AnalyzeBatchEmails) analyzeBatch: AnalyzeBatchEmails,
     @inject(ApplyTagsToEmail) _applyTags: ApplyTagsToEmail,
     @inject('ILogger') logger: ILogger,
-    @inject(EventBus) private readonly eventBus: EventBus,
-    @inject(AppConfigService) appConfigService: AppConfigService
+    @inject(AppConfigService) appConfigService: AppConfigService,
+    @inject('IQueue') queue: IQueue,
+    @inject('ICache') cache: ICache,
+    @inject('ITagManager') tagManager: ITagManager
   ) {
     this.analyzeEmail = analyzeEmail;
     this.analyzeBatch = analyzeBatch;
     this.logger = logger;
     this.appConfigService = appConfigService;
+    this.queue = queue;
+    this.cache = cache;
+    this.tagManager = tagManager;
 
     this.logger.debug('MessageHandler service initialized');
   }
@@ -462,22 +460,14 @@ export class MessageHandler {
 
     this.handleMessageHandler = this.handleMessage.bind(this);
 
-    if (typeof browser !== 'undefined' && browser.runtime?.onMessage) {
-      browser.runtime.onMessage.addListener(this.handleMessageHandler);
+    const onMessage = getRuntimeOnMessage();
+
+    if (onMessage) {
+      onMessage.addListener(this.handleMessageHandler);
       this.handlerState.isRegistered = true;
-      this.logger.info('[DEBUG-MessageHandler] Runtime message handler registered via browser API');
+      this.logger.info('Runtime message handler registered');
     } else {
-      if (typeof messenger !== 'undefined' && messenger.runtime?.onMessage) {
-        messenger.runtime.onMessage.addListener(this.handleMessageHandler);
-        this.handlerState.isRegistered = true;
-        this.logger.info(
-          '[DEBUG-MessageHandler] Runtime message handler registered via messenger API'
-        );
-      } else {
-        this.logger.error(
-          '[DEBUG-MessageHandler] Runtime messaging API not available - THIS IS A PROBLEM!'
-        );
-      }
+      this.logger.error('Runtime messaging API not available');
     }
   }
 
@@ -495,14 +485,11 @@ export class MessageHandler {
     this.logger.info('Unregistering runtime message handlers');
 
     if (this.handleMessageHandler) {
-      if (typeof browser !== 'undefined' && browser.runtime?.onMessage) {
-        browser.runtime.onMessage.removeListener(this.handleMessageHandler);
+      const onMessage = getRuntimeOnMessage();
+
+      if (onMessage) {
+        onMessage.removeListener(this.handleMessageHandler);
         this.logger.info('Runtime message handler unregistered');
-      } else {
-        if (typeof messenger !== 'undefined' && messenger.runtime?.onMessage) {
-          messenger.runtime.onMessage.removeListener(this.handleMessageHandler);
-          this.logger.info('Runtime message handler unregistered (messenger API)');
-        }
       }
       this.handleMessageHandler = null;
     }
@@ -584,8 +571,8 @@ export class MessageHandler {
         }
 
         if (isGetBatchProgressMessage(message)) {
-          this.logger.info('[DEBUG-MessageHandler] Routing to handleGetBatchProgress');
-          const result = this.handleGetBatchProgress();
+          this.logger.info('Routing to handleGetBatchProgress');
+          const result = await this.handleGetBatchProgress();
           sendResponse(result);
           return;
         }
@@ -605,8 +592,8 @@ export class MessageHandler {
         }
 
         if (isClearQueueMessage(message)) {
-          this.logger.info('[DEBUG-MessageHandler] Routing to handleClearQueue');
-          const result = this.handleClearQueue(message);
+          this.logger.info('Routing to handleClearQueue');
+          const result = await this.handleClearQueue(message);
           sendResponse(result);
           return;
         }
@@ -651,23 +638,10 @@ export class MessageHandler {
       } catch (error) {
         this.handlerState.errorsEncountered++;
         const errorMessage = error instanceof Error ? error.message : String(error);
-        this.logger.error('[DEBUG-MessageHandler] Internal error processing message', {
+        this.logger.error('Internal error processing message', {
           message,
           error: errorMessage,
         });
-
-        this.eventBus
-          .publish(
-            createProviderErrorEvent('message-handler', 'unknown', errorMessage, {
-              error: error instanceof Error ? error : undefined,
-              errorType: 'unknown',
-            })
-          )
-          .catch((publishError) => {
-            this.logger.error('[DEBUG-MessageHandler] Failed to publish ProviderErrorEvent', {
-              error: publishError instanceof Error ? publishError.message : String(publishError),
-            });
-          });
 
         sendResponse({ success: false, message: 'Internal error processing message' });
       }
@@ -782,10 +756,35 @@ export class MessageHandler {
   /**
    * Handles get batch progress message.
    *
-   * @returns Current batch progress
+   * Reads live state from AnalyzeBatchEmails.getProgress() so mid-batch
+   * queries reflect actual processed counts. startTime/endTime come from
+   * this handler (only it knows when the batch was started locally).
+   *
+   * @returns Promise resolving to current batch progress
    */
-  private handleGetBatchProgress(): BatchProgress {
-    return { ...this.batchProgress };
+  private async handleGetBatchProgress(): Promise<BatchProgress> {
+    const progress = await this.analyzeBatch.getProgress();
+
+    let status: BatchProgress['status'];
+    if (progress.isRunning) {
+      status = 'running';
+    } else if (progress.isCancelled) {
+      status = 'cancelled';
+    } else if (progress.total > 0 && progress.processed + progress.failed > 0) {
+      status = 'completed';
+    } else {
+      status = 'idle';
+    }
+
+    return {
+      status,
+      total: progress.total,
+      processed: progress.processed,
+      successful: progress.processed,
+      failed: progress.failed,
+      startTime: this.batchProgress.startTime,
+      endTime: status === 'running' ? undefined : this.batchProgress.endTime,
+    };
   }
 
   /**
@@ -883,38 +882,62 @@ export class MessageHandler {
   /**
    * Handles clear queue message.
    *
+   * Clears the real queue via IQueue and reports actual statistics.
+   *
    * @param message - Clear queue message
    * @returns Clear queue result
    */
-  private handleClearQueue(message: ClearQueueMessage): ClearQueueResult {
+  private async handleClearQueue(message: ClearQueueMessage): Promise<ClearQueueResult> {
     this.logger.info('Handling clearQueue message', { cancelRunning: message.cancelRunning });
 
-    // Simplified implementation - in real code, you would integrate with RateLimiter
-    return {
-      success: true,
-      clearedTasks: 0,
-      cancelledProviders: [],
-      providers: {},
-    };
+    try {
+      const clearedTasks = await this.queue.clear(message.cancelRunning ?? false);
+      const stats: IQueueStats = await this.queue.getStats();
+
+      return {
+        success: true,
+        clearedTasks,
+        cancelledProviders: [],
+        providers: {
+          queue: { queueLength: stats.waiting, isProcessing: stats.processing > 0 },
+        },
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to clear queue', { error: errorMessage });
+      return {
+        success: false,
+        clearedTasks: 0,
+        cancelledProviders: [],
+        providers: {},
+      };
+    }
   }
 
   /**
    * Handles clear cache message.
+   *
+   * Clears the real cache via ICache.
    *
    * @returns Clear cache result
    */
   private async handleClearCache(): Promise<{ success: boolean; message: string }> {
     this.logger.info('Handling clearCache message');
 
-    // Simplified implementation - in real code, you would integrate with ICache
-    return {
-      success: true,
-      message: 'Cache cleared successfully',
-    };
+    try {
+      await this.cache.clear();
+      return { success: true, message: 'Cache cleared successfully' };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to clear cache', { error: errorMessage });
+      return { success: false, message: `Failed to clear cache: ${errorMessage}` };
+    }
   }
 
   /**
    * Handles get cache stats message.
+   *
+   * Reads real statistics from ICache.
    *
    * @returns Cache stats
    */
@@ -922,22 +945,32 @@ export class MessageHandler {
     success: boolean;
     totalEntries?: number;
     hitRate?: number;
+    message?: string;
   }> {
     this.logger.info('Handling getCacheStats message');
 
-    // Simplified implementation - in real code, you would integrate with ICache
-    return {
-      success: true,
-      totalEntries: 0,
-      hitRate: 0,
-    };
+    try {
+      const stats: ICacheStats = await this.cache.getStats();
+      return {
+        success: true,
+        totalEntries: stats.totalEntries,
+        hitRate: stats.hitRate,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to get cache stats', { error: errorMessage });
+      return { success: false, message: errorMessage };
+    }
   }
 
   /**
    * Handles get analysis results message.
    *
+   * Analysis results live in the AnalysisCache (IndexedDB), which has no
+   * enumeration API, so there is no store to read results from yet.
+   *
    * @param _message - Message containing optional limit parameter (currently unused)
-   * @returns Analysis results from cache
+   * @returns Analysis results or an honest failure
    */
   private async handleGetAnalysisResults(_message?: unknown): Promise<{
     success: boolean;
@@ -953,28 +986,18 @@ export class MessageHandler {
   }> {
     this.logger.info('Handling getAnalysisResults message');
 
-    try {
-      // TODO: Integrate with AnalysisCache to get actual results
-      // For now, return empty results - UI will show "No analysis results" message
-      this.logger.warn('getAnalysisResults not fully implemented - returning empty results');
-      return {
-        success: true,
-        results: [],
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to get analysis results', { error: errorMessage });
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    }
+    // No enumerable analysis results store exists in the DI container yet.
+    return {
+      success: false,
+      error: 'No analysis results store available',
+    };
   }
 
   /**
    * Handles apply tag manually message.
    *
-   * Allows user to manually apply a tag that was below threshold.
+   * Applies the tag to the referenced message via ITagManager and removes
+   * the corresponding low-confidence flag from storage.
    *
    * @param message - Apply tag manually message
    * @returns Apply tag result
@@ -987,13 +1010,21 @@ export class MessageHandler {
     this.logger.info('Handling applyTagManually message', { tagKey: message.tagKey });
 
     try {
-      // TODO: Implement actual tag application logic
-      // This would involve:
-      // 1. Getting the email/message ID from storage (associated with the low-confidence flag)
-      // 2. Applying the tag using ITagManager
-      // 3. Updating the low-confidence flag to mark it as resolved
+      if (!message.messageId) {
+        return {
+          success: false,
+          error: 'messageId is required to apply a tag',
+        };
+      }
 
-      this.logger.warn('handleApplyTagManually not fully implemented - returning success');
+      const messageIdNum = parseInt(message.messageId, 10);
+      if (Number.isNaN(messageIdNum)) {
+        return { success: false, error: `Invalid messageId: ${message.messageId}` };
+      }
+
+      await this.tagManager.addTagToMessage(messageIdNum, message.tagKey);
+      await this.removeLowConfidenceFlag(message.tagKey);
+
       return {
         success: true,
         message: `Tag "${message.tagKey}" wurde erfolgreich angewendet.`,
@@ -1011,7 +1042,7 @@ export class MessageHandler {
   /**
    * Handles dismiss tag message.
    *
-   * Allows user to dismiss a low-confidence tag suggestion.
+   * Removes the tag suggestion from all stored low-confidence flags.
    *
    * @param message - Dismiss tag message
    * @returns Dismiss tag result
@@ -1024,13 +1055,15 @@ export class MessageHandler {
     this.logger.info('Handling dismissTag message', { tagKey: message.tagKey });
 
     try {
-      // TODO: Implement actual tag dismissal logic
-      // This would involve:
-      // 1. Getting the low-confidence flag from storage
-      // 2. Marking it as dismissed/rejected
-      // 3. Optionally storing the rejection for learning purposes
+      const removed = await this.removeLowConfidenceFlag(message.tagKey);
 
-      this.logger.warn('handleDismissTag not fully implemented - returning success');
+      if (!removed) {
+        return {
+          success: false,
+          error: `No stored suggestion for tag "${message.tagKey}" found`,
+        };
+      }
+
       return {
         success: true,
         message: `Tag "${message.tagKey}" wurde abgelehnt.`,
@@ -1085,7 +1118,41 @@ export class MessageHandler {
   }
 
   /**
+   * Removes a tag suggestion from all stored low-confidence flags.
+   *
+   * Low-confidence flags are stored by AnalyzeEmail under `lowConfidence_<cacheKey>`
+   * keys in storage.local.
+   *
+   * @param tagKey - Tag key to remove
+   * @returns Promise resolving to true if at least one flag was removed
+   */
+  private async removeLowConfidenceFlag(tagKey: string): Promise<boolean> {
+    const all = await messenger.storage.local.get();
+    let removed = false;
+
+    for (const [key, value] of Object.entries(all)) {
+      if (!key.startsWith('lowConfidence_')) continue;
+
+      const entry = value as { flags?: Array<{ tagKey: string }> };
+      const flags = entry.flags ?? [];
+      const remaining = flags.filter((f) => f.tagKey !== tagKey);
+
+      if (remaining.length === flags.length) continue;
+
+      removed = true;
+      // Keep the entry (possibly with empty flags) — the storage API type
+      // has no remove(), so we overwrite instead of deleting the key.
+      await messenger.storage.local.set({ [key]: { ...entry, flags: remaining } });
+    }
+
+    return removed;
+  }
+
+  /**
    * Gets messages to analyze.
+   *
+   * Iterates ALL pages of the folder listing via continueList until
+   * page.id is null (Thunderbird default page size is 100).
    *
    * @param folderId - Optional folder ID to filter messages
    * @returns Array of message IDs to analyze
@@ -1096,13 +1163,18 @@ export class MessageHandler {
         return [];
       }
 
-      const result = await messenger.messages.list(folderId);
+      const messageIds: string[] = [];
+      let page: MessageList | null = await messenger.messages.list(folderId);
 
-      if (!result.messages || result.messages.length === 0) {
-        return [];
+      while (page) {
+        for (const message of page.messages) {
+          messageIds.push(String(message.id));
+        }
+
+        page = page.id ? await messenger.messages.continueList(page.id) : null;
       }
 
-      return result.messages.map((m: { id: number }) => String(m.id));
+      return messageIds;
     } catch (error) {
       this.logger.error('Failed to get messages', {
         folderId,
