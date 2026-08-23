@@ -43,6 +43,7 @@ describe('ProviderFactory', () => {
       expect(providers).toContain('mistral');
       expect(providers).toContain('ollama');
       expect(providers).toContain('deepseek');
+      expect(providers).toContain('openrouter');
       expect(providers).toContain('zai-paas');
       expect(providers).toContain('zai-coding');
     });
@@ -99,6 +100,12 @@ describe('ProviderFactory', () => {
       const provider = await factory.getProvider('deepseek');
       expect(provider).toBeDefined();
       expect(provider.providerId).toBe('deepseek');
+    });
+
+    it('should return OpenRouter provider adapter', async () => {
+      const provider = await factory.getProvider('openrouter');
+      expect(provider).toBeDefined();
+      expect(provider.providerId).toBe('openrouter');
     });
 
     it('should return ZAI PaaS provider adapter', async () => {
@@ -161,7 +168,7 @@ describe('ProviderFactory', () => {
     it('should return all provider IDs', () => {
       const providers = factory.getAvailableProviders();
 
-      expect(providers.length).toBe(8);
+      expect(providers.length).toBe(9);
       expect(providers).toEqual(
         expect.arrayContaining([
           'openai',
@@ -170,6 +177,7 @@ describe('ProviderFactory', () => {
           'mistral',
           'ollama',
           'deepseek',
+          'openrouter',
           'zai-paas',
           'zai-coding',
         ])
@@ -271,6 +279,7 @@ describe('ProviderFactory', () => {
       expect(ProviderTokens.MISTRAL_PROVIDER).toBe('provider:mistral');
       expect(ProviderTokens.OLLAMA_PROVIDER).toBe('provider:ollama');
       expect(ProviderTokens.DEEPSEEK_PROVIDER).toBe('provider:deepseek');
+      expect(ProviderTokens.OPENROUTER_PROVIDER).toBe('provider:openrouter');
       expect(ProviderTokens.ZAI_PAAS_PROVIDER).toBe('provider:zai-paas');
       expect(ProviderTokens.ZAI_CODING_PROVIDER).toBe('provider:zai-coding');
     });

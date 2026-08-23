@@ -193,6 +193,7 @@ try {
 | Anthropic Claude | `claude`     | `apiKey`, `model` |
 | Mistral          | `mistral`    | `apiKey`, `model` |
 | DeepSeek         | `deepseek`   | `apiKey`, `model` |
+| OpenRouter       | `openrouter` | `apiKey`, `model` |
 | ZAI PaaS         | `zai-paas`   | `apiKey`, `model` |
 | ZAI Coding       | `zai-coding` | `apiKey`, `model` |
 

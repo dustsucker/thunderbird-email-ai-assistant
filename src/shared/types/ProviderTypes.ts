@@ -55,6 +55,7 @@ export enum Provider {
   CLAUDE = 'claude',
   MISTRAL = 'mistral',
   DEEPSEEK = 'deepseek',
+  OPENROUTER = 'openrouter',
   ZAI_PAAS = 'zai-paas',
   ZAI_CODING = 'zai-coding',
 }
@@ -68,6 +69,7 @@ export interface ProviderConfig {
   claudeApiKey: string;
   mistralApiKey: string;
   deepseekApiKey: string;
+  openrouterApiKey: string;
   zaiPaasApiKey: string;
   zaiPaasModel: string;
   zaiCodingApiKey: string;
@@ -214,6 +216,7 @@ export const DEFAULTS: Readonly<DefaultConfig> = {
   claudeApiKey: '',
   mistralApiKey: '',
   deepseekApiKey: '',
+  openrouterApiKey: '',
   zaiPaasApiKey: '',
   zaiPaasModel: 'glm-4.5',
   zaiCodingApiKey: '',

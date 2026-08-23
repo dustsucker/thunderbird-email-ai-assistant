@@ -106,6 +106,7 @@ describe('Concurrency Limiting - Integration Tests', () => {
         { provider: 'gemini', model: 'gemini-pro', expected: 5 },
         { provider: 'mistral', model: 'mistral-large', expected: 10 },
         { provider: 'deepseek', model: 'deepseek-chat', expected: 10 },
+        { provider: 'openrouter', model: 'openai/gpt-4o-mini', expected: 10 },
         { provider: 'zai-paas', model: 'glm-4', expected: 5 },
         { provider: 'zai-coding', model: 'glm-4', expected: 5 },
       ];
@@ -153,6 +154,7 @@ describe('Concurrency Limiting - Integration Tests', () => {
         { provider: 'claude', concurrency: 5 },
         { provider: 'mistral', concurrency: 8 },
         { provider: 'deepseek', concurrency: 8 },
+        { provider: 'openrouter', concurrency: 8 },
         { provider: 'gemini', concurrency: 5 },
         { provider: 'zai-paas', concurrency: 5 },
         { provider: 'zai-coding', concurrency: 5 },

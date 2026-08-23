@@ -99,10 +99,12 @@ interface GeneralSettingsElements {
   claudeApiKey: HTMLInputElement | null;
   mistralApiKey: HTMLInputElement | null;
   deepseekApiKey: HTMLInputElement | null;
+  openrouterApiKey: HTMLInputElement | null;
+  openrouterModel: HTMLInputElement | null;
   zaiPaasApiKey: HTMLInputElement | null;
-  zaiPaasModel: HTMLSelectElement | null;
+  zaiPaasModel: HTMLInputElement | null;
   zaiCodingApiKey: HTMLInputElement | null;
-  zaiCodingModel: HTMLSelectElement | null;
+  zaiCodingModel: HTMLInputElement | null;
   minConfidenceThreshold: HTMLInputElement | null;
   minConfidenceThresholdSlider: HTMLInputElement | null;
   confidenceValue: HTMLSpanElement | null;
@@ -188,6 +190,8 @@ type PartialProviderConfig = {
   claudeApiKey?: string;
   mistralApiKey?: string;
   deepseekApiKey?: string;
+  openrouterApiKey?: string;
+  openrouterModel?: string;
   zaiPaasApiKey?: string;
   zaiPaasModel?: string;
   zaiCodingApiKey?: string;
@@ -293,6 +297,8 @@ function getPermissionOrigin(provider: Provider, settings: PartialProviderConfig
       return 'https://api.mistral.ai/';
     case Provider.DEEPSEEK:
       return 'https://api.deepseek.com/';
+    case Provider.OPENROUTER:
+      return 'https://openrouter.ai/';
     case Provider.ZAI_PAAS:
       return 'https://api.z.ai/';
     case Provider.ZAI_CODING:
@@ -328,10 +334,12 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
   const claudeApiKey = getElementById<HTMLInputElement>('claude-api-key');
   const mistralApiKey = getElementById<HTMLInputElement>('mistral-api-key');
   const deepseekApiKey = getElementById<HTMLInputElement>('deepseek-api-key');
+  const openrouterApiKey = getElementById<HTMLInputElement>('openrouter-api-key');
+  const openrouterModel = getElementById<HTMLInputElement>('openrouter-model');
   const zaiPaasApiKey = getElementById<HTMLInputElement>('zaiPaasApiKey');
-  const zaiPaasModel = getElementById<HTMLSelectElement>('zaiPaasModel');
+  const zaiPaasModel = getElementById<HTMLInputElement>('zaiPaasModel');
   const zaiCodingApiKey = getElementById<HTMLInputElement>('zaiCodingApiKey');
-  const zaiCodingModel = getElementById<HTMLSelectElement>('zaiCodingModel');
+  const zaiCodingModel = getElementById<HTMLInputElement>('zaiCodingModel');
   const minConfidenceThreshold = getElementById<HTMLInputElement>('min-confidence-threshold');
   const minConfidenceThresholdSlider = getElementById<HTMLInputElement>(
     'min-confidence-threshold-slider'
@@ -354,6 +362,8 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
     claudeApiKey,
     mistralApiKey,
     deepseekApiKey,
+    openrouterApiKey,
+    openrouterModel,
     zaiPaasApiKey,
     zaiPaasModel,
     zaiCodingApiKey,
@@ -597,6 +607,15 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
       });
       elements.deepseekApiKey.value = providerSettings.deepseek.apiKey || '';
     }
+    if (elements.openrouterApiKey && providerSettings.openrouter) {
+      logger.info('[DEBUG-options] Loaded openrouter settings', {
+        apiKey: providerSettings.openrouter.apiKey ? '***REDACTED***' : '',
+      });
+      elements.openrouterApiKey.value = providerSettings.openrouter.apiKey || '';
+    }
+    if (elements.openrouterModel && providerSettings.openrouter) {
+      elements.openrouterModel.value = providerSettings.openrouter.model || '';
+    }
     if (elements.zaiPaasApiKey && providerSettings['zai-paas']) {
       logger.info('[DEBUG-options] Loaded zai-paas settings', {
         apiKey: providerSettings['zai-paas'].apiKey ? '***REDACTED***' : '',
@@ -737,6 +756,22 @@ function gatherProviderSettings(
         apiKey: deepseekSettings.deepseekApiKey ? '***REDACTED***' : '',
       });
       return deepseekSettings;
+    }
+
+    case Provider.OPENROUTER: {
+      if (!elements.openrouterApiKey) {
+        throw new Error('OpenRouter settings element not found');
+      }
+      const openrouterSettings = {
+        ...baseSettings,
+        openrouterApiKey: elements.openrouterApiKey.value.trim(),
+        openrouterModel: elements.openrouterModel?.value.trim() || '',
+      };
+      logger.info('[DEBUG-options] Gathered openrouter settings', {
+        apiKey: openrouterSettings.openrouterApiKey ? '***REDACTED***' : '',
+        model: openrouterSettings.openrouterModel,
+      });
+      return openrouterSettings;
     }
 
     case Provider.ZAI_PAAS: {
@@ -964,6 +999,17 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
         model: 'deepseek-chat',
       };
       logger.info('[DEBUG-options] Converted deepseek settings', {
+        apiKey: result.apiKey ? '***REDACTED***' : '',
+        model: result.model,
+      });
+      return result;
+
+    case Provider.OPENROUTER:
+      result = {
+        apiKey: settings.openrouterApiKey || '',
+        model: settings.openrouterModel || 'openai/gpt-4o-mini',
+      };
+      logger.info('[DEBUG-options] Converted openrouter settings', {
         apiKey: result.apiKey ? '***REDACTED***' : '',
         model: result.model,
       });

@@ -134,6 +134,7 @@ export class AppConfigService {
     claudeApiKey: '',
     mistralApiKey: '',
     deepseekApiKey: '',
+    openrouterApiKey: '',
     zaiPaasApiKey: '',
     zaiPaasModel: 'glm-4.5',
     zaiCodingApiKey: '',
@@ -434,6 +435,7 @@ export class AppConfigService {
       [Provider.CLAUDE]: 5,
       [Provider.MISTRAL]: 10,
       [Provider.DEEPSEEK]: 10,
+      [Provider.OPENROUTER]: 10,
       [Provider.ZAI_PAAS]: 5,
       [Provider.ZAI_CODING]: 5,
     };
@@ -575,6 +577,10 @@ export class AppConfigService {
       deepseek: {
         apiKey: this.defaults.deepseekApiKey,
         model: 'deepseek-chat',
+      },
+      openrouter: {
+        apiKey: this.defaults.openrouterApiKey,
+        model: 'openai/gpt-4o-mini',
       },
       'zai-paas': {
         apiKey: this.defaults.zaiPaasApiKey,

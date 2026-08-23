@@ -86,6 +86,14 @@ const PROVIDER_LOADERS: ReadonlyMap<string, ProviderLoader> = new Map([
       ).then((m) => ({ default: m.DeepseekProvider })),
   ],
   [
+    'openrouter',
+    () =>
+      import(
+        /* webpackChunkName: "provider-openrouter" */
+        './impl/OpenRouterProvider'
+      ).then((m) => ({ default: m.OpenRouterProvider })),
+  ],
+  [
     'zai-paas',
     () =>
       import(
@@ -124,6 +132,7 @@ export const ProviderTokens = {
   MISTRAL_PROVIDER: 'provider:mistral' as InjectionToken<unknown>,
   OLLAMA_PROVIDER: 'provider:ollama' as InjectionToken<unknown>,
   DEEPSEEK_PROVIDER: 'provider:deepseek' as InjectionToken<unknown>,
+  OPENROUTER_PROVIDER: 'provider:openrouter' as InjectionToken<unknown>,
   ZAI_PAAS_PROVIDER: 'provider:zai-paas' as InjectionToken<unknown>,
   ZAI_CODING_PROVIDER: 'provider:zai-coding' as InjectionToken<unknown>,
 } as const;
@@ -138,6 +147,7 @@ const PROVIDER_ID_TO_TOKEN: ReadonlyMap<string, InjectionToken<unknown>> = new M
   ['mistral', ProviderTokens.MISTRAL_PROVIDER],
   ['ollama', ProviderTokens.OLLAMA_PROVIDER],
   ['deepseek', ProviderTokens.DEEPSEEK_PROVIDER],
+  ['openrouter', ProviderTokens.OPENROUTER_PROVIDER],
   ['zai-paas', ProviderTokens.ZAI_PAAS_PROVIDER],
   ['zai-coding', ProviderTokens.ZAI_CODING_PROVIDER],
 ] as const);

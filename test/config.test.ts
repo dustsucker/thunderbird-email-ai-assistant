@@ -42,6 +42,11 @@ describe('Config - getConcurrencyLimit', () => {
       expect(limit).toBe(10);
     });
 
+    it('should return default concurrency for openrouter provider', () => {
+      const limit = getConcurrencyLimit(DEFAULTS, 'openrouter', 'openai/gpt-4o-mini');
+      expect(limit).toBe(10);
+    });
+
     it('should return default concurrency for zai-paas provider', () => {
       const limit = getConcurrencyLimit(DEFAULTS, 'zai-paas', 'glm-4');
       expect(limit).toBe(5);
@@ -229,6 +234,7 @@ describe('Config - validateConcurrencyConfig', () => {
         { provider: 'claude', concurrency: 5 },
         { provider: 'mistral', concurrency: 10 },
         { provider: 'deepseek', concurrency: 10 },
+        { provider: 'openrouter', concurrency: 10 },
         { provider: 'zai-paas', concurrency: 5 },
         { provider: 'zai-coding', concurrency: 5 },
       ];

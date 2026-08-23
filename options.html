@@ -28,6 +28,7 @@
               <option value="mistral">Mistral</option>
               <option value="gemini">Gemini</option>
               <option value="deepseek">DeepSeek</option>
+              <option value="openrouter">OpenRouter</option>
               <option value="openai">OpenAI</option>
               <option value="claude">Claude</option>
               <option value="zai-paas">Zai PaaS</option>
@@ -168,6 +169,37 @@
                 </div>
               </div>
 
+              <div id="openrouter-settings" class="provider-settings">
+                <h3>OpenRouter-Konfiguration</h3>
+                <div class="form-group">
+                  <label for="openrouter-api-key">API Key:</label>
+                  <input
+                    type="password"
+                    id="openrouter-api-key"
+                    name="openrouter-api-key"
+                    placeholder="Geben Sie Ihren OpenRouter API-Schlüssel ein"
+                    pattern=".{10,}"
+                    title="API-Schlüssel muss mindestens 10 Zeichen lang sein"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="openrouter-model">Modell:</label>
+                  <input
+                    type="text"
+                    id="openrouter-model"
+                    name="openrouter-model"
+                    placeholder="z.B. openai/gpt-4o-mini"
+                  />
+                </div>
+                <div class="privacy-notice">
+                  <p>
+                    <strong>Datenschutz-Hinweis:</strong> E-Mails werden an OpenRouter zur
+                    Verarbeitung gesendet.
+                  </p>
+                </div>
+              </div>
+
               <div id="openai-settings" class="provider-settings">
                 <h3>OpenAI-Konfiguration</h3>
                 <div class="form-group">
@@ -228,7 +260,23 @@
                 </div>
                 <div class="form-group">
                   <label for="zaiPaasModel">Model:</label>
-                  <select id="zaiPaasModel" name="zaiPaasModel" required></select>
+                  <input
+                    type="text"
+                    id="zaiPaasModel"
+                    name="zaiPaasModel"
+                    list="zaiPaasModelList"
+                    placeholder="Modell auswählen oder Namen eingeben"
+                    required
+                  />
+                  <datalist id="zaiPaasModelList">
+                    <option value="glm-4.5"></option>
+                    <option value="glm-4"></option>
+                    <option value="glm-3-turbo"></option>
+                  </datalist>
+                  <p class="help-text">
+                    Wählen Sie ein Modell aus der Liste oder geben Sie einen benutzerdefinierten
+                    Modellnamen ein.
+                  </p>
                 </div>
                 <div class="privacy-notice">
                   <p>
@@ -254,7 +302,24 @@
                 </div>
                 <div class="form-group">
                   <label for="zaiCodingModel">Model:</label>
-                  <select id="zaiCodingModel" name="zaiCodingModel" required></select>
+                  <input
+                    type="text"
+                    id="zaiCodingModel"
+                    name="zaiCodingModel"
+                    list="zaiCodingModelList"
+                    placeholder="Modell auswählen oder Namen eingeben"
+                    required
+                  />
+                  <datalist id="zaiCodingModelList">
+                    <option value="glm-4.7"></option>
+                    <option value="glm-4.5"></option>
+                    <option value="glm-4"></option>
+                    <option value="glm-3-turbo"></option>
+                  </datalist>
+                  <p class="help-text">
+                    Wählen Sie ein Modell aus der Liste oder geben Sie einen benutzerdefinierten
+                    Modellnamen ein.
+                  </p>
                 </div>
                 <div class="privacy-notice">
                   <p>
