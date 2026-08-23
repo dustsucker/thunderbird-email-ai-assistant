@@ -24,9 +24,6 @@ import { injectable, inject } from 'tsyringe';
 import type { ITagResponse, IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import type { ILogger } from '@/domain/interfaces';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
-import { EventBus } from '@/domain/events/EventBus';
-import { createEmailAnalyzedEvent } from '@/domain/events/EmailAnalyzedEvent';
-import { createProviderErrorEvent } from '@/domain/events/ProviderErrorEvent';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 import { RetrieveEmailUseCase } from './RetrieveEmailUseCase';
 import { ExtractEmailContentUseCase } from './ExtractEmailContentUseCase';
@@ -98,7 +95,6 @@ export class AnalyzeEmail {
   constructor(
     @inject('ProviderFactory') private readonly providerFactory: ProviderFactory,
     @inject('IConfigRepository') private readonly configRepository: IConfigRepository,
-    @inject(EventBus) private readonly eventBus: EventBus,
     @inject(EmailAnalysisTracker) private readonly analysisTracker: EmailAnalysisTracker,
     @inject('ILogger') private readonly logger: ILogger,
     // Sub-use-cases
@@ -258,17 +254,6 @@ export class AnalyzeEmail {
         await this.storeLowConfidenceFlags(cacheKey, lowConfidenceFlags);
       }
 
-      // Publish event
-      await this.eventBus.publish(
-        createEmailAnalyzedEvent(
-          messageId,
-          providerSettings.provider as string,
-          providerSettings.model as string,
-          analysisResult,
-          { fromCache: false, cacheKey, duration: Date.now() - startTime }
-        )
-      );
-
       this.logger.info('✅ Email analysis completed successfully', {
         messageId,
         tags: analysisResult.tags,
@@ -280,15 +265,6 @@ export class AnalyzeEmail {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('❌ Email analysis failed', { messageId, error: errorMessage });
-
-      await this.eventBus.publish(
-        createProviderErrorEvent(
-          providerSettings.provider as string,
-          providerSettings.model as string,
-          errorMessage,
-          { messageId, error: error instanceof Error ? error : undefined, errorType: 'api_error' }
-        )
-      );
 
       throw new Error(`Failed to analyze email ${messageId}: ${errorMessage}`);
     }
@@ -325,16 +301,6 @@ export class AnalyzeEmail {
         await this.storeLowConfidenceFlags(cacheKey, tagResult.lowConfidenceFlags);
       }
     }
-
-    await this.eventBus.publish(
-      createEmailAnalyzedEvent(
-        messageId,
-        providerSettings.provider as string,
-        providerSettings.model as string,
-        cachedResult,
-        { fromCache: true, cacheKey, duration: Date.now() - startTime }
-      )
-    );
 
     this.logger.info('✅ Analysis completed from cache', {
       duration: `${Date.now() - startTime}ms`,

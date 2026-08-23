@@ -50,7 +50,6 @@ import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 // Domain Events
 // ============================================================================
 
-import { EventBus } from '@/domain/events/EventBus';
 
 // ============================================================================
 // UI Components
@@ -125,7 +124,6 @@ class OptionsScript {
   private analysisResultsUI: AnalysisResultsUI | null = null;
   private manualReviewPanel: ManualReviewPanel | null = null;
   private logger: ILogger | null = null;
-  private eventBus: EventBus | null = null;
   private isInitialized = false;
 
   // ==========================================================================
@@ -159,10 +157,7 @@ class OptionsScript {
       this.logger = container.resolve<ILogger>('ILogger');
       this.logger.info('Options page initialization started');
 
-      // Step 3: Resolve event bus
-      this.eventBus = container.resolve<EventBus>(EventBus);
-
-      // Step 4: Resolve UI components
+      // Step 3: Resolve UI components
       this.settingsForm = container.resolve<SettingsForm>(SettingsForm);
       this.tagManagementUI = container.resolve<TagManagementUI>(TagManagementUI);
       this.batchAnalysisUI = container.resolve<BatchAnalysisUI>(BatchAnalysisUI);
@@ -233,14 +228,6 @@ class OptionsScript {
     container.registerSingleton('AnalyzeBatchEmails', AnalyzeBatchEmails);
 
     startupLogger.info('Use cases registered');
-
-    // ------------------------------------------------------------------------
-    // Register Domain Events
-    // ------------------------------------------------------------------------
-
-    container.registerSingleton('EventBus', EventBus);
-
-    startupLogger.info('Event bus registered');
 
     // ------------------------------------------------------------------------
     // Register UI Components

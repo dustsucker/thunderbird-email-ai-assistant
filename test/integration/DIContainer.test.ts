@@ -38,7 +38,6 @@ import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepos
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { TagService } from '@/domain/services/TagService';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
-import { RateLimiterService } from '@/application/services/RateLimiterService';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 
@@ -47,7 +46,6 @@ import { EmailEventListener } from '@/interfaces/background/EmailEventListener';
 import { MessageHandler } from '@/interfaces/background/MessageHandler';
 
 // Domain Events
-import { EventBus } from '@/domain/events/EventBus';
 
 /**
  * Mock Thunderbird messenger API for testing
@@ -139,13 +137,13 @@ describe('DIContainer Integration', () => {
   describe('Use Cases Resolution', () => {
     describe('AnalyzeEmail use case', () => {
       it('should resolve AnalyzeEmail from container', () => {
-        const useCase = container.resolve<AnalyzeEmail>('AnalyzeEmail');
+        const useCase = container.resolve<AnalyzeEmail>(AnalyzeEmail);
         expect(useCase).toBeDefined();
         expect(useCase).toBeInstanceOf(AnalyzeEmail);
       });
 
       it('should have all required dependencies injected', () => {
-        const useCase = container.resolve<AnalyzeEmail>('AnalyzeEmail');
+        const useCase = container.resolve<AnalyzeEmail>(AnalyzeEmail);
         // Verify the use case has an execute method
         expect(typeof useCase.execute).toBe('function');
       });
@@ -153,26 +151,26 @@ describe('DIContainer Integration', () => {
 
     describe('ApplyTagsToEmail use case', () => {
       it('should resolve ApplyTagsToEmail from container', () => {
-        const useCase = container.resolve<ApplyTagsToEmail>('ApplyTagsToEmail');
+        const useCase = container.resolve<ApplyTagsToEmail>(ApplyTagsToEmail);
         expect(useCase).toBeDefined();
         expect(useCase).toBeInstanceOf(ApplyTagsToEmail);
       });
 
       it('should have execute method', () => {
-        const useCase = container.resolve<ApplyTagsToEmail>('ApplyTagsToEmail');
+        const useCase = container.resolve<ApplyTagsToEmail>(ApplyTagsToEmail);
         expect(typeof useCase.execute).toBe('function');
       });
     });
 
     describe('AnalyzeBatchEmails use case', () => {
       it('should resolve AnalyzeBatchEmails from container', () => {
-        const useCase = container.resolve<AnalyzeBatchEmails>('AnalyzeBatchEmails');
+        const useCase = container.resolve<AnalyzeBatchEmails>(AnalyzeBatchEmails);
         expect(useCase).toBeDefined();
         expect(useCase).toBeInstanceOf(AnalyzeBatchEmails);
       });
 
       it('should have execute method', () => {
-        const useCase = container.resolve<AnalyzeBatchEmails>('AnalyzeBatchEmails');
+        const useCase = container.resolve<AnalyzeBatchEmails>(AnalyzeBatchEmails);
         expect(typeof useCase.execute).toBe('function');
       });
     });
@@ -307,13 +305,13 @@ describe('DIContainer Integration', () => {
   describe('Domain & Infrastructure Services Resolution', () => {
     describe('EmailContentExtractor', () => {
       it('should resolve EmailContentExtractor from container', () => {
-        const extractor = container.resolve<EmailContentExtractor>('EmailContentExtractor');
+        const extractor = container.resolve<EmailContentExtractor>(EmailContentExtractor);
         expect(extractor).toBeDefined();
         expect(extractor).toBeInstanceOf(EmailContentExtractor);
       });
 
       it('should have findEmailParts method', () => {
-        const extractor = container.resolve<EmailContentExtractor>('EmailContentExtractor');
+        const extractor = container.resolve<EmailContentExtractor>(EmailContentExtractor);
         expect(typeof extractor.findEmailParts).toBe('function');
       });
     });
@@ -328,29 +326,21 @@ describe('DIContainer Integration', () => {
 
     describe('AppConfigService', () => {
       it('should resolve AppConfigService from container', () => {
-        const appConfig = container.resolve<AppConfigService>('AppConfigService');
+        const appConfig = container.resolve<AppConfigService>(AppConfigService);
         expect(appConfig).toBeDefined();
         expect(appConfig).toBeInstanceOf(AppConfigService);
       });
     });
 
-    describe('RateLimiterService', () => {
-      it('should resolve RateLimiterService from container', () => {
-        const rateLimiter = container.resolve<RateLimiterService>('RateLimiterService');
-        expect(rateLimiter).toBeDefined();
-        expect(rateLimiter).toBeInstanceOf(RateLimiterService);
-      });
-    });
-
     describe('EmailAnalysisTracker', () => {
       it('should resolve EmailAnalysisTracker from container', () => {
-        const tracker = container.resolve<EmailAnalysisTracker>('EmailAnalysisTracker');
+        const tracker = container.resolve<EmailAnalysisTracker>(EmailAnalysisTracker);
         expect(tracker).toBeDefined();
         expect(tracker).toBeInstanceOf(EmailAnalysisTracker);
       });
 
       it('should have required methods', () => {
-        const tracker = container.resolve<EmailAnalysisTracker>('EmailAnalysisTracker');
+        const tracker = container.resolve<EmailAnalysisTracker>(EmailAnalysisTracker);
         expect(typeof tracker.wasAnalyzed).toBe('function');
         expect(typeof tracker.markAnalyzed).toBe('function');
       });
@@ -388,7 +378,7 @@ describe('DIContainer Integration', () => {
   describe('Background Services Resolution', () => {
     describe('EmailEventListener', () => {
       it('should resolve EmailEventListener from container', () => {
-        const listener = container.resolve<EmailEventListener>('EmailEventListener');
+        const listener = container.resolve<EmailEventListener>(EmailEventListener);
         expect(listener).toBeDefined();
         expect(listener).toBeInstanceOf(EmailEventListener);
       });
@@ -396,7 +386,7 @@ describe('DIContainer Integration', () => {
 
     describe('MessageHandler', () => {
       it('should resolve MessageHandler from container', () => {
-        const handler = container.resolve<MessageHandler>('MessageHandler');
+        const handler = container.resolve<MessageHandler>(MessageHandler);
         expect(handler).toBeDefined();
         expect(handler).toBeInstanceOf(MessageHandler);
       });
@@ -454,8 +444,8 @@ describe('DIContainer Integration', () => {
       });
 
       it('should return same EmailContentExtractor instance on multiple resolves', () => {
-        const extractor1 = container.resolve<EmailContentExtractor>('EmailContentExtractor');
-        const extractor2 = container.resolve<EmailContentExtractor>('EmailContentExtractor');
+        const extractor1 = container.resolve<EmailContentExtractor>(EmailContentExtractor);
+        const extractor2 = container.resolve<EmailContentExtractor>(EmailContentExtractor);
         expect(extractor1).toBe(extractor2);
       });
 
@@ -466,40 +456,34 @@ describe('DIContainer Integration', () => {
       });
 
       it('should return same AppConfigService instance on multiple resolves', () => {
-        const config1 = container.resolve<AppConfigService>('AppConfigService');
-        const config2 = container.resolve<AppConfigService>('AppConfigService');
+        const config1 = container.resolve<AppConfigService>(AppConfigService);
+        const config2 = container.resolve<AppConfigService>(AppConfigService);
         expect(config1).toBe(config2);
       });
 
-      it('should return same RateLimiterService instance on multiple resolves', () => {
-        const rateLimiter1 = container.resolve<RateLimiterService>('RateLimiterService');
-        const rateLimiter2 = container.resolve<RateLimiterService>('RateLimiterService');
-        expect(rateLimiter1).toBe(rateLimiter2);
-      });
-
       it('should return same EmailAnalysisTracker instance on multiple resolves', () => {
-        const tracker1 = container.resolve<EmailAnalysisTracker>('EmailAnalysisTracker');
-        const tracker2 = container.resolve<EmailAnalysisTracker>('EmailAnalysisTracker');
+        const tracker1 = container.resolve<EmailAnalysisTracker>(EmailAnalysisTracker);
+        const tracker2 = container.resolve<EmailAnalysisTracker>(EmailAnalysisTracker);
         expect(tracker1).toBe(tracker2);
       });
     });
 
     describe('Use Cases Singletons', () => {
       it('should return same AnalyzeEmail instance on multiple resolves', () => {
-        const useCase1 = container.resolve<AnalyzeEmail>('AnalyzeEmail');
-        const useCase2 = container.resolve<AnalyzeEmail>('AnalyzeEmail');
+        const useCase1 = container.resolve<AnalyzeEmail>(AnalyzeEmail);
+        const useCase2 = container.resolve<AnalyzeEmail>(AnalyzeEmail);
         expect(useCase1).toBe(useCase2);
       });
 
       it('should return same ApplyTagsToEmail instance on multiple resolves', () => {
-        const useCase1 = container.resolve<ApplyTagsToEmail>('ApplyTagsToEmail');
-        const useCase2 = container.resolve<ApplyTagsToEmail>('ApplyTagsToEmail');
+        const useCase1 = container.resolve<ApplyTagsToEmail>(ApplyTagsToEmail);
+        const useCase2 = container.resolve<ApplyTagsToEmail>(ApplyTagsToEmail);
         expect(useCase1).toBe(useCase2);
       });
 
       it('should return same AnalyzeBatchEmails instance on multiple resolves', () => {
-        const useCase1 = container.resolve<AnalyzeBatchEmails>('AnalyzeBatchEmails');
-        const useCase2 = container.resolve<AnalyzeBatchEmails>('AnalyzeBatchEmails');
+        const useCase1 = container.resolve<AnalyzeBatchEmails>(AnalyzeBatchEmails);
+        const useCase2 = container.resolve<AnalyzeBatchEmails>(AnalyzeBatchEmails);
         expect(useCase1).toBe(useCase2);
       });
 
@@ -530,14 +514,14 @@ describe('DIContainer Integration', () => {
 
     describe('Background Services Singletons', () => {
       it('should return same EmailEventListener instance on multiple resolves', () => {
-        const listener1 = container.resolve<EmailEventListener>('EmailEventListener');
-        const listener2 = container.resolve<EmailEventListener>('EmailEventListener');
+        const listener1 = container.resolve<EmailEventListener>(EmailEventListener);
+        const listener2 = container.resolve<EmailEventListener>(EmailEventListener);
         expect(listener1).toBe(listener2);
       });
 
       it('should return same MessageHandler instance on multiple resolves', () => {
-        const handler1 = container.resolve<MessageHandler>('MessageHandler');
-        const handler2 = container.resolve<MessageHandler>('MessageHandler');
+        const handler1 = container.resolve<MessageHandler>(MessageHandler);
+        const handler2 = container.resolve<MessageHandler>(MessageHandler);
         expect(handler1).toBe(handler2);
       });
     });
@@ -550,7 +534,7 @@ describe('DIContainer Integration', () => {
   describe('Dependency Chain Verification', () => {
     describe('AnalyzeEmail Dependencies', () => {
       it('should have properly injected dependencies in AnalyzeEmail', () => {
-        const analyzeEmail = container.resolve<AnalyzeEmail>('AnalyzeEmail');
+        const analyzeEmail = container.resolve<AnalyzeEmail>(AnalyzeEmail);
 
         // Verify the use case can be called (dependencies are properly injected)
         expect(analyzeEmail).toBeDefined();
@@ -561,7 +545,7 @@ describe('DIContainer Integration', () => {
 
       it('should share singleton dependencies between AnalyzeEmail and sub-use-cases', () => {
         // Resolve main use case
-        const analyzeEmail = container.resolve<AnalyzeEmail>('AnalyzeEmail');
+        const analyzeEmail = container.resolve<AnalyzeEmail>(AnalyzeEmail);
 
         // Resolve sub-use-cases directly
         const retrieveEmail = container.resolve(RetrieveEmailUseCase);
@@ -583,8 +567,8 @@ describe('DIContainer Integration', () => {
         const logger = container.resolve<ILogger>('ILogger');
 
         // These services should all use the same logger instance
-        const extractor = container.resolve<EmailContentExtractor>('EmailContentExtractor');
-        const tracker = container.resolve<EmailAnalysisTracker>('EmailAnalysisTracker');
+        const extractor = container.resolve<EmailContentExtractor>(EmailContentExtractor);
+        const tracker = container.resolve<EmailAnalysisTracker>(EmailAnalysisTracker);
 
         // Verify they all resolved (meaning they got their logger dependency)
         expect(extractor).toBeDefined();
@@ -596,7 +580,7 @@ describe('DIContainer Integration', () => {
         const tagManager = container.resolve<ITagManager>('ITagManager');
 
         // ApplyTagsToEmail should use the same ITagManager
-        const applyTags = container.resolve<ApplyTagsToEmail>('ApplyTagsToEmail');
+        const applyTags = container.resolve<ApplyTagsToEmail>(ApplyTagsToEmail);
 
         expect(applyTags).toBeDefined();
         expect(tagManager).toBeDefined();
@@ -616,8 +600,8 @@ describe('DIContainer Integration', () => {
         const configRepo = container.resolve<IConfigRepository>('IConfigRepository');
 
         // Multiple services depend on config
-        const appConfig = container.resolve<AppConfigService>('AppConfigService');
-        const tracker = container.resolve<EmailAnalysisTracker>('EmailAnalysisTracker');
+        const appConfig = container.resolve<AppConfigService>(AppConfigService);
+        const tracker = container.resolve<EmailAnalysisTracker>(EmailAnalysisTracker);
 
         expect(appConfig).toBeDefined();
         expect(tracker).toBeDefined();
@@ -721,19 +705,18 @@ describe('DIContainer Integration', () => {
         container.resolve<ITagManager>('ITagManager');
         container.resolve<IConfigRepository>('IConfigRepository');
         container.resolve<ProviderFactory>('ProviderFactory');
-        container.resolve<EmailContentExtractor>('EmailContentExtractor');
+        container.resolve<EmailContentExtractor>(EmailContentExtractor);
         container.resolve<TagService>('TagService');
-        container.resolve<AppConfigService>('AppConfigService');
-        container.resolve<RateLimiterService>('RateLimiterService');
-        container.resolve<EmailAnalysisTracker>('EmailAnalysisTracker');
+        container.resolve<AppConfigService>(AppConfigService);
+        container.resolve<EmailAnalysisTracker>(EmailAnalysisTracker);
       }).not.toThrow();
     });
 
     it('should resolve all use cases without errors', () => {
       expect(() => {
-        container.resolve<AnalyzeEmail>('AnalyzeEmail');
-        container.resolve<ApplyTagsToEmail>('ApplyTagsToEmail');
-        container.resolve<AnalyzeBatchEmails>('AnalyzeBatchEmails');
+        container.resolve<AnalyzeEmail>(AnalyzeEmail);
+        container.resolve<ApplyTagsToEmail>(ApplyTagsToEmail);
+        container.resolve<AnalyzeBatchEmails>(AnalyzeBatchEmails);
         container.resolve(RetrieveEmailUseCase);
         container.resolve(ExtractEmailContentUseCase);
         container.resolve(CacheAnalysisUseCase);
@@ -743,8 +726,8 @@ describe('DIContainer Integration', () => {
 
     it('should resolve all background services without errors', () => {
       expect(() => {
-        container.resolve<EmailEventListener>('EmailEventListener');
-        container.resolve<MessageHandler>('MessageHandler');
+        container.resolve<EmailEventListener>(EmailEventListener);
+        container.resolve<MessageHandler>(MessageHandler);
       }).not.toThrow();
     });
   });

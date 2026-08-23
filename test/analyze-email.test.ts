@@ -8,7 +8,6 @@ import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
-import { EventBus } from '@/domain/events/EventBus';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 import { RetrieveEmailUseCase } from '@/application/use-cases/RetrieveEmailUseCase';
 import { ExtractEmailContentUseCase } from '@/application/use-cases/ExtractEmailContentUseCase';
@@ -22,7 +21,6 @@ describe('AnalyzeEmail - Logging Tests', () => {
   let providerFactory: ProviderFactory;
   let cache: ICache;
   let contentExtractor: EmailContentExtractor;
-  let eventBus: EventBus;
   let configRepository: IConfigRepository;
   let analysisTracker: EmailAnalysisTracker;
   let analyzeEmail: AnalyzeEmail;
@@ -111,12 +109,6 @@ describe('AnalyzeEmail - Logging Tests', () => {
 
     contentExtractor = new EmailContentExtractor(logger);
 
-    eventBus = {
-      publish: vi.fn(),
-      subscribe: vi.fn(),
-      unsubscribe: vi.fn(),
-    } as unknown as EventBus;
-
     configRepository = {
       getProviderSettings: vi.fn(),
       setProviderSettings: vi.fn(),
@@ -153,7 +145,6 @@ describe('AnalyzeEmail - Logging Tests', () => {
     analyzeEmail = new AnalyzeEmail(
       providerFactory,
       configRepository,
-      eventBus,
       analysisTracker,
       logger,
       retrieveEmailUseCase,

@@ -40,7 +40,6 @@ import { SystemClock, CryptoRandom } from '@/infrastructure/system';
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { TagService } from '@/domain/services/TagService';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
-import { RateLimiterService } from '@/application/services/RateLimiterService';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 
@@ -126,13 +125,16 @@ export function setupDIContainer(): void {
   // ------------------------------------------------------------------------
   // Register Services
   // ------------------------------------------------------------------------
+  // String tokens are kept ONLY where consumers actually inject/resolve by
+  // string ('ProviderFactory' is injected by AnalyzeEmail; 'TagService' is
+  // resolved by BackgroundScript). Everything else uses class tokens.
 
+  // 'ICache' is registered once with the core interfaces above.
   container.registerSingleton('ProviderFactory', ProviderFactory);
-  container.registerSingleton('EmailContentExtractor', EmailContentExtractor);
   container.registerSingleton('TagService', TagService);
-  container.registerSingleton('AppConfigService', AppConfigService);
-  container.registerSingleton('RateLimiterService', RateLimiterService);
-  container.registerSingleton('EmailAnalysisTracker', EmailAnalysisTracker);
+  container.registerSingleton(EmailContentExtractor, EmailContentExtractor);
+  container.registerSingleton(AppConfigService, AppConfigService);
+  container.registerSingleton(EmailAnalysisTracker, EmailAnalysisTracker);
 
   startupLogger.info('Services registered');
 
@@ -155,10 +157,10 @@ export function setupDIContainer(): void {
   container.registerSingleton(CacheAnalysisUseCase, CacheAnalysisUseCase);
   container.registerSingleton(ApplyTagsWithConfidenceUseCase, ApplyTagsWithConfidenceUseCase);
 
-  // Main use cases
-  container.registerSingleton('AnalyzeEmail', AnalyzeEmail);
-  container.registerSingleton('ApplyTagsToEmail', ApplyTagsToEmail);
-  container.registerSingleton('AnalyzeBatchEmails', AnalyzeBatchEmails);
+  // Main use cases (class tokens - consumers inject via class)
+  container.registerSingleton(AnalyzeEmail, AnalyzeEmail);
+  container.registerSingleton(ApplyTagsToEmail, ApplyTagsToEmail);
+  container.registerSingleton(AnalyzeBatchEmails, AnalyzeBatchEmails);
   container.registerSingleton(UndoTagChanges, UndoTagChanges);
   container.registerSingleton(TrackAnalysisMetrics, TrackAnalysisMetrics);
 
@@ -168,8 +170,8 @@ export function setupDIContainer(): void {
   // Register Background Services
   // ------------------------------------------------------------------------
 
-  container.registerSingleton('EmailEventListener', EmailEventListener);
-  container.registerSingleton('MessageHandler', MessageHandler);
+  container.registerSingleton(EmailEventListener, EmailEventListener);
+  container.registerSingleton(MessageHandler, MessageHandler);
 
   startupLogger.info('Background services registered');
   startupLogger.info('DI container setup completed');

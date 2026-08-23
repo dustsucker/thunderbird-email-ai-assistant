@@ -14,9 +14,6 @@
 import { injectable, inject } from 'tsyringe';
 import type { ITagManager, ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
-import { EventBus } from '@/domain/events/EventBus';
-import { createTagAppliedEvent } from '@/domain/events/TagAppliedEvent';
-import { createTagCreatedEvent } from '@/domain/events/TagCreatedEvent';
 import { HARDCODED_TAGS } from '@/shared/constants/TagConstants';
 
 // ============================================================================
@@ -75,7 +72,6 @@ export class ApplyTagsToEmail {
   constructor(
     @inject('ITagManager') private readonly tagManager: ITagManager,
     @inject('ILogger') private readonly logger: ILogger,
-    @inject(EventBus) private readonly eventBus: EventBus,
     @inject('IConfigRepository') private readonly configRepository: IConfigRepository
   ) {
     this.logger.debug('✅ ApplyTagsToEmail use case initialized');
@@ -164,16 +160,6 @@ export class ApplyTagsToEmail {
         createdTags,
       });
 
-      // Publish TagAppliedEvent
-      this.logger.debug('➡️  Publishing TagAppliedEvent');
-      await this.eventBus.publish(
-        createTagAppliedEvent(messageId, ensuredTags, {
-          skippedTags: invalidTags,
-          createdTags,
-          replaceTags,
-        })
-      );
-
       return {
         messageId,
         appliedTags: ensuredTags,
@@ -238,11 +224,6 @@ export class ApplyTagsToEmail {
           await this.tagManager.ensureTagExists(tagKey, tagName, defaultColor);
           created.push(tagKey);
           applied.push(tagKey);
-
-          // Publish TagCreatedEvent
-          this.logger.debug('➡️  Publishing TagCreatedEvent');
-          await this.eventBus.publish(createTagCreatedEvent(tagKey, tagName, defaultColor));
-          this.logger.debug('✅ TagCreatedEvent published');
         } else {
           // Tag does not exist and creation is disabled
           this.logger.warn('⚠️  Tag does not exist and creation is disabled', { tagKey });
