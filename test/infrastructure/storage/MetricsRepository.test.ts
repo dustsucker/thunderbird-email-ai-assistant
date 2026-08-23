@@ -3,7 +3,6 @@ import { MetricsRepository } from '../../../src/infrastructure/storage/MetricsRe
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IClock } from '@/domain/interfaces/IClock';
 import type { IRandom } from '@/domain/interfaces/IRandom';
-import type { AnalysisMetrics } from '@/shared/types/Metrics';
 
 // Mock messenger.storage.local
 const mockStorage: Record<string, unknown> = {};

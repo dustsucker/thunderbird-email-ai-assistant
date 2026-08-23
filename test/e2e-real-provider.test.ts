@@ -51,7 +51,10 @@ async function analyzeWithProvider(
   });
 }
 
-describe('E2E Real Provider - ZAI', () => {
+// Live-API tests: only run when explicitly requested (RUN_E2E=1) so the default
+// `npx vitest run` never hits a real provider endpoint.
+const describeE2E = process.env.RUN_E2E === '1' ? describe : describe.skip;
+describeE2E('E2E Real Provider - ZAI', () => {
   beforeEach(() => {
     const errorMessage = getZaiConfigErrorMessage();
     if (errorMessage) {

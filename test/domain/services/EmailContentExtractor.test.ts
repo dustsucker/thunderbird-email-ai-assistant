@@ -4,7 +4,7 @@
  * @module test/domain/services/EmailContentExtractor.test
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { EmailContentExtractor } from '../../../src/domain/services/EmailContentExtractor';
 import type { EmailPart, StructuredEmailData } from '../../../src/shared/types/EmailPart';
 import type { CustomTags } from '../../../src/shared/types/ProviderTypes';

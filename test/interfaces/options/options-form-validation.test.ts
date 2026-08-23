@@ -593,6 +593,10 @@ describe('Options Page - UI Interactions', () => {
 // ============================================================================
 
 describe('Options Page - Integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe('End-to-End Threshold Configuration', () => {
     it('should handle complete threshold save/load cycle', async () => {
       const threshold = 75;

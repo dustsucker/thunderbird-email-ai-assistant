@@ -27,9 +27,7 @@ const mockMessenger = {
     get: vi.fn(),
     getFull: vi.fn(),
     addTags: vi.fn(),
-    removeTags: vi.fn(),
     update: vi.fn(),
-    listTags: vi.fn(),
     tags: {
       create: vi.fn(),
       update: vi.fn(),
@@ -47,7 +45,7 @@ const mockMessenger = {
     },
   },
   messageDisplay: {
-    getDisplayedMessage: vi.fn(),
+    getDisplayedMessages: vi.fn(() => Promise.resolve([])),
   },
   runtime: {
     onInstalled: {

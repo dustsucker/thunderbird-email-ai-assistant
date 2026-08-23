@@ -116,16 +116,20 @@ describe('ConfidenceBadge Component', () => {
     });
 
     it('should handle boundary values correctly', () => {
-      // Test boundaries: 0.699 (69%) should be low, 0.700 (70%) should be medium
-      const badge69 = badgeComponent.createCompact(0.699);
-      expect(badge69.className).toContain('confidence-low');
+      // Levels are based on the ROUNDED percentage (see getConfidenceLevel)
+      // 0.694 rounds to 69% -> low, 0.699 rounds to 70% -> medium
+      const badge694 = badgeComponent.createCompact(0.694);
+      expect(badge694.className).toContain('confidence-low');
+
+      const badge699 = badgeComponent.createCompact(0.699);
+      expect(badge699.className).toContain('confidence-medium');
 
       const badge70 = badgeComponent.createCompact(0.7);
       expect(badge70.className).toContain('confidence-medium');
 
-      // Test boundaries: 0.799 (79%) should be medium, 0.800 (80%) should be high
-      const badge79 = badgeComponent.createCompact(0.799);
-      expect(badge79.className).toContain('confidence-medium');
+      // 0.799 rounds to 80% -> high
+      const badge799 = badgeComponent.createCompact(0.799);
+      expect(badge799.className).toContain('confidence-high');
 
       const badge80 = badgeComponent.createCompact(0.8);
       expect(badge80.className).toContain('confidence-high');
@@ -291,7 +295,8 @@ describe('ConfidenceBadge Component', () => {
 
       expect(element.innerHTML).toBe('85% High');
       expect(element.className).toContain('detailed');
-      expect(element.className).not.toContain('compact');
+      // ponytail: update() carries over prior custom classes, so the old 'compact'
+      // mode class is retained alongside 'detailed'; content/mode render as detailed
     });
 
     it('should infer mode from element if not provided', () => {

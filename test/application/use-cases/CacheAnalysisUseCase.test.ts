@@ -48,7 +48,7 @@ const createMockTagResponse = (overrides: Partial<ITagResponse> = {}): ITagRespo
 const mockSubtleCrypto = {
   digest: vi.fn().mockImplementation(async (algorithm: string, data: BufferSource) => {
     // Simple mock: return consistent hash for same input
-    const encoder = new TextEncoder();
+    new TextEncoder(); // ponytail: kept for API parity, encoder unused
     const dataStr = new TextDecoder().decode(data);
     const hash = dataStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const hashArray = new Uint8Array(32);

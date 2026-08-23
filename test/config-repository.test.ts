@@ -225,7 +225,10 @@ describe('IndexedDBConfigRepository', () => {
       const retrieved = await repository.getCustomTags();
 
       expect(retrieved).toEqual(sampleCustomTags);
-      expect(mockLogger.debug).toHaveBeenCalledWith('Saved 2 custom tags');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        '[CONFIG-REPO] Custom tags saved successfully',
+        { count: 2 }
+      );
     });
 
     it('should return empty array when no custom tags exist', async () => {
@@ -364,7 +367,7 @@ describe('IndexedDBConfigRepository', () => {
       );
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to get custom tags',
+        '[CONFIG-REPO] Failed to get custom tags',
         expect.objectContaining({
           error: errorMessage,
         })
