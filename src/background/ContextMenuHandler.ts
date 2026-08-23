@@ -118,86 +118,86 @@ export class ContextMenuHandler {
 
   /**
    * Registers all context menus.
+   *
+   * Menus persist across event-page suspend/wake in TB MV3, so ALL existing
+   * menus are removed (awaited) before creating new ones — otherwise
+   * menus.create fails with a duplicate-ID lastError.
    */
-  registerMenus(): void {
+  async registerMenus(): Promise<void> {
     this.logger.info('Registering context menus...');
 
     try {
+      // Remove any menus persisted from a previous event-page lifetime
+      const menus = messenger.menus as typeof messenger.menus & {
+        removeAll?: () => Promise<void>;
+      };
+      if (typeof menus.removeAll === 'function') {
+        await menus.removeAll();
+        this.logger.debug('Existing context menus removed before re-registration');
+      }
+
+      /** Creates one menu item, logging the real lastError text on failure. */
+      const createMenu = (
+        properties: Record<string, unknown>,
+        label: string
+      ): void => {
+        messenger.menus.create(properties as never, () => {
+          const lastError =
+            typeof browser !== 'undefined' && browser.runtime?.lastError
+              ? browser.runtime.lastError
+              : undefined;
+          if (lastError) {
+            this.logger.error(`Failed to create ${label} context menu`, {
+              error: lastError.message,
+            });
+          } else {
+            this.logger.info(`${label} context menu registered`);
+          }
+        });
+      };
+
       // Folder context menu: "Analysiere diesen Ordner"
-      messenger.menus.create(
+      createMenu(
         {
           id: 'batch-analyze-folder',
           title: 'Analysiere diesen Ordner',
           contexts: ['folder_pane'],
           visible: true,
         },
-        () => {
-          if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.lastError) {
-            this.logger.error('Failed to create folder context menu', browser.runtime.lastError);
-          } else {
-            this.logger.info('Folder context menu registered');
-          }
-        }
+        'Folder'
       );
 
       // Message list context menu: "AI-Analyse"
-      messenger.menus.create(
+      createMenu(
         {
           id: 'analyze-single-message-list',
           title: 'AI-Analyse',
           contexts: ['message_list'],
           visible: true,
         },
-        () => {
-          if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.lastError) {
-            this.logger.error(
-              'Failed to create message list context menu',
-              browser.runtime.lastError
-            );
-          } else {
-            this.logger.info('Message list context menu registered');
-          }
-        }
+        'Message list'
       );
 
       // Message display context menu: "AI-Analyse"
-      messenger.menus.create(
+      createMenu(
         {
           id: 'analyze-single-message-display',
           title: 'AI-Analyse',
           contexts: ['message_display_action_menu'],
           visible: true,
         },
-        () => {
-          if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.lastError) {
-            this.logger.error(
-              'Failed to create message display context menu',
-              browser.runtime.lastError
-            );
-          } else {
-            this.logger.info('Message display context menu registered');
-          }
-        }
+        'Message display'
       );
 
       // Message list context menu: "Tags rückgängig machen" (Undo tag changes)
-      messenger.menus.create(
+      createMenu(
         {
           id: 'undo-tag-changes',
           title: 'Tags rückgängig machen',
           contexts: ['message_list'],
           visible: true,
         },
-        () => {
-          if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.lastError) {
-            this.logger.error(
-              'Failed to create undo tag changes context menu',
-              browser.runtime.lastError
-            );
-          } else {
-            this.logger.info('Undo tag changes context menu registered');
-          }
-        }
+        'Undo tag changes'
       );
 
       // Register context menu click handler

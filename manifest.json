@@ -25,8 +25,7 @@
     "extension_pages": "script-src 'self'; connect-src 'self' https://* http://localhost:* http://127.0.0.1:*"
   },
   "background": {
-    "page": "background.html",
-    "persistent": true
+    "page": "background.html"
   },
   "action": {
     "default_title": "AI-Analyse",

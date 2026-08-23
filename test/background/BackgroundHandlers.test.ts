@@ -11,6 +11,7 @@ import { createMockLogger } from '../helpers/mock-factories';
 const mockMessenger = {
   menus: {
     create: vi.fn(),
+    removeAll: undefined as unknown as (() => Promise<void>) | undefined,
     onClicked: {
       addListener: vi.fn(),
     },
@@ -287,6 +288,68 @@ describe('ContextMenuHandler', () => {
 
     expect(mockMessenger.messages.continueList).not.toHaveBeenCalled();
     expect(analyzeBatch.execute).toHaveBeenCalledWith(['9'], expect.anything());
+  });
+
+  // ==========================================================================
+  // DW-D2: removeAll-before-create re-registration
+  // ==========================================================================
+
+  describe('DW-D2: re-registration after event-page wake', () => {
+    it('awaits menus.removeAll() before the first menus.create', async () => {
+      // Deferred removeAll that resolves only when we trigger it
+      let resolveRemoveAll: () => void;
+      const removeAllPromise = new Promise<void>((resolve) => {
+        resolveRemoveAll = resolve;
+      });
+      const removeAll = vi.fn().mockReturnValue(removeAllPromise);
+      mockMessenger.menus.removeAll = removeAll as never;
+
+      const { handler } = createHandlerWithMocks();
+      const pending = handler.registerMenus();
+
+      // Give the microtask queue a spin — create must NOT have run yet
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(removeAll).toHaveBeenCalledTimes(1);
+      expect(mockMessenger.menus.create).not.toHaveBeenCalled();
+
+      resolveRemoveAll!();
+      await pending;
+
+      expect(mockMessenger.menus.create).toHaveBeenCalledTimes(4);
+
+      mockMessenger.menus.removeAll = undefined;
+    });
+
+    it('logs the real lastError text when creation fails', async () => {
+      // No removeAll in mock → registration path is synchronous-safe
+      const logger = createMockLogger();
+      const analyzeBatch = { execute: vi.fn() };
+      const handler = new ContextMenuHandler(
+        { execute: vi.fn() } as never,
+        analyzeBatch as never,
+        { execute: vi.fn() } as never,
+        {} as never,
+        logger
+      );
+
+      // Simulate runtime.lastError set during creation callback
+      (globalThis as unknown as Record<string, unknown>).browser = {
+        runtime: { lastError: { message: 'Duplicate ID batch-analyze-folder' } },
+      };
+
+      handler.registerMenus();
+      // Invoke the first create callback
+      const createCb = mockMessenger.menus.create.mock.calls[0][1] as () => void;
+      createCb();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to create Folder context menu',
+        expect.objectContaining({ error: 'Duplicate ID batch-analyze-folder' })
+      );
+
+      delete (globalThis as unknown as Record<string, unknown>).browser;
+    });
   });
 });
 

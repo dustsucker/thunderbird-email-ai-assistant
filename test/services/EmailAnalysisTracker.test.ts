@@ -108,4 +108,28 @@ describe('EmailAnalysisTracker', () => {
       await expect(tracker.markAnalyzed(1)).rejects.toThrow('quota');
     });
   });
+
+  describe('DW-D1: bare global messenger (bundled background env)', () => {
+    it('round-trips via globalThis.messenger when only it is present', async () => {
+      // Simulate the bundled background page: no browser/chrome wrapper
+      delete (globalThis as unknown as Record<string, unknown>).browser;
+      (globalThis as unknown as Record<string, unknown>).messenger = mockStorage;
+
+      expect(await tracker.wasAnalyzed(77)).toBe(false);
+      await tracker.markAnalyzed(77);
+      expect(await tracker.wasAnalyzed(77)).toBe(true);
+
+      delete (globalThis as unknown as Record<string, unknown>).messenger;
+    });
+
+    it('regression: no "messenger API not available" throw in that env', async () => {
+      delete (globalThis as unknown as Record<string, unknown>).browser;
+      (globalThis as unknown as Record<string, unknown>).messenger = mockStorage;
+
+      await expect(tracker.wasAnalyzed(99)).resolves.not.toThrow();
+      await expect(tracker.markAnalyzed(99)).resolves.toBeUndefined();
+
+      delete (globalThis as unknown as Record<string, unknown>).messenger;
+    });
+  });
 });

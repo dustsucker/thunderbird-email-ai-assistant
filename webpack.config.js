@@ -15,7 +15,7 @@ module.exports = (env, argv) => {
       path: path.resolve(__dirname),
     },
     mode: mode,
-    devtool: isProduction ? 'source-map' : 'inline-source-map',
+    devtool: isProduction ? false : 'inline-source-map',
     module: {
       rules: [
         {

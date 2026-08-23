@@ -33,6 +33,10 @@ interface ChromeApi {
   chrome?: { messenger?: MessengerWithStorage };
 }
 
+interface GlobalMessengerApi {
+  messenger?: MessengerWithStorage;
+}
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -136,13 +140,23 @@ export class EmailAnalysisTracker {
   /**
    * Gets the messenger API from global scope.
    *
+   * The bundled background page exposes the API as a bare `messenger`
+   * global (the environment TagManager successfully uses) — probe it FIRST,
+   * then fall back to the browser/chrome prefixed forms. Only an API with a
+   * usable storage.local.get is returned.
+   *
    * @returns Messenger API or undefined if not available
    */
   private getMessengerApi(): MessengerWithStorage | undefined {
-    const browserApi = (globalThis as unknown as BrowserApi).browser;
-    const chromeApi = (globalThis as unknown as ChromeApi).chrome;
+    const candidates: Array<MessengerWithStorage | undefined> = [
+      (globalThis as unknown as GlobalMessengerApi).messenger,
+      (globalThis as unknown as BrowserApi).browser?.messenger,
+      (globalThis as unknown as ChromeApi).chrome?.messenger,
+    ];
 
-    return browserApi?.messenger || chromeApi?.messenger;
+    return candidates.find(
+      (api) => typeof api?.storage?.local?.get === 'function' && typeof api.storage.local.set === 'function'
+    );
   }
 
   /**
