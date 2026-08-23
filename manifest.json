@@ -22,7 +22,7 @@
     "https://*/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*"
+    "extension_pages": "script-src 'self'; connect-src 'self' https://* http://localhost:* http://127.0.0.1:*"
   },
   "background": {
     "page": "background.html",

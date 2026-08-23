@@ -20,6 +20,7 @@ const mockMessenger = {
   },
   messages: {
     list: vi.fn(),
+    continueList: vi.fn(),
     get: vi.fn(),
     getFull: vi.fn(),
     addTags: vi.fn(),
@@ -43,7 +44,7 @@ const mockMessenger = {
     },
   },
   messageDisplay: {
-    getDisplayedMessage: vi.fn(),
+    getDisplayedMessages: vi.fn(),
   },
   runtime: {
     onInstalled: {
@@ -59,6 +60,7 @@ vi.stubGlobal('messenger', mockMessenger);
 
 // Import handlers after mocking
 import { ToolbarHandler } from '../../src/background/ToolbarHandler';
+import { ContextMenuHandler } from '../../src/background/ContextMenuHandler';
 import { InstallHandler } from '../../src/background/InstallHandler';
 
 // ============================================================================
@@ -115,6 +117,176 @@ describe('ToolbarHandler', () => {
         'Browser action API not available for toolbar button'
       );
     });
+  });
+
+  describe('handleToolbarClick (via registered listener)', () => {
+    const tab = { id: 7, type: 'messageDisplay' };
+
+    function getClickListener(): (tab: { id: number; type: string }) => Promise<void> {
+      const addListener = vi.fn();
+      mockMessenger.browserAction = { onClicked: { addListener } };
+      handler.register();
+      return addListener.mock.calls[0][0];
+    }
+
+    it('should notify and do nothing when no messages are displayed (empty array)', async () => {
+      const clickListener = getClickListener();
+      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce([]);
+
+      await clickListener(tab);
+
+      expect(mockMessenger.messageDisplay.getDisplayedMessages).toHaveBeenCalledWith(tab.id);
+      expect(mockMessenger.notifications.create).toHaveBeenCalledTimes(1);
+      expect(mockMessenger.notifications.create).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Keine Nachricht' })
+      );
+    });
+
+    it('should start analysis for the first displayed message', async () => {
+      const clickListener = getClickListener();
+      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce([{ id: 42 }]);
+
+      await clickListener(tab);
+
+      expect(mockMessenger.notifications.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Analyse gestartet',
+          message: expect.stringContaining('42'),
+        })
+      );
+    });
+
+    it('should not throw when getDisplayedMessages rejects', async () => {
+      const clickListener = getClickListener();
+      mockMessenger.messageDisplay.getDisplayedMessages.mockRejectedValueOnce(
+        new Error('API gone')
+      );
+
+      await expect(clickListener(tab)).resolves.toBeUndefined();
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+});
+
+// ============================================================================
+// ContextMenuHandler Tests
+// ============================================================================
+
+describe('ContextMenuHandler', () => {
+  function createHandlerWithMocks() {
+    const analyzeBatch = { execute: vi.fn().mockResolvedValue({ total: 0, successCount: 0, failureCount: 0 }) };
+    const handler = new ContextMenuHandler(
+      { execute: vi.fn() } as never,
+      analyzeBatch as never,
+      { execute: vi.fn() } as never,
+      {
+        getAppConfig: vi.fn().mockResolvedValue({ defaultProvider: 'ollama' }),
+        getProviderSettings: vi.fn().mockResolvedValue({ apiKey: '', model: 'llama3' }),
+      } as never,
+      createMockLogger()
+    );
+    return { handler, analyzeBatch };
+  }
+
+  function getMenuClickListener(handler: ContextMenuHandler) {
+    const addListener = vi.fn();
+    mockMessenger.menus.onClicked.addListener.mockImplementation(addListener);
+    handler.registerMenus();
+    return addListener.mock.calls[0][0];
+  }
+
+  beforeEach(() => {
+    mockMessenger.menus.create.mockReset();
+    mockMessenger.menus.onClicked.addListener.mockReset();
+    mockMessenger.notifications.create.mockReset().mockResolvedValue('notif-id');
+    mockMessenger.messages.list.mockReset();
+    mockMessenger.messages.continueList.mockReset();
+  });
+
+  it('should create menus with only valid Thunderbird contexts', () => {
+    const { handler } = createHandlerWithMocks();
+    handler.registerMenus();
+
+    const contexts = mockMessenger.menus.create.mock.calls.map(
+      (call) => (call[0] as { contexts: string[] }).contexts
+    );
+    const valid = new Set([
+      'all',
+      'page',
+      'frame',
+      'selection',
+      'link',
+      'editable',
+      'image',
+      'audio',
+      'video',
+      'password',
+      'browser_action',
+      'message_display_action_menu',
+      'compose_action',
+      'tools_menu',
+      'tab',
+      'message_list',
+      'folder_pane',
+    ]);
+    const all = contexts.flat();
+    expect(all.length).toBeGreaterThan(0);
+    for (const context of all) {
+      expect(valid.has(context)).toBe(true);
+    }
+    // The folder batch entry must use folder_pane (not the invalid 'folder')
+    expect(contexts.some((c) => c.includes('folder_pane'))).toBe(true);
+    expect(all).not.toContain('folder');
+  });
+
+  it('should process ALL messages across paginated folder listing (2 pages)', async () => {
+    const { handler, analyzeBatch } = createHandlerWithMocks();
+    const clickListener = getMenuClickListener(handler);
+
+    // Page 1: two messages, continuation token present; page 2: one message, exhausted
+    mockMessenger.messages.list.mockResolvedValueOnce({
+      id: 'list-1',
+      messages: [{ id: 1 }, { id: 2 }],
+    });
+    mockMessenger.messages.continueList.mockResolvedValueOnce({
+      id: null,
+      messages: [{ id: 3 }],
+    });
+
+    await clickListener(
+      {
+        menuItemId: 'batch-analyze-folder',
+        modifiers: [],
+        selectedFolders: [{ accountId: 'acc1', id: 'folder-1', path: 'INBOX', name: 'Inbox', type: 'inbox' }],
+      },
+      { id: 1, type: 'messageDisplay' }
+    );
+
+    expect(mockMessenger.messages.continueList).toHaveBeenCalledWith('list-1');
+    expect(analyzeBatch.execute).toHaveBeenCalledTimes(1);
+    expect(analyzeBatch.execute).toHaveBeenCalledWith(
+      ['1', '2', '3'],
+      expect.objectContaining({ providerSettings: expect.objectContaining({ provider: 'ollama' }) })
+    );
+  });
+
+  it('should not call continueList when the first page is the last page', async () => {
+    const { handler, analyzeBatch } = createHandlerWithMocks();
+    const clickListener = getMenuClickListener(handler);
+
+    mockMessenger.messages.list.mockResolvedValueOnce({ id: null, messages: [{ id: 9 }] });
+
+    await clickListener(
+      {
+        menuItemId: 'batch-analyze-folder',
+        modifiers: [],
+        selectedFolders: [{ accountId: 'acc1', id: 'folder-1', path: 'INBOX', name: 'Inbox', type: 'inbox' }],
+      },
+      { id: 1, type: 'messageDisplay' }
+    );
+
+    expect(mockMessenger.messages.continueList).not.toHaveBeenCalled();
+    expect(analyzeBatch.execute).toHaveBeenCalledWith(['9'], expect.anything());
   });
 });
 

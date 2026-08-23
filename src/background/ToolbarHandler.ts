@@ -89,7 +89,9 @@ export class ToolbarHandler {
     this.logger.info('Toolbar button clicked', { tabId: tab.id });
 
     try {
-      const displayedMessage = await messenger.messageDisplay.getDisplayedMessage(tab.id);
+      // ponytail: getDisplayedMessages (plural) is the only valid API since TB 128
+      const displayedMessages = await messenger.messageDisplay.getDisplayedMessages(tab.id);
+      const displayedMessage = displayedMessages[0];
 
       if (!displayedMessage) {
         await messenger.notifications.create({

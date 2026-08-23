@@ -582,8 +582,21 @@ export class ContextMenuHandler {
    */
   private async getMessagesToAnalyze(folderId: string): Promise<string[]> {
     try {
-      const messages = await messenger.messages.list(folderId);
-      return messages.messages.map((message: { id: number }) => String(message.id));
+      const messageIds: string[] = [];
+
+      // Thunderbird paginates message lists (default 100 per page); iterate until exhausted
+      let page = await messenger.messages.list(folderId);
+      for (const message of page.messages) {
+        messageIds.push(String(message.id));
+      }
+      while (page.id) {
+        page = await messenger.messages.continueList(page.id);
+        for (const message of page.messages) {
+          messageIds.push(String(message.id));
+        }
+      }
+
+      return messageIds;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to get messages from folder', { folderId, error: errorMessage });
