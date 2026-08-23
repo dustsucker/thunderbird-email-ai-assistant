@@ -74,6 +74,13 @@ function createHandler(overrides: { analyzeBatch?: Partial<AnalyzeBatchEmails>; 
     ...overrides.analyzeBatch,
   } as unknown as AnalyzeBatchEmails;
 
+  const debugLogBuffer = {
+    getEntries: vi.fn().mockReturnValue([]),
+    getDroppedCount: vi.fn().mockReturnValue(0),
+    clear: vi.fn(),
+    add: vi.fn(),
+  };
+
   const handler = new MessageHandler(
     {} as AnalyzeEmail,
     analyzeBatch,
@@ -82,10 +89,11 @@ function createHandler(overrides: { analyzeBatch?: Partial<AnalyzeBatchEmails>; 
     {} as AppConfigService,
     queue,
     cache,
-    tagManager
+    tagManager,
+    debugLogBuffer as never
   );
 
-  return { handler, logger, cache, queue, tagManager, analyzeBatch };
+  return { handler, logger, cache, queue, tagManager, analyzeBatch, debugLogBuffer };
 }
 
 /** Replaces the global messenger's storage mock while keeping it an object. */
@@ -178,6 +186,70 @@ describe('MessageHandler', () => {
       }).handleGetBatchProgress();
 
       expect(progress).toMatchObject({ status: 'completed', total: 10, processed: 9 });
+    });
+  });
+
+  describe('DW-D5: debug log + queue stats handlers', () => {
+    it('getDebugLogs returns contract shape (newest-first entries + droppedCount)', async () => {
+      const { handler, debugLogBuffer } = createHandler();
+      (debugLogBuffer.getEntries as ReturnType<typeof vi.fn>).mockReturnValue([
+        { ts: 2, level: 'error', msg: 'newer' },
+        { ts: 1, level: 'info', msg: 'older' },
+      ]);
+      (debugLogBuffer.getDroppedCount as ReturnType<typeof vi.fn>).mockReturnValue(7);
+
+      const result = await (handler as unknown as {
+        handleGetDebugLogs: () => { success: boolean; entries: unknown[]; droppedCount: number };
+      }).handleGetDebugLogs();
+
+      expect(result).toEqual({
+        success: true,
+        entries: [
+          { ts: 2, level: 'error', msg: 'newer' },
+          { ts: 1, level: 'info', msg: 'older' },
+        ],
+        droppedCount: 7,
+      });
+    });
+
+    it('clearDebugLogs clears the buffer and returns success', async () => {
+      const { handler, debugLogBuffer } = createHandler();
+
+      const result = await (handler as unknown as {
+        handleClearDebugLogs: () => { success: boolean };
+      }).handleClearDebugLogs();
+
+      expect(debugLogBuffer.clear).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ success: true });
+    });
+
+    it('getQueueStats returns live queue stats + batch progress verbatim', async () => {
+      const batchProgress = {
+        total: 10,
+        processed: 4,
+        failed: 1,
+        percentage: 50,
+        isRunning: true,
+        isCancelled: false,
+        processedMessageIds: ['1', '2', '3', '4'],
+        failedMessageIds: ['5'],
+      };
+      const { handler, queue } = createHandler({
+        analyzeBatch: { getProgress: vi.fn().mockResolvedValue(batchProgress) },
+      });
+
+      const result = await (handler as unknown as {
+        handleGetQueueStats: () => Promise<{
+          success: boolean;
+          queue: { size: number; waiting: number; processing: number; avgWaitTime: number };
+          batch: unknown;
+        }>;
+      }).handleGetQueueStats();
+
+      expect(queue.getStats).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.queue).toEqual({ size: 3, waiting: 2, processing: 1, avgWaitTime: 10 });
+      expect(result.batch).toEqual(batchProgress);
     });
   });
 

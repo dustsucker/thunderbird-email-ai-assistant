@@ -8,6 +8,7 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { BatchProgress, BatchProgressListener } from '@/application/use-cases/AnalyzeBatchEmails';
 
 // ============================================================================
 // Thunderbird API Types (inline declarations)
@@ -38,7 +39,7 @@ interface Tab {
  * ```
  */
 @injectable()
-export class ToolbarHandler {
+export class ToolbarHandler implements BatchProgressListener {
   // ==========================================================================
   // Private Fields
   // ==========================================================================
@@ -78,9 +79,54 @@ export class ToolbarHandler {
     }
   }
 
+  /**
+   * Updates the toolbar badge from batch progress.
+   *
+   * Shows the remaining count (total - processed - failed) while the batch
+   * runs; clears the badge on completion, cancellation, or error state.
+   *
+   * @param progress - Live batch progress
+   */
+  onBatchProgress(progress: BatchProgress): void {
+    const remaining = progress.total - progress.processed - progress.failed;
+    const done = !progress.isRunning;
+
+    if (done || remaining <= 0) {
+      this.setBadgeText('');
+    } else {
+      this.setBadgeText(String(remaining));
+    }
+  }
+
+  /**
+   * Clears the toolbar badge.
+   */
+  clearBadge(): void {
+    this.setBadgeText('');
+  }
+
   // ==========================================================================
   // Private Methods
   // ==========================================================================
+
+  /**
+   * Sets the toolbar badge text via the browserAction||action fallback.
+   */
+  private setBadgeText(text: string): void {
+    const browserAction = messenger.browserAction || messenger.action;
+
+    const withBadge = browserAction as unknown as {
+      setBadgeText?: (details: { text: string; tabId?: number }) => Promise<void>;
+    } | undefined;
+
+    if (typeof withBadge?.setBadgeText === 'function') {
+      void withBadge.setBadgeText({ text }).catch((error) => {
+        this.logger.warn('Failed to set toolbar badge text', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+  }
 
   /**
    * Handles toolbar button click.

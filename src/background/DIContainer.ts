@@ -40,6 +40,8 @@ import { SystemClock, CryptoRandom } from '@/infrastructure/system';
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { TagService } from '@/domain/services/TagService';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
+import { debugLogBuffer, DebugLogBuffer } from '@/infrastructure/logger/DebugLogBuffer';
+import { ToolbarHandler } from '@/background/ToolbarHandler';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 
@@ -135,6 +137,17 @@ export function setupDIContainer(): void {
   container.registerSingleton(EmailContentExtractor, EmailContentExtractor);
   container.registerSingleton(AppConfigService, AppConfigService);
   container.registerSingleton(EmailAnalysisTracker, EmailAnalysisTracker);
+
+  // Debug log buffer: DI resolves to the SAME module singleton ConsoleLogger
+  // and ProviderUtils route through.
+  container.registerInstance(DebugLogBuffer, debugLogBuffer);
+  container.registerInstance('DebugLogBuffer', debugLogBuffer);
+
+  // Toolbar badge: AnalyzeBatchEmails notifies this listener on batch progress
+  container.registerSingleton(ToolbarHandler, ToolbarHandler);
+  container.register('BatchProgressListener', {
+    useFactory: (c) => c.resolve(ToolbarHandler),
+  });
 
   startupLogger.info('Services registered');
 

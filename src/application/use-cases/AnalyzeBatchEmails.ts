@@ -13,7 +13,7 @@
  * @module application/use-cases/AnalyzeBatchEmails
  */
 
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, container } from 'tsyringe';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import type { ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
@@ -45,6 +45,14 @@ export interface BatchProgress {
   processedMessageIds: string[];
   /** Message IDs that failed to process */
   failedMessageIds: string[];
+}
+
+/**
+ * Listener notified on batch progress changes (used e.g. for the toolbar badge).
+ */
+export interface BatchProgressListener {
+  /** Called after each processed/failed item and on completion/cancel/error. */
+  onBatchProgress(progress: BatchProgress): void;
 }
 
 /**
@@ -261,6 +269,7 @@ export class AnalyzeBatchEmails {
       this.failedMessageIds = [];
       this.analysisResults = [];
       this.logger.debug('✅ Batch state initialized');
+      this.notifyProgress();
 
       // Enqueue all messages
       this.logger.debug('➡️  Enqueuing messages', { count: messageIds.length });
@@ -302,11 +311,16 @@ export class AnalyzeBatchEmails {
         duration: `${Date.now() - startTime}ms`,
       });
 
+      // Notify BEFORE resetState so the listener sees final counts (badge clear)
+      this.notifyProgress();
       this.resetState();
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('❌ Batch analysis failed', { error: errorMessage });
+
+      // Notify BEFORE resetState so the listener sees the error end-state
+      this.notifyProgress();
 
       // Reset state on error
       this.resetState();
@@ -365,6 +379,7 @@ export class AnalyzeBatchEmails {
 
     this.isCancelled = true;
     this.isProcessing = false;
+    this.notifyProgress();
 
     // Clear remaining items from queue
     this.logger.debug('➡️  Clearing queue');
@@ -515,6 +530,7 @@ export class AnalyzeBatchEmails {
         this.logger.debug('⏹️  Stopping all workers (continueOnError=false)');
         this.isProcessing = false;
         this.isCancelled = true;
+        this.notifyProgress();
       }
     }
   }
@@ -576,6 +592,37 @@ export class AnalyzeBatchEmails {
         messageId,
         error: errorMessage,
         failed: `${this.failedCount}/${this.totalCount}`,
+      });
+    } finally {
+      this.notifyProgress();
+    }
+  }
+
+  /**
+   * Notifies the registered batch progress listener (if any) with a live
+   * progress snapshot. Used e.g. by the toolbar badge updater.
+   */
+  private notifyProgress(): void {
+    if (!container.isRegistered('BatchProgressListener')) return;
+
+    try {
+      const listener = container.resolve<BatchProgressListener>('BatchProgressListener');
+      listener.onBatchProgress({
+        total: this.totalCount,
+        processed: this.processedCount,
+        failed: this.failedCount,
+        percentage:
+          this.totalCount > 0
+            ? Math.round(((this.processedCount + this.failedCount) / this.totalCount) * 100)
+            : 0,
+        isRunning: this.isProcessing,
+        isCancelled: this.isCancelled,
+        processedMessageIds: [...this.processedMessageIds],
+        failedMessageIds: [...this.failedMessageIds],
+      });
+    } catch (error) {
+      this.logger.warn('Failed to notify batch progress listener', {
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }

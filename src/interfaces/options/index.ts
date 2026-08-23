@@ -15,4 +15,5 @@ export { TagManagementUI } from './TagManagementUI';
 export { BatchAnalysisUI } from './BatchAnalysisUI';
 export { AnalysisResultsUI } from './AnalysisResultsUI';
 export { ManualReviewPanel } from './ManualReviewPanel';
+export { DebugTab } from './DebugTab';
 export { OptionsScript } from './OptionsScript';

@@ -9,6 +9,7 @@
 import { injectable } from 'tsyringe';
 import type { ILogger } from '../interfaces/ILogger';
 import { sanitizeForLogging } from '@/shared/utils/loggingUtils';
+import { debugLogBuffer, type DebugLogLevel } from './DebugLogBuffer';
 
 /**
  * ConsoleLogger implementation.
@@ -39,6 +40,17 @@ export class ConsoleLogger implements ILogger {
   }
 
   /**
+   * Routes a message to the console and the shared debug log buffer.
+   * Context is sanitized once here (masked before reaching the buffer).
+   */
+  private emit(level: DebugLogLevel, message: string, context?: Record<string, unknown>): void {
+    const sanitized = context && Object.keys(context).length > 0
+      ? JSON.stringify(sanitizeForLogging(context))
+      : undefined;
+    debugLogBuffer.add(level, message, sanitized);
+  }
+
+  /**
    * Log a debug message to the console.
    *
    * @param message - The message to log
@@ -46,6 +58,7 @@ export class ConsoleLogger implements ILogger {
    */
   debug(message: string, context?: Record<string, unknown>): void {
     console.debug(this.formatMessage(message, context));
+    this.emit('debug', message, context);
   }
 
   /**
@@ -56,6 +69,7 @@ export class ConsoleLogger implements ILogger {
    */
   info(message: string, context?: Record<string, unknown>): void {
     console.info(this.formatMessage(message, context));
+    this.emit('info', message, context);
   }
 
   /**
@@ -66,6 +80,7 @@ export class ConsoleLogger implements ILogger {
    */
   warn(message: string, context?: Record<string, unknown>): void {
     console.warn(this.formatMessage(message, context));
+    this.emit('warn', message, context);
   }
 
   /**
@@ -76,6 +91,7 @@ export class ConsoleLogger implements ILogger {
    */
   error(message: string, context?: Record<string, unknown>): void {
     console.error(this.formatMessage(message, context));
+    this.emit('error', message, context);
   }
 
   /**

@@ -1126,3 +1126,232 @@ button:disabled {
 .flag-confidence-badge {
   align-self: flex-start;
 }
+
+/* ============================================================================
+   Debug Section Styles
+   ============================================================================ */
+
+.debug-section {
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.debug-queue-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.debug-connection-status {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-gray-600);
+}
+
+.debug-queue-panel {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.debug-queue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md);
+}
+
+/* Batch status badge colors (extends .status-badge) */
+.debug-batch-idle {
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+.debug-batch-running {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.debug-batch-completed {
+  background-color: var(--color-success);
+  color: var(--color-white);
+}
+
+.debug-batch-cancelled {
+  background-color: var(--color-warning);
+  color: var(--color-text-primary);
+}
+
+.debug-batch-error {
+  background-color: var(--color-danger);
+  color: var(--color-white);
+}
+
+.debug-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.debug-progress-wrap progress {
+  flex: 1;
+  height: 12px;
+  accent-color: var(--color-primary);
+}
+
+#debug-batch-progress-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  min-width: 44px;
+  text-align: right;
+}
+
+.debug-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.debug-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  background-color: var(--color-gray-100);
+  border-radius: var(--border-radius-sm);
+  text-align: center;
+}
+
+.debug-stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.debug-stat-label {
+  font-size: 12px;
+  color: var(--color-gray-600);
+}
+
+.debug-empty {
+  text-align: center;
+  padding: var(--spacing-lg);
+  color: var(--color-gray-600);
+  font-style: italic;
+  margin: 0;
+}
+
+.debug-log-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.debug-log-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--color-gray-100);
+  border-radius: var(--border-radius-md);
+  flex-wrap: wrap;
+}
+
+.debug-log-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+}
+
+.debug-log-row {
+  display: grid;
+  grid-template-columns: 96px 64px 1fr 200px;
+  gap: var(--spacing-sm);
+  align-items: baseline;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-bottom: 1px solid var(--color-gray-100);
+  font-size: 13px;
+}
+
+.debug-log-row:last-child {
+  border-bottom: none;
+}
+
+.debug-log-row:hover {
+  background-color: var(--color-gray-100);
+}
+
+.debug-log-time {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--color-gray-600);
+  white-space: nowrap;
+}
+
+.debug-log-level {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  text-align: center;
+}
+
+.debug-level-debug {
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+.debug-level-info {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
+
+.debug-level-warn {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.debug-level-error {
+  background-color: var(--color-danger);
+  color: var(--color-white);
+}
+
+.debug-log-msg {
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debug-log-ctx {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--color-gray-600);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .debug-stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .debug-log-row {
+    grid-template-columns: 80px 56px 1fr;
+  }
+
+  .debug-log-ctx {
+    grid-column: 1 / -1;
+    padding-left: 0;
+  }
+}

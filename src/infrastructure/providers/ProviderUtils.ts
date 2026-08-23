@@ -5,6 +5,7 @@
 
 import type { AppConfig, CustomTags } from '@/shared/types/ProviderTypes';
 import type { RequestBody } from './BaseProvider';
+import { debugLogBuffer } from '../logger/DebugLogBuffer';
 import { Provider } from '@/shared/types/ProviderTypes';
 import { DEFAULT_CUSTOM_TAGS } from '@/shared/types/ProviderTypes';
 import {
@@ -246,9 +247,20 @@ function log(level: LogLevel, message: string, context: LoggerContext = {}): voi
     // Separate log calls to prevent browser DevTools from showing raw context object
     console.log(`[${timestamp}] [${levelName}] ${message}`);
     if (Object.keys(context).length > 0) {
-      const sanitizedContext = sanitizeContext(context);
-      console.log('Context:', sanitizedContext);
+      console.log('Context:', sanitizeContext(context));
     }
+    // Route through the SAME DebugLogBuffer instance ConsoleLogger uses
+    const levelNames: Record<LogLevel, 'debug' | 'info' | 'warn' | 'error'> = {
+      [LogLevel.DEBUG]: 'debug',
+      [LogLevel.INFO]: 'info',
+      [LogLevel.WARN]: 'warn',
+      [LogLevel.ERROR]: 'error',
+    };
+    debugLogBuffer.add(
+      levelNames[level],
+      message,
+      Object.keys(context).length > 0 ? JSON.stringify(sanitizeContext(context)) : undefined
+    );
   }
 }
 

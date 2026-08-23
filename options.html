@@ -16,6 +16,7 @@
         <button class="tab-button" data-tab="custom-tags">Benutzerdefinierte Tags</button>
         <button class="tab-button" data-tab="analysis-results">Analyseergebnisse</button>
         <button class="tab-button" data-tab="manual-review">Manuelle Überprüfung</button>
+        <button class="tab-button" data-tab="debug">Debug</button>
       </div>
 
       <div id="provider-settings" class="tab-content active">
@@ -445,6 +446,99 @@
             <button id="save-manual-review-btn" class="btn-primary">Speichern</button>
             <span id="manual-review-status-message"></span>
           </div>
+        </section>
+      </div>
+      <div id="debug" class="tab-content">
+        <section class="debug-section">
+          <div class="results-header-actions">
+            <h2>Verarbeitungs-Queue</h2>
+            <div class="debug-queue-header-actions">
+              <span id="debug-connection-status" class="debug-connection-status"></span>
+              <button
+                type="button"
+                id="debug-cancel-batch-btn"
+                class="btn-danger"
+                disabled
+              >
+                Verarbeitung abbrechen
+              </button>
+            </div>
+          </div>
+          <p class="help-text">
+            Live-Status der Batch-Verarbeitung und der Warteschlange. Die Anzeige aktualisiert
+            sich automatisch, solange dieser Tab geöffnet ist.
+          </p>
+
+          <div class="debug-queue-panel">
+            <div class="debug-queue-header">
+              <span id="debug-batch-status-badge" class="status-badge debug-batch-idle"
+                >Inaktiv</span
+              >
+            </div>
+            <div class="debug-progress-wrap">
+              <progress id="debug-batch-progress" max="100" value="0"></progress>
+              <span id="debug-batch-progress-text"></span>
+            </div>
+            <div class="debug-stats-grid">
+              <div class="debug-stat">
+                <span id="debug-stat-processed" class="debug-stat-value">0</span>
+                <span class="debug-stat-label">Verarbeitet</span>
+              </div>
+              <div class="debug-stat">
+                <span id="debug-stat-failed" class="debug-stat-value">0</span>
+                <span class="debug-stat-label">Fehlgeschlagen</span>
+              </div>
+              <div class="debug-stat">
+                <span id="debug-stat-total" class="debug-stat-value">0</span>
+                <span class="debug-stat-label">Gesamt</span>
+              </div>
+              <div class="debug-stat">
+                <span id="debug-stat-waiting" class="debug-stat-value">0</span>
+                <span class="debug-stat-label">Wartend</span>
+              </div>
+              <div class="debug-stat">
+                <span id="debug-stat-processing" class="debug-stat-value">0</span>
+                <span class="debug-stat-label">In Verarbeitung</span>
+              </div>
+              <div class="debug-stat">
+                <span id="debug-stat-avg-wait" class="debug-stat-value">0 ms</span>
+                <span class="debug-stat-label">Ø Wartezeit</span>
+              </div>
+            </div>
+            <span id="debug-cancel-status" class="status-message"></span>
+            <p id="debug-queue-empty" class="debug-empty">Keine Verarbeitung aktiv</p>
+          </div>
+        </section>
+
+        <section class="debug-section">
+          <div class="results-header-actions">
+            <h2>Protokoll</h2>
+            <div class="debug-log-actions">
+              <button type="button" id="debug-download-log-btn" class="btn-secondary">
+                Protokoll herunterladen (.txt)
+              </button>
+              <button type="button" id="debug-clear-log-btn" class="btn-secondary">
+                Protokoll leeren
+              </button>
+            </div>
+          </div>
+
+          <div class="debug-log-toolbar">
+            <div class="filter-group">
+              <label for="debug-log-filter">Level-Filter:</label>
+              <select id="debug-log-filter">
+                <option value="all">Alle</option>
+                <option value="debug">Debug</option>
+                <option value="info" selected>Info (und höher)</option>
+                <option value="warn">Warnung (und höher)</option>
+                <option value="error">Nur Fehler</option>
+              </select>
+            </div>
+            <span id="debug-dropped-count" class="help-text"></span>
+          </div>
+
+          <div id="debug-log-list" class="debug-log-list"></div>
+          <p id="debug-log-empty" class="debug-empty">Keine Einträge</p>
         </section>
       </div>
     </div>

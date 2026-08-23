@@ -23,6 +23,7 @@ import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { ApplyTagsToEmail } from '@/application/use-cases/ApplyTagsToEmail';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
+import type { DebugLogBuffer } from '@/infrastructure/logger/DebugLogBuffer';
 
 /** Runtime onMessage event registry (not part of the central thunderbird.d.ts). */
 interface RuntimeOnMessageRegistry {
@@ -322,6 +323,42 @@ function isGetAnalysisResultsMessage(message: unknown): message is GetAnalysisRe
 }
 
 /**
+ * Type guard for getDebugLogs messages.
+ */
+function isGetDebugLogsMessage(message: unknown): message is { action: 'getDebugLogs' } {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'action' in message &&
+    (message as Record<string, unknown>).action === 'getDebugLogs'
+  );
+}
+
+/**
+ * Type guard for clearDebugLogs messages.
+ */
+function isClearDebugLogsMessage(message: unknown): message is { action: 'clearDebugLogs' } {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'action' in message &&
+    (message as Record<string, unknown>).action === 'clearDebugLogs'
+  );
+}
+
+/**
+ * Type guard for getQueueStats messages.
+ */
+function isGetQueueStatsMessage(message: unknown): message is { action: 'getQueueStats' } {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'action' in message &&
+    (message as Record<string, unknown>).action === 'getQueueStats'
+  );
+}
+
+/**
  * Type guard for ApplyTagManually messages
  */
 function isApplyTagManuallyMessage(message: unknown): message is ApplyTagManuallyMessage {
@@ -382,6 +419,7 @@ export class MessageHandler {
   private readonly queue: IQueue;
   private readonly cache: ICache;
   private readonly tagManager: ITagManager;
+  private readonly debugLogBuffer: DebugLogBuffer;
 
   private handlerState: HandlerState = {
     isRegistered: false,
@@ -428,7 +466,8 @@ export class MessageHandler {
     @inject(AppConfigService) appConfigService: AppConfigService,
     @inject('IQueue') queue: IQueue,
     @inject('ICache') cache: ICache,
-    @inject('ITagManager') tagManager: ITagManager
+    @inject('ITagManager') tagManager: ITagManager,
+    @inject('DebugLogBuffer') debugLogBuffer: DebugLogBuffer
   ) {
     this.analyzeEmail = analyzeEmail;
     this.analyzeBatch = analyzeBatch;
@@ -437,6 +476,7 @@ export class MessageHandler {
     this.queue = queue;
     this.cache = cache;
     this.tagManager = tagManager;
+    this.debugLogBuffer = debugLogBuffer;
 
     this.logger.debug('MessageHandler service initialized');
   }
@@ -615,6 +655,27 @@ export class MessageHandler {
         if (isGetAnalysisResultsMessage(message)) {
           this.logger.info('[DEBUG-MessageHandler] Routing to handleGetAnalysisResults');
           const result = await this.handleGetAnalysisResults(message);
+          sendResponse(result);
+          return;
+        }
+
+        if (isGetDebugLogsMessage(message)) {
+          this.logger.info('Routing to handleGetDebugLogs');
+          const result = this.handleGetDebugLogs();
+          sendResponse(result);
+          return;
+        }
+
+        if (isClearDebugLogsMessage(message)) {
+          this.logger.info('Routing to handleClearDebugLogs');
+          const result = this.handleClearDebugLogs();
+          sendResponse(result);
+          return;
+        }
+
+        if (isGetQueueStatsMessage(message)) {
+          this.logger.info('Routing to handleGetQueueStats');
+          const result = await this.handleGetQueueStats();
           sendResponse(result);
           return;
         }
@@ -932,6 +993,64 @@ export class MessageHandler {
       this.logger.error('Failed to clear cache', { error: errorMessage });
       return { success: false, message: `Failed to clear cache: ${errorMessage}` };
     }
+  }
+
+  /**
+   * Handles getDebugLogs message.
+   *
+   * Returns the debug log buffer contents (newest-first) and the count of
+   * entries evicted before pickup.
+   *
+   * @returns Debug log entries and dropped count
+   */
+  private handleGetDebugLogs(): {
+    success: true;
+    entries: import('@/infrastructure/logger/DebugLogBuffer').DebugLogEntry[];
+    droppedCount: number;
+  } {
+    this.logger.info('Handling getDebugLogs message');
+
+    return {
+      success: true,
+      entries: this.debugLogBuffer.getEntries(),
+      droppedCount: this.debugLogBuffer.getDroppedCount(),
+    };
+  }
+
+  /**
+   * Handles clearDebugLogs message.
+   *
+   * Clears the debug log buffer, its session mirror, and the dropped count.
+   *
+   * @returns Success confirmation
+   */
+  private handleClearDebugLogs(): { success: true } {
+    this.logger.info('Handling clearDebugLogs message');
+
+    this.debugLogBuffer.clear();
+
+    return { success: true };
+  }
+
+  /**
+   * Handles getQueueStats message.
+   *
+   * Returns live queue statistics (from PriorityQueue.getStats()) plus the
+   * batch progress verbatim.
+   *
+   * @returns Queue stats and batch progress
+   */
+  private async handleGetQueueStats(): Promise<{
+    success: true;
+    queue: IQueueStats;
+    batch: Awaited<ReturnType<AnalyzeBatchEmails['getProgress']>>;
+  }> {
+    this.logger.info('Handling getQueueStats message');
+
+    const queue = await this.queue.getStats();
+    const batch = await this.analyzeBatch.getProgress();
+
+    return { success: true, queue, batch };
   }
 
   /**

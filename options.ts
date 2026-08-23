@@ -17,6 +17,7 @@ import {
 
 import { logger } from './src/infrastructure/providers/ProviderUtils';
 import { fetchZaiModels } from './src/infrastructure/providers';
+import { DebugTab } from './src/interfaces/options/DebugTab';
 
 declare const messenger: {
   storage: {
@@ -481,13 +482,21 @@ function handleTabClick(
     } else {
       logger.warn('Target tab content not found', { tabId: targetTabId });
     }
+
+    // Debug tab polls only while visible
+    debugTab.onTabVisibilityChanged(targetTabId === 'debug');
   };
 }
 
 /**
+ * Debug tab instance (live entry wiring; no DI container here)
+ */
+const debugTab = new DebugTab();
+
+/**
  * Initializes tab functionality
  */
-function initializeTabs(
+export function initializeTabs(
   tabs: NodeListOf<HTMLButtonElement>,
   tabContents: NodeListOf<HTMLDivElement>
 ): void {
@@ -1133,7 +1142,8 @@ function renderTagList(
  * Cleans up resources when the page is unloaded
  */
 function cleanupResources(): void {
-  // No resources to clean up
+  // Stop debug tab polling on page unload
+  debugTab.onTabVisibilityChanged(false);
 }
 
 // ============================================================================
@@ -1624,6 +1634,9 @@ function initializeOptionsPage(): void {
 
     // Initialize tabs
     initializeTabs(elements.tabs, elements.tabContents);
+
+    // Initialize debug tab (polling starts when the tab becomes visible)
+    debugTab.render();
 
     // Initialize general settings
     loadGeneralSettings(elements).catch((error) => {

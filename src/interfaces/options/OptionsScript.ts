@@ -60,6 +60,7 @@ import { TagManagementUI } from './TagManagementUI';
 import { BatchAnalysisUI } from './BatchAnalysisUI';
 import { AnalysisResultsUI } from './AnalysisResultsUI';
 import { ManualReviewPanel } from './ManualReviewPanel';
+import { DebugTab } from './DebugTab';
 
 // ============================================================================
 // DOM Element Interfaces
@@ -123,6 +124,7 @@ class OptionsScript {
   private batchAnalysisUI: BatchAnalysisUI | null = null;
   private analysisResultsUI: AnalysisResultsUI | null = null;
   private manualReviewPanel: ManualReviewPanel | null = null;
+  private debugTab: DebugTab | null = null;
   private logger: ILogger | null = null;
   private isInitialized = false;
 
@@ -163,6 +165,7 @@ class OptionsScript {
       this.batchAnalysisUI = container.resolve<BatchAnalysisUI>(BatchAnalysisUI);
       this.analysisResultsUI = container.resolve<AnalysisResultsUI>(AnalysisResultsUI);
       this.manualReviewPanel = container.resolve<ManualReviewPanel>(ManualReviewPanel);
+      this.debugTab = container.resolve<DebugTab>(DebugTab);
 
       // Step 5: Initialize UI components
       this.initializeTabs();
@@ -171,6 +174,7 @@ class OptionsScript {
       await this.initializeBatchAnalysis();
       await this.initializeAnalysisResults();
       await this.initializeManualReview();
+      this.initializeDebugTab();
       await this.initializeCacheManagement();
 
       // Step 6: Setup runtime message listeners
@@ -238,6 +242,7 @@ class OptionsScript {
     container.registerSingleton('BatchAnalysisUI', BatchAnalysisUI);
     container.registerSingleton('AnalysisResultsUI', AnalysisResultsUI);
     container.registerSingleton('ManualReviewPanel', ManualReviewPanel);
+    container.registerSingleton('DebugTab', DebugTab);
 
     startupLogger.info('UI components registered');
     startupLogger.info('DI container setup completed');
@@ -276,6 +281,9 @@ class OptionsScript {
         } else {
           this.logger?.warn('Target tab content not found', { tabId: targetTabId });
         }
+
+        // Debug tab polls only while visible
+        this.debugTab?.onTabVisibilityChanged(targetTabId === 'debug');
       });
     });
 
@@ -391,6 +399,24 @@ class OptionsScript {
     }
 
     this.logger?.debug('Manual review panel UI initialized');
+  }
+
+  /**
+   * Initializes debug tab UI.
+   *
+   * Polling lifecycle is driven by tab visibility (see initializeTabs)
+   * and page unload (handled by the component itself).
+   */
+  private initializeDebugTab(): void {
+    this.logger?.debug('Initializing debug tab');
+
+    if (!this.debugTab) {
+      throw new Error('Debug tab not resolved from DI container');
+    }
+
+    this.debugTab.render();
+
+    this.logger?.debug('Debug tab initialized');
   }
 
   /**
