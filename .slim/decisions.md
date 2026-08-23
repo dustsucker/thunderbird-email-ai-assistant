@@ -1,0 +1,3 @@
+2026-08-23 | V2 options-container dead string tokens + missing IQueue registration (latent options-page init throw) | deferred | pre-existing before fix batch, untouched files, needs own scoped refactor of OptionsScript DI graph | checker (che-1) wins scope argument
+2026-08-23 | OR1 OpenRouter sk-or- prefix fail-closed in validateSettings | deferred | matches repo convention (DeepSeek sk- prefix), all current keys sk-or-v1-, explicit error; one-line fix if format changes | checker (che-1) wins consistency argument
+2026-08-23 | OR2 DW-OR2 letter demanded model in validateSettings | rejected_false_positive | DeepSeek anchor validates apiKey only, model optional via tested default fallback; spec wording corrected, code right | master
