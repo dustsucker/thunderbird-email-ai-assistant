@@ -1,6 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
+import { Validator } from '../Validator';
 import type { StructuredEmailData } from '../../../../core/analysis';
 import type { CustomTags } from '../../../../core/config';
 
@@ -102,14 +103,16 @@ export class OllamaProvider extends BaseProvider {
   }
 
   public validateSettings(settings: BaseProviderSettings): boolean {
+    // Issue #36: mail content is sent to apiUrl — only local endpoints allowed.
     const isValid =
-      typeof settings.apiUrl === 'string' &&
-      settings.apiUrl.length > 0 &&
+      Validator.validateApiUrl(settings.apiUrl ?? '') &&
       typeof settings.model === 'string' &&
       settings.model.length > 0;
 
     if (!isValid) {
-      this.logger.error('Ollama Error: Invalid settings provided');
+      this.logger.error(
+        'Ollama Error: Invalid settings provided (apiUrl must be http(s)://localhost or http(s)://127.0.0.1)'
+      );
     }
 
     return isValid;

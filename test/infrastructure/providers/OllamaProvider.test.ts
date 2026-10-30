@@ -62,12 +62,52 @@ describe('OllamaProvider', () => {
       expect(provider.validateSettings(settings)).toBe(true);
     });
 
-    it('should return true for valid settings with custom Ollama URL', () => {
+    it('should return true for valid settings with 127.0.0.1 and custom port', () => {
+      const settings: BaseProviderSettings = {
+        apiUrl: 'http://127.0.0.1:11435/api/generate',
+        model: 'llama3',
+      };
+      expect(provider.validateSettings(settings)).toBe(true);
+    });
+
+    it('should return true for https localhost URL', () => {
+      const settings: BaseProviderSettings = {
+        apiUrl: 'https://localhost:11434/api/generate',
+        model: 'llama3',
+      };
+      expect(provider.validateSettings(settings)).toBe(true);
+    });
+
+    it('should reject remote http URL (issue #36)', () => {
+      const settings: BaseProviderSettings = {
+        apiUrl: 'http://evil.example/api/generate',
+        model: 'llama3',
+      };
+      expect(provider.validateSettings(settings)).toBe(false);
+    });
+
+    it('should reject LAN IP URL (issue #36)', () => {
       const settings: BaseProviderSettings = {
         apiUrl: 'http://192.168.1.100:11434/api/generate',
         model: 'llama3',
       };
-      expect(provider.validateSettings(settings)).toBe(true);
+      expect(provider.validateSettings(settings)).toBe(false);
+    });
+
+    it('should reject localhost subdomain lookalike (issue #36)', () => {
+      const settings: BaseProviderSettings = {
+        apiUrl: 'http://localhost.evil.example/api/generate',
+        model: 'llama3',
+      };
+      expect(provider.validateSettings(settings)).toBe(false);
+    });
+
+    it('should reject non-http protocol (issue #36)', () => {
+      const settings: BaseProviderSettings = {
+        apiUrl: 'ftp://localhost:11434/api/generate',
+        model: 'llama3',
+      };
+      expect(provider.validateSettings(settings)).toBe(false);
     });
 
     it('should return false when apiUrl is missing', () => {
@@ -106,7 +146,9 @@ describe('OllamaProvider', () => {
 
     it('should log error when settings are invalid', () => {
       provider.validateSettings({});
-      expect(mockLogger.error).toHaveBeenCalledWith('Ollama Error: Invalid settings provided');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Ollama Error: Invalid settings provided')
+      );
     });
   });
 
@@ -137,7 +179,7 @@ describe('OllamaProvider', () => {
     });
 
     it('should call fetch with correct URL from settings', async () => {
-      const customUrl = 'http://custom-ollama:11435/api/generate';
+      const customUrl = 'http://localhost:11435/api/generate';
       const settings: BaseProviderSettings = {
         apiUrl: customUrl,
         model: 'llama3',
@@ -222,10 +264,10 @@ describe('OllamaProvider', () => {
       fetchSpy.mockResolvedValue(createMockFetchResponse(ollamaResponse));
 
       // Simulates a cached adapter shared by concurrent workers
-      provider.validateSettings({ apiUrl: 'http://a:11434/api/generate', model: 'modelA' });
+      provider.validateSettings({ apiUrl: 'http://localhost:11434/api/generate', model: 'modelA' });
 
       const settingsB: BaseProviderSettings = {
-        apiUrl: 'http://b:11435/api/generate',
+        apiUrl: 'http://127.0.0.1:11435/api/generate',
         model: 'modelB',
       };
       await provider.analyze({
@@ -235,7 +277,7 @@ describe('OllamaProvider', () => {
       });
 
       const fetchCall = fetchSpy.mock.calls[0];
-      expect(fetchCall[0]).toBe('http://b:11435/api/generate');
+      expect(fetchCall[0]).toBe('http://127.0.0.1:11435/api/generate');
       expect(JSON.parse(fetchCall[1]?.body as string).model).toBe('modelB');
     });
   });
@@ -398,7 +440,7 @@ describe('OllamaProvider', () => {
       fetchSpy.mockResolvedValue(createMockFetchResponse(ollamaResponse));
 
       const customSettings: BaseProviderSettings = {
-        apiUrl: 'http://192.168.1.50:11435/api/generate',
+        apiUrl: 'http://localhost:11435/api/generate',
         model: 'llama3',
       };
 
@@ -409,7 +451,7 @@ describe('OllamaProvider', () => {
       });
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://192.168.1.50:11435/api/generate',
+        'http://localhost:11435/api/generate',
         expect.anything()
       );
     });
@@ -424,7 +466,7 @@ describe('OllamaProvider', () => {
       fetchSpy.mockResolvedValue(createMockFetchResponse(ollamaResponse));
 
       const customSettings: BaseProviderSettings = {
-        apiUrl: 'http://ollama.example.com/api/generate',
+        apiUrl: 'http://127.0.0.1:11434/custom/api/generate',
         model: 'gemma3:27b',
       };
 
@@ -435,7 +477,7 @@ describe('OllamaProvider', () => {
       });
 
       expect(fetchSpy).toHaveBeenCalledWith(
-        'http://ollama.example.com/api/generate',
+        'http://127.0.0.1:11434/custom/api/generate',
         expect.anything()
       );
     });

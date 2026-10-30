@@ -142,10 +142,15 @@ export class Validator {
     return apiKey.trim().length > 0;
   }
 
+  /**
+   * Validates a local Ollama endpoint (issue #36): mail content is sent to
+   * this URL, so only localhost/127.0.0.1 over http(s) is acceptable.
+   */
   static validateApiUrl(url: string): boolean {
     try {
       const parsed = new URL(url);
-      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+      return isLocal && (parsed.protocol === 'http:' || parsed.protocol === 'https:');
     } catch {
       return false;
     }

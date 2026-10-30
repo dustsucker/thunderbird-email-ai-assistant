@@ -27,6 +27,7 @@ import { OpenAIProvider } from './src/infrastructure/providers/impl/OpenAIProvid
 import { OpenRouterProvider } from './src/infrastructure/providers/impl/OpenRouterProvider';
 import { ZaiCodingProvider } from './src/infrastructure/providers/impl/ZaiCodingProvider';
 import { ZaiPaaSProvider } from './src/infrastructure/providers/impl/ZaiPaaSProvider';
+import { Validator } from './src/infrastructure/providers/Validator';
 import { DebugTab } from './src/interfaces/options/DebugTab';
 
 declare const messenger: {
@@ -308,11 +309,15 @@ function isValidHexColor(color: string): boolean {
  */
 function getPermissionOrigin(provider: Provider, settings: PartialProviderConfig): string {
   switch (provider) {
-    case Provider.OLLAMA:
+    case Provider.OLLAMA: {
       if (settings.ollamaApiUrl) {
-        return new URL(settings.ollamaApiUrl).origin + '/*';
+        // Match patterns must not contain ports (#36): the portless pattern
+        // matches any port and is the one declared in optional_host_permissions.
+        const url = new URL(settings.ollamaApiUrl);
+        return `${url.protocol}//${url.hostname}/*`;
       }
       throw new Error('Ollama API URL is required for permission request');
+    }
     case Provider.OPENAI:
       return 'https://api.openai.com/*';
     case Provider.GEMINI:
@@ -1028,6 +1033,23 @@ async function handleGeneralSettingsSubmit(
 
   const settingsToSave = gatherProviderSettings(provider, elements);
   logger.debug('[DEBUG-options] Gathered settings', { settingsToSave });
+
+  // Issue #36: the Ollama URL receives mail content — only local endpoints
+  // are acceptable. Reject clearly instead of saving a remote exfiltration target.
+  if (
+    provider === Provider.OLLAMA &&
+    !Validator.validateApiUrl(settingsToSave.ollamaApiUrl ?? '')
+  ) {
+    logger.warn('[DEBUG-options] Invalid Ollama URL rejected', {
+      apiUrl: settingsToSave.ollamaApiUrl,
+    });
+    return {
+      success: false,
+      message:
+        'Ungültige Ollama-URL. Erlaubt sind nur http(s)://localhost oder http(s)://127.0.0.1 ' +
+        '(mit beliebigem Port).',
+    };
+  }
 
   let permissionGranted = true;
 
