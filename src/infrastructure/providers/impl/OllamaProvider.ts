@@ -55,8 +55,15 @@ export class OllamaProvider extends BaseProvider {
     this.logger.debug('OllamaProvider initialized');
   }
 
+  /**
+   * Returns the Ollama generate endpoint (issue #11 part).
+   * Normalizes the configured URL: a bare host like `http://localhost:11434`
+   * gets `/api/generate` appended; a URL that already contains the path is
+   * returned unchanged.
+   */
   protected getApiUrl(settings?: BaseProviderSettings): string {
-    return settings?.apiUrl || DEFAULT_OLLAMA_URL;
+    const url = settings?.apiUrl || DEFAULT_OLLAMA_URL;
+    return url.includes('/api/generate') ? url : `${url.replace(/\/+$/, '')}/api/generate`;
   }
 
   protected buildRequestBody(

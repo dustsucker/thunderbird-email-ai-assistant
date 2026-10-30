@@ -439,6 +439,63 @@ describe('OllamaProvider', () => {
         expect.anything()
       );
     });
+
+    it('normalizes a bare host URL by appending /api/generate (issue #11)', async () => {
+      const ollamaResponse = {
+        model: 'gemma3:27b',
+        response: JSON.stringify(validTagResponse),
+        done: true,
+      };
+
+      fetchSpy.mockResolvedValue(createMockFetchResponse(ollamaResponse));
+
+      await provider.analyze({
+        settings: { apiUrl: 'http://localhost:11434', model: 'gemma3:27b' },
+        structuredData: createMockStructuredData(),
+        customTags: createMockCustomTags(),
+      });
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        'http://localhost:11434/api/generate',
+        expect.anything()
+      );
+    });
+
+    it('keeps a URL that already contains /api/generate unchanged', () => {
+      const getApiUrl = (
+        provider as unknown as {
+          getApiUrl(settings?: BaseProviderSettings): string;
+        }
+      ).getApiUrl.bind(provider);
+
+      expect(getApiUrl({ apiUrl: 'http://localhost:11434/api/generate' })).toBe(
+        'http://localhost:11434/api/generate'
+      );
+    });
+
+    it('appends /api/generate to a bare host (unit)', () => {
+      const getApiUrl = (
+        provider as unknown as {
+          getApiUrl(settings?: BaseProviderSettings): string;
+        }
+      ).getApiUrl.bind(provider);
+
+      expect(getApiUrl({ apiUrl: 'http://localhost:11434' })).toBe(
+        'http://localhost:11434/api/generate'
+      );
+    });
+
+    it('strips a trailing slash before appending /api/generate', () => {
+      const getApiUrl = (
+        provider as unknown as {
+          getApiUrl(settings?: BaseProviderSettings): string;
+        }
+      ).getApiUrl.bind(provider);
+
+      expect(getApiUrl({ apiUrl: 'http://localhost:11434/' })).toBe(
+        'http://localhost:11434/api/generate'
+      );
+    });
   });
 
   // ==========================================================================
