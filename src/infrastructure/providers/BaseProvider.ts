@@ -484,7 +484,9 @@ export abstract class BaseProvider {
 
       if (!this.validateSettings(settings)) {
         // SECURITY: Never log raw settings - they contain API keys
-        this.logError('Invalid provider settings', {
+        // debug: pass-through — AnalyzeEmail pre-validates and is the single
+        // error reporter for the analysis chain (checker F5)
+        this.logDebug('Invalid provider settings', {
           runId,
           hasApiKey: !!settings.apiKey,
           hasModel: !!settings.model,
