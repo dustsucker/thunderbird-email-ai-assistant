@@ -206,9 +206,7 @@ export class ZaiCodingProvider extends BaseProvider {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      const FALLBACK_MODELS = ['glm-4.7'];
-
-      return FALLBACK_MODELS;
+      throw error;
     }
   }
 

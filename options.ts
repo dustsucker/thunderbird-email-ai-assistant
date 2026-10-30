@@ -1306,6 +1306,30 @@ function createProviderForConnectionTest(provider: string): {
 }
 
 /**
+ * German wording for the provider error texts (see the Z.ai listModels throws).
+ * Raw text follows for unmapped errors so nothing is lost.
+ */
+const CONNECTION_ERROR_HINTS: ReadonlyArray<[RegExp, string | ((raw: string) => string)]> = [
+  [/API key is (missing|required)/, 'API-Schlüssel fehlt.'],
+  // Status-carrying texts before the network matcher: "Failed to fetch …: 502" has both.
+  [/\b(401|403)\b|unauthori[sz]ed|invalid.*key/i, 'API-Schlüssel ungültig oder abgelaufen.'],
+  [/\b\d{3}\b/, (raw) => `Server nicht erreichbar (Status ${raw.match(/\b\d{3}\b/)![0]}).`],
+  [/Failed to fetch|NetworkError|network error/i, 'API nicht erreichbar (Netzwerkfehler).'],
+  [/Invalid response format/i, 'Unerwartete Antwort vom Anbieter.'],
+];
+
+/**
+ * Translates a provider error message; unknown texts keep the raw message.
+ */
+function describeConnectionError(raw: string): string {
+  const hint = CONNECTION_ERROR_HINTS.find(([pattern]) => pattern.test(raw))?.[1];
+  if (hint === undefined) {
+    return `Unbekannter Fehler (${raw}).`;
+  }
+  return typeof hint === 'function' ? hint(raw) : hint;
+}
+
+/**
  * Minimal connection test: asks the provider for its model list (GET /models).
  *
  * Success = at least one model came back, everything else is reported as a
@@ -1329,8 +1353,8 @@ export async function testProviderConnection(
         'Erreichbarkeit prüfen (Details im Debug-Protokoll).',
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return { ok: false, message: `Verbindung fehlgeschlagen: ${errorMessage}` };
+    const raw = error instanceof Error ? error.message : String(error);
+    return { ok: false, message: `Verbindung fehlgeschlagen: ${describeConnectionError(raw)}` };
   }
 }
 
@@ -1381,19 +1405,25 @@ async function populateZaiModels(provider: 'zaiPaas' | 'zaiCoding'): Promise<voi
     return; // Kein API-Key, nichts zu tun
   }
 
+  // The z.ai model field is a text input with a static <datalist>: refresh its
+  // suggestions in place instead of wiping the user's current value.
+  const listId = zaiModelSelect.getAttribute('list');
+  const datalist = listId ? document.getElementById(listId) : null;
+
+  if (!datalist) {
+    return;
+  }
+
   try {
     logger.info(`[DEBUG-options] Fetching ${provider} models`);
     const models = await fetchZaiModels(zaiKeyInput.value);
 
-    // Clear existing options
-    zaiModelSelect.innerHTML = '';
+    datalist.innerHTML = '';
 
-    // Add new options
     models.forEach((model) => {
       const option = document.createElement('option');
       option.value = model;
-      option.textContent = model;
-      zaiModelSelect.appendChild(option);
+      datalist.appendChild(option);
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1652,7 +1682,11 @@ async function handleKillQueueClick(killQueueBtn: HTMLButtonElement): Promise<vo
     if (response.success) {
       setStatusMessage(killQueueBtn.nextElementSibling as HTMLSpanElement, response.message);
     } else {
-      setStatusMessage(killQueueBtn.nextElementSibling as HTMLSpanElement, response.message, 'error');
+      setStatusMessage(
+        killQueueBtn.nextElementSibling as HTMLSpanElement,
+        response.message,
+        'error'
+      );
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1962,6 +1996,7 @@ function initializeOptionsPage(): void {
 
       const activePanel = document.getElementById(`${elements.providerSelect.value}-settings`);
       if (activePanel && !validateProviderPanel(activePanel)) {
+        activePanel.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
         setStatusMessage(
           elements.generalStatusMessage,
           'Bitte die markierten Felder korrigieren.',
@@ -1977,7 +2012,6 @@ function initializeOptionsPage(): void {
         setStatusMessage(elements.statusMessage, 'General settings saved!');
       } else {
         setStatusMessage(elements.generalStatusMessage, result.message, 'error');
-        setStatusMessage(elements.statusMessage, result.message, 'error');
       }
     });
 

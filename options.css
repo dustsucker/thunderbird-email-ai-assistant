@@ -390,7 +390,7 @@ button:disabled {
 }
 
 /* Platz fuer den Show/Hide-Toggle im selben Rasterfeld wie das Feld */
-.provider-settings .form-group > input[type='password'] {
+.provider-settings .form-group:has(> .key-toggle) > input {
   padding-right: 76px;
 }
 

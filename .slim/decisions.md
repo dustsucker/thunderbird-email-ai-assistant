@@ -1,3 +1,8 @@
 2026-08-23 | V2 options-container dead string tokens + missing IQueue registration (latent options-page init throw) | deferred | pre-existing before fix batch, untouched files, needs own scoped refactor of OptionsScript DI graph | checker (che-1) wins scope argument
 2026-08-23 | OR1 OpenRouter sk-or- prefix fail-closed in validateSettings | deferred | matches repo convention (DeepSeek sk- prefix), all current keys sk-or-v1-, explicit error; one-line fix if format changes | checker (che-1) wins consistency argument
 2026-08-23 | OR2 DW-OR2 letter demanded model in validateSettings | rejected_false_positive | DeepSeek anchor validates apiKey only, model optional via tested default fallback; spec wording corrected, code right | master
+2026-10-30 | UX-A F3 stale 3s timer on cache pre-state | fixed | che-1 suggested one-liner (route pre-state through setStatusMessage) was cheaper than a deferral note | master
+2026-10-30 | UX-A registrierter Provider-Switch statt ProviderFactory-Registry (arbiter #3) | deferred | Umbau von ProviderFactory/9-case-Switch in separatem Scoped-Refactor; UI funktioniert mit den 9 real existierenden Providern | master
+2026-10-30 | UX-A nextElementSibling-Lookup fuer .connection-result (arbiter #6) | deferred | vorbestehendes Muster aus Kill-Queue; Umbau auf aria-controls in eigenem Refactor | master
+2026-10-30 | UX-A Fake-Timer-Block in options-page-init.test.ts (arbiter #5) | deferred | Assertion ist vakuos, aber status-error-Klasse deckt den Fall; kein Verhalten beeinflusst | master
+2026-10-30 | Other 7 providers swallow listModels into [] instead of throwing | deferred | Lesbare Fehlermeldung ("keine Modelle erhalten"), kein falsches Erfolgssignal; Vertrag #1 erfuellt | master

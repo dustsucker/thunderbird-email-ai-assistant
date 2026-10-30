@@ -206,15 +206,7 @@ export class ZaiPaaSProvider extends BaseProvider {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      const FALLBACK_MODELS = [
-        'glm-4.5',
-        'glm-4.5-air',
-        'glm-4-plus',
-        'glm-4.5-airx',
-        'glm-4.5-flash',
-      ];
-
-      return FALLBACK_MODELS;
+      throw error;
     }
   }
 

@@ -362,12 +362,20 @@ describe('ZaiCodingProvider', () => {
       await expect(provider.listModels({})).rejects.toThrow('API key is required to list models');
     });
 
-    it('should return fallback models on fetch error', async () => {
+    it('should throw on fetch error instead of faking a model list', async () => {
       fetchSpy.mockRejectedValue(new Error('Network error'));
 
-      const models = await provider.listModels(validSettings as IRuntimeProviderSettings);
+      await expect(
+        provider.listModels(validSettings as IRuntimeProviderSettings)
+      ).rejects.toThrow('Network error');
+    });
 
-      expect(models).toEqual(['glm-4.7']);
+    it('should throw on a non-ok response', async () => {
+      fetchSpy.mockResolvedValue(createMockFetchError(401, 'Unauthorized'));
+
+      await expect(
+        provider.listModels(validSettings as IRuntimeProviderSettings)
+      ).rejects.toThrow('401');
     });
 
     it('should call correct models endpoint', async () => {

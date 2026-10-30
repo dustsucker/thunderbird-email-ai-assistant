@@ -78,6 +78,7 @@ describe('options page', () => {
     expect(error?.textContent).toBe('API-Schlüssel erforderlich.');
     expect(field.getAttribute('aria-invalid')).toBe('true');
     expect(field.getAttribute('aria-describedby')).toContain(`${field.id}-error`);
+    expect(document.activeElement).toBe(field);
     expect(storageSet).not.toHaveBeenCalled();
 
     // Nachbessern raeumt den Fehler weg
