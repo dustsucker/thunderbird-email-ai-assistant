@@ -343,21 +343,21 @@ async function showNotificationFallback(errorDisplay: ErrorDisplay): Promise<voi
  */
 async function sendErrorToUI(errorDisplay: ErrorDisplay): Promise<void> {
   try {
-    // Check if we're in a browser extension context
-    if (typeof browser !== 'undefined' && browser.runtime) {
-      const message: ShowErrorRuntimeMessage = {
-        action: 'showError',
-        error: errorDisplay,
-      };
-
-      // Try to send message to options page
-      // @ts-expect-error - browser runtime sendMessage is valid for WebExtensions
-      browser.runtime.sendMessage(message).catch((_reason: unknown) => {
-        // Issue #18: channel may be dead (options page closed) — fall back to a
-        // notification instead of dropping the error.
-        void showNotificationFallback(errorDisplay);
-      });
+    // Check if we're in an extension context (messenger is the background global)
+    if (typeof messenger === 'undefined' || !messenger.runtime) {
+      return;
     }
+
+    const message: ShowErrorRuntimeMessage = {
+      action: 'showError',
+      error: errorDisplay,
+    };
+
+    // Issue #18: the channel may be dead (options page closed) — fall back to a
+    // notification instead of silently dropping the error.
+    messenger.runtime.sendMessage(message).catch(() => {
+      void showNotificationFallback(errorDisplay);
+    });
   } catch {
     // Runtime API not available (not in extension context)
     logger.debug('Runtime API not available for error display');
