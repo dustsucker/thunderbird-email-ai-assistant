@@ -225,7 +225,8 @@ export class ApplyTagsWithConfidenceUseCase {
 
       // Log low-confidence flags
       if (lowConfidenceFlags.length > 0) {
-        this.logger.info('📋 Low-confidence flags created', {
+        // debug: per-analysis detail — the single info log lives in AnalyzeEmail (#6, checker F2)
+        this.logger.debug('📋 Low-confidence flags created', {
           messageId,
           flagCount: lowConfidenceFlags.length,
           flags: lowConfidenceFlags.map(

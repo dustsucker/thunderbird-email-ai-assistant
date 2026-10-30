@@ -390,7 +390,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
     it('should log low-confidence flags', async () => {
       await useCase.execute('123', ['business', 'personal'], 0.5);
 
-      expect(mockLogger.info).toHaveBeenCalledWith('📋 Low-confidence flags created', {
+      expect(mockLogger.debug).toHaveBeenCalledWith('📋 Low-confidence flags created', {
         messageId: '123',
         flagCount: 2,
         flags: expect.arrayContaining(['business: 50% < 70%', 'personal: 50% < 70%']),

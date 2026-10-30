@@ -514,7 +514,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       expect(businessFlag.reasoning).toContain('75%');
 
       // Verify: Log shows low-confidence flags created
-      expect(logger.info).toHaveBeenCalledWith(
+      expect(logger.debug).toHaveBeenCalledWith(
         expect.stringContaining('Low-confidence flags created'),
         expect.objectContaining({
           messageId: '123',
