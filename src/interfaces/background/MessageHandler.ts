@@ -22,6 +22,7 @@ import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import { AnalyzeEmail, LOW_CONFIDENCE_INDEX_KEY } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
+import { MemoryCache } from '@/infrastructure/cache/MemoryCache';
 import type { DebugLogBuffer } from '@/infrastructure/logger/DebugLogBuffer';
 import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsService';
 
@@ -793,6 +794,8 @@ export class MessageHandler {
     success: true;
     entries: import('@/infrastructure/logger/DebugLogBuffer').DebugLogEntry[];
     droppedCount: number;
+    /** Optional: swallowed cache-operation errors since start (issue #8) */
+    cacheErrorCount?: number;
   } {
     // debug: polling endpoint — info here would spam the log on every UI refresh
     this.logger.debug('Handling getDebugLogs message');
@@ -801,6 +804,7 @@ export class MessageHandler {
       success: true,
       entries: this.debugLogBuffer.getEntries(),
       droppedCount: this.debugLogBuffer.getDroppedCount(),
+      cacheErrorCount: this.getCacheErrorCount(),
     };
   }
 
@@ -852,6 +856,8 @@ export class MessageHandler {
     success: boolean;
     totalEntries?: number;
     hitRate?: number;
+    /** Optional: swallowed cache-operation errors since start (issue #8) */
+    cacheErrorCount?: number;
     message?: string;
   }> {
     this.logger.info('Handling getCacheStats message');
@@ -862,12 +868,21 @@ export class MessageHandler {
         success: true,
         totalEntries: stats.totalEntries,
         hitRate: stats.hitRate,
+        cacheErrorCount: this.getCacheErrorCount(),
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to get cache stats', { error: errorMessage });
       return { success: false, message: errorMessage };
     }
+  }
+
+  /**
+   * Swallowed cache-operation error count (issue #8). Only the MemoryCache
+   * implementation tracks it; other ICache implementations report 0.
+   */
+  private getCacheErrorCount(): number {
+    return this.cache instanceof MemoryCache ? this.cache.getErrorCount() : 0;
   }
 
   /**

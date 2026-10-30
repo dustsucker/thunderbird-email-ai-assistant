@@ -381,7 +381,12 @@ export class AnalysisCache {
     try {
       const result = await this.get(emailHash);
       return result !== null;
-    } catch {
+    } catch (error) {
+      // Issue #8: no silent swallow — debug log with error name
+      logger.debug('AnalysisCache.has failed', {
+        emailHash,
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+      });
       return false;
     }
   }
