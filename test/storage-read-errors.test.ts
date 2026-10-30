@@ -304,7 +304,12 @@ describe('AnalyzeEmail loadCustomTags (issue #33)', () => {
       new RetrieveEmailUseCase(mailReader, logger),
       new ExtractEmailContentUseCase(new EmailContentExtractor(logger), logger),
       new CacheAnalysisUseCase(cache, logger),
-      new ApplyTagsWithConfidenceUseCase(tagManager, configRepository, logger)
+      new ApplyTagsWithConfidenceUseCase(
+        tagManager,
+        configRepository,
+        { recordChange: vi.fn().mockResolvedValue(undefined) } as unknown as TagHistoryRepository,
+        logger
+      )
     );
 
     const providerSettings: IProviderSettings = {
