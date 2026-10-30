@@ -40,10 +40,7 @@ describe('sanitizeForLogging exact field-name matching', () => {
   });
 
   it('masks sensitive fields case-insensitively', () => {
-    const result = sanitizeForLogging({ APIKey: 'sk-1234567890abcdef' }) as Record<
-      string,
-      string
-    >;
+    const result = sanitizeForLogging({ APIKey: 'sk-1234567890abcdef' }) as Record<string, string>;
     expect(result.APIKey).toBe('sk-1234...def');
   });
 

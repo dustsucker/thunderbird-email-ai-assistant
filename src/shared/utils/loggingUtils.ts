@@ -203,7 +203,8 @@ export function sanitizeForLogging(data: unknown, depth: number = 0): unknown {
   for (const [key, value] of Object.entries(data)) {
     if (isRedactedField(key)) {
       // PII / raw LLM content: redact entirely, keep a length hint
-      sanitized[key] = typeof value === 'string' ? `[redacted ${value.length} chars]` : '[redacted]';
+      sanitized[key] =
+        typeof value === 'string' ? `[redacted ${value.length} chars]` : '[redacted]';
     } else if (isSensitiveField(key)) {
       // Mask sensitive fields
       sanitized[key] = maskSensitiveValue(value);
