@@ -144,15 +144,35 @@ describe('ToolbarHandler', () => {
     });
 
     it('should start analysis for the first displayed message', async () => {
+      handler = new ToolbarHandler(
+        mockLogger,
+        {
+          execute: vi
+            .fn()
+            .mockResolvedValue({ tags: ['rechnung'], confidence: 0.9, messageId: '42' }),
+        } as never,
+        {
+          getAppConfig: vi.fn().mockResolvedValue({ defaultProvider: 'openai' }),
+          getProviderSettings: vi.fn().mockResolvedValue({ apiKey: 'k', model: 'm' }),
+        } as never
+      );
       const clickListener = getClickListener();
       mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce([{ id: 42 }]);
 
       await clickListener(tab);
 
+      // Start notification must not leak the raw internal messageId
       expect(mockMessenger.notifications.create).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Analyse gestartet',
-          message: expect.stringContaining('42'),
+          message: 'Die Analyse wurde gestartet.',
+        })
+      );
+      // Completion notification reports the awarded tags
+      expect(mockMessenger.notifications.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Analyse abgeschlossen',
+          message: expect.stringContaining('rechnung'),
         })
       );
     });
@@ -164,7 +184,8 @@ describe('ToolbarHandler', () => {
       );
 
       await expect(clickListener(tab)).resolves.toBeUndefined();
-      expect(mockLogger.error).toHaveBeenCalled();
+      // Pass-through log is debug-level; error-level reporting happens in the handling layer
+      expect(mockLogger.debug).toHaveBeenCalled();
     });
   });
 });
@@ -175,7 +196,9 @@ describe('ToolbarHandler', () => {
 
 describe('ContextMenuHandler', () => {
   function createHandlerWithMocks() {
-    const analyzeBatch = { execute: vi.fn().mockResolvedValue({ total: 0, successCount: 0, failureCount: 0 }) };
+    const analyzeBatch = {
+      execute: vi.fn().mockResolvedValue({ total: 0, successCount: 0, failureCount: 0 }),
+    };
     const handler = new ContextMenuHandler(
       { execute: vi.fn() } as never,
       analyzeBatch as never,
@@ -258,7 +281,9 @@ describe('ContextMenuHandler', () => {
       {
         menuItemId: 'batch-analyze-folder',
         modifiers: [],
-        selectedFolders: [{ accountId: 'acc1', id: 'folder-1', path: 'INBOX', name: 'Inbox', type: 'inbox' }],
+        selectedFolders: [
+          { accountId: 'acc1', id: 'folder-1', path: 'INBOX', name: 'Inbox', type: 'inbox' },
+        ],
       },
       { id: 1, type: 'messageDisplay' }
     );
@@ -281,7 +306,9 @@ describe('ContextMenuHandler', () => {
       {
         menuItemId: 'batch-analyze-folder',
         modifiers: [],
-        selectedFolders: [{ accountId: 'acc1', id: 'folder-1', path: 'INBOX', name: 'Inbox', type: 'inbox' }],
+        selectedFolders: [
+          { accountId: 'acc1', id: 'folder-1', path: 'INBOX', name: 'Inbox', type: 'inbox' },
+        ],
       },
       { id: 1, type: 'messageDisplay' }
     );
