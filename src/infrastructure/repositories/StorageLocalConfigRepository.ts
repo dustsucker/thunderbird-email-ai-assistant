@@ -66,6 +66,22 @@ function hasBrowserStorage(obj: unknown): obj is BrowserStorage {
   );
 }
 
+// === Errors ===
+
+/**
+ * Thrown when a configuration key is not set in storage (first run / never saved).
+ *
+ * Issue #33: callers must be able to tell "deliberately not configured" (may get
+ * defaults) from "read error / corrupt data" (must NOT silently become defaults).
+ * Storage failures and validation failures are thrown as plain errors instead.
+ */
+export class ConfigNotSetError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConfigNotSetError';
+  }
+}
+
 // === Constants ===
 
 const STORAGE_KEYS = {
@@ -134,32 +150,36 @@ export class StorageLocalConfigRepository implements IConfigRepository {
   // === Provider Settings ===
 
   async getProviderSettings(providerId: string): Promise<IProviderSettings> {
+    let data: Record<string, unknown>;
     try {
-      const data = await this.storage.get(STORAGE_KEYS.PROVIDER_SETTINGS);
-      const providerSettings = data[STORAGE_KEYS.PROVIDER_SETTINGS] as
-        | Record<string, IProviderSettings>
-        | undefined;
-
-      if (!providerSettings || !(providerId in providerSettings)) {
-        throw new Error(`Provider settings not found for provider: ${providerId}`);
-      }
-
-      const settings = providerSettings[providerId];
-      this.logger.debug(`Retrieved provider settings for ${providerId}`, {
-        providerId,
-        hasApiKey: !!settings.apiKey,
-        model: settings.model,
-      });
-
-      return settings;
+      data = await this.storage.get(STORAGE_KEYS.PROVIDER_SETTINGS);
     } catch (error) {
+      // Issue #33: a storage READ failure must propagate — only a missing key
+      // (ConfigNotSetError below) may be treated as "not configured".
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to get provider settings for ${providerId}`, {
         providerId,
         error: message,
       });
-      throw new Error(`Failed to get provider settings for ${providerId}: ${message}`);
+      throw error;
     }
+
+    const providerSettings = data[STORAGE_KEYS.PROVIDER_SETTINGS] as
+      | Record<string, IProviderSettings>
+      | undefined;
+
+    if (!providerSettings || !(providerId in providerSettings)) {
+      throw new ConfigNotSetError(`Provider settings not found for provider: ${providerId}`);
+    }
+
+    const settings = providerSettings[providerId];
+    this.logger.debug(`Retrieved provider settings for ${providerId}`, {
+      providerId,
+      hasApiKey: !!settings.apiKey,
+      model: settings.model,
+    });
+
+    return settings;
   }
 
   async setProviderSettings(providerId: string, settings: IProviderSettings): Promise<void> {
@@ -210,21 +230,52 @@ export class StorageLocalConfigRepository implements IConfigRepository {
   async getCustomTags(): Promise<ICustomTag[]> {
     this.logger.info('[CONFIG-REPO] Retrieving custom tags from storage');
 
+    let data: Record<string, unknown>;
     try {
-      const data = await this.storage.get(STORAGE_KEYS.CUSTOM_TAGS);
-      const customTags = (data[STORAGE_KEYS.CUSTOM_TAGS] as ICustomTag[]) || [];
-
-      this.logger.info('[CONFIG-REPO] Custom tags retrieved successfully', {
-        count: customTags.length,
-        tags: customTags.map((t) => t.key).join(', '),
-      });
-
-      return customTags;
+      data = await this.storage.get(STORAGE_KEYS.CUSTOM_TAGS);
     } catch (error) {
+      // Issue #33: storage READ failures propagate — never silently become [].
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error('[CONFIG-REPO] Failed to get custom tags', { error: message });
       throw new Error(`Failed to get custom tags: ${message}`);
     }
+
+    if (data[STORAGE_KEYS.CUSTOM_TAGS] === undefined) {
+      // Key not set (never saved): an empty list is the legitimate "not configured".
+      return [];
+    }
+
+    const stored = data[STORAGE_KEYS.CUSTOM_TAGS];
+    if (!Array.isArray(stored)) {
+      // Issue #33: corrupt data must not silently become an empty/default tagset.
+      const message = `Custom tags storage is corrupt: expected array, got ${typeof stored}`;
+      this.logger.error('[CONFIG-REPO] Failed to get custom tags', { error: message });
+      throw new Error(message);
+    }
+
+    // Validation pattern from EmailAnalysisTracker: keep well-formed entries,
+    // drop the rest (a tag without key/name cannot be used anywhere).
+    const customTags = stored.filter(
+      (entry): entry is ICustomTag =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        typeof (entry as ICustomTag).key === 'string' &&
+        (entry as ICustomTag).key !== '' &&
+        typeof (entry as ICustomTag).name === 'string'
+    );
+    if (customTags.length !== stored.length) {
+      this.logger.warn('[CONFIG-REPO] Dropped invalid custom tag entries', {
+        total: stored.length,
+        valid: customTags.length,
+      });
+    }
+
+    this.logger.info('[CONFIG-REPO] Custom tags retrieved successfully', {
+      count: customTags.length,
+      tags: customTags.map((t) => t.key).join(', '),
+    });
+
+    return customTags;
   }
 
   async setCustomTags(tags: ICustomTag[]): Promise<void> {
@@ -251,26 +302,36 @@ export class StorageLocalConfigRepository implements IConfigRepository {
   // === Application Configuration ===
 
   async getAppConfig(): Promise<IAppConfig> {
+    let data: Record<string, unknown>;
     try {
-      const data = await this.storage.get(STORAGE_KEYS.APP_CONFIG);
-      const appConfig = data[STORAGE_KEYS.APP_CONFIG] as IAppConfig | undefined;
-
-      if (!appConfig) {
-        throw new Error('Application configuration not found');
-      }
-
-      this.logger.debug('Retrieved application config', {
-        defaultProvider: appConfig.defaultProvider,
-        enableNotifications: appConfig.enableNotifications,
-        enableLogging: appConfig.enableLogging,
-      });
-
-      return appConfig;
+      data = await this.storage.get(STORAGE_KEYS.APP_CONFIG);
     } catch (error) {
+      // Issue #33: a storage READ failure must propagate — only a missing key
+      // (ConfigNotSetError below) may fall back to defaults upstream.
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to get application config', { error: message });
       throw new Error(`Failed to get application config: ${message}`);
     }
+
+    const appConfig = data[STORAGE_KEYS.APP_CONFIG] as IAppConfig | undefined;
+
+    if (!appConfig) {
+      throw new ConfigNotSetError('Application configuration not found');
+    }
+
+    if (typeof appConfig !== 'object') {
+      const message = 'Application configuration storage is corrupt: expected object';
+      this.logger.error('Failed to get application config', { error: message });
+      throw new Error(message);
+    }
+
+    this.logger.debug('Retrieved application config', {
+      defaultProvider: appConfig.defaultProvider,
+      enableNotifications: appConfig.enableNotifications,
+      enableLogging: appConfig.enableLogging,
+    });
+
+    return appConfig;
   }
 
   async setAppConfig(config: IAppConfig): Promise<void> {

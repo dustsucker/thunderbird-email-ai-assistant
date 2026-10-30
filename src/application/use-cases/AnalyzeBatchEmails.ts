@@ -17,6 +17,7 @@ import { injectable, inject, container } from 'tsyringe';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import type { ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
+import { ConfigNotSetError } from '@/infrastructure/repositories/StorageLocalConfigRepository';
 import { AnalyzeEmail, isAbortError } from './AnalyzeEmail';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import { EmailAnalysisTracker } from '../services/EmailAnalysisTracker';
@@ -433,7 +434,11 @@ export class AnalyzeBatchEmails {
   /**
    * Loads application configuration from ConfigRepository.
    *
-   * @returns Application config with fallback to defaults
+   * Issue #33: only a missing key gets defaults; a storage read error
+   * propagates and aborts the batch instead of running with the wrong
+   * provider assumption.
+   *
+   * @returns Application config with fallback to defaults when not set
    */
   private async loadAppConfig(): Promise<{
     defaultProvider: string;
@@ -448,14 +453,18 @@ export class AnalyzeBatchEmails {
         modelConcurrencyLimits: appConfig.modelConcurrencyLimits,
       };
     } catch (error) {
+      if (error instanceof ConfigNotSetError) {
+        this.logger.debug('App config not set, using batch defaults', { error: error.message });
+        return {
+          defaultProvider: 'openai',
+          modelConcurrencyLimits: undefined,
+        };
+      }
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.warn('Failed to load app config from ConfigRepository, using defaults', {
+      this.logger.error('Failed to load app config from ConfigRepository', {
         error: errorMessage,
       });
-      return {
-        defaultProvider: 'openai',
-        modelConcurrencyLimits: undefined,
-      };
+      throw error;
     }
   }
 

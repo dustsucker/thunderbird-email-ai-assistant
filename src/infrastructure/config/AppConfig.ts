@@ -10,6 +10,7 @@ import {
 } from '@/shared/types/ProviderTypes';
 import type { ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
+import { ConfigNotSetError } from '@/infrastructure/repositories/StorageLocalConfigRepository';
 
 // ============================================================================
 // Type Definitions
@@ -194,18 +195,23 @@ export class AppConfigService {
 
       return config;
     } catch (error) {
+      // Issue #33: only a genuinely missing key may fall back to defaults;
+      // storage read errors/corruption propagate to the caller instead of
+      // silently running the analysis with Ollama defaults.
+      if (error instanceof ConfigNotSetError) {
+        this.logger.debug('App config not set, using defaults', { error: error.message });
+        return {
+          defaultProvider: this.defaults.provider,
+          enableNotifications: this.defaults.enableNotifications,
+          enableLogging: this.defaults.enableLogging,
+          modelConcurrencyLimits: this.defaults.modelConcurrencyLimits,
+        };
+      }
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.warn('Failed to load app config from repository, using fallback', {
+      this.logger.error('Failed to load app config from repository', {
         error: errorMessage,
       });
-
-      // Return fallback config
-      return {
-        defaultProvider: this.defaults.provider,
-        enableNotifications: this.defaults.enableNotifications,
-        enableLogging: this.defaults.enableLogging,
-        modelConcurrencyLimits: this.defaults.modelConcurrencyLimits,
-      };
+      throw error;
     }
   }
 
@@ -239,14 +245,22 @@ export class AppConfigService {
 
       return settings;
     } catch (error) {
+      // Issue #33: only a genuinely missing key may get fallback settings;
+      // storage read errors/corruption propagate instead of silently pointing
+      // the analysis at the Ollama localhost default.
+      if (error instanceof ConfigNotSetError) {
+        this.logger.debug('Provider settings not set, using fallback settings', {
+          providerId,
+          error: error.message,
+        });
+        return this.getFallbackProviderSettings(providerId);
+      }
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.warn('Failed to load provider settings from repository, using fallback', {
+      this.logger.error('Failed to load provider settings from repository', {
         providerId,
         error: errorMessage,
       });
-
-      // Return fallback settings based on provider
-      return this.getFallbackProviderSettings(providerId);
+      throw error;
     }
   }
 
@@ -270,28 +284,15 @@ export class AppConfigService {
       return cached;
     }
 
-    // Load from repository
-    try {
-      const tags = await this.configRepository.getCustomTags();
+    // Load from repository. Issue #33: read errors propagate — the repository
+    // already returns [] for a missing key ("deliberately empty"), so no
+    // defaults substitution happens here anymore.
+    const tags = await this.configRepository.getCustomTags();
 
-      // Cache the result
-      this.setInCache(cacheKey, tags, this.DEFAULT_CACHE_TTL);
+    // Cache the result
+    this.setInCache(cacheKey, tags, this.DEFAULT_CACHE_TTL);
 
-      return tags;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.warn('Failed to load custom tags from repository, using defaults', {
-        error: errorMessage,
-      });
-
-      // Return default custom tags
-      return this.defaultCustomTags.map((tag) => ({
-        key: tag.key,
-        name: tag.name,
-        color: tag.color,
-        prompt: tag.prompt,
-      }));
-    }
+    return tags;
   }
 
   /**

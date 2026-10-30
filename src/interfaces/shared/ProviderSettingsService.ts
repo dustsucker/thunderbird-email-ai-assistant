@@ -31,26 +31,24 @@ export class ProviderSettingsService {
   /**
    * Resolves the settings of the configured default provider.
    *
-   * @returns Provider settings, or `{ provider: '' }` when resolution fails
+   * Issue #33: storage read errors propagate to the caller (whose existing
+   * error handlers notify the user) instead of silently returning
+   * `{ provider: '' }`, which conflated "not configured" with read failure.
+   *
+   * @throws Error when the config cannot be read from storage
    */
   async getProviderSettings(): Promise<IProviderSettings> {
-    try {
-      const appConfig = await this.appConfigService.getAppConfig();
-      const defaultProvider = appConfig.defaultProvider;
-      const providerSettings = await this.appConfigService.getProviderSettings(defaultProvider);
+    const appConfig = await this.appConfigService.getAppConfig();
+    const defaultProvider = appConfig.defaultProvider;
+    const providerSettings = await this.appConfigService.getProviderSettings(defaultProvider);
 
-      return {
-        provider: defaultProvider,
-        apiKey: providerSettings.apiKey,
-        model: providerSettings.model,
-        apiUrl: providerSettings.apiUrl,
-        additionalConfig: providerSettings.additionalConfig,
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to get provider settings', { error: errorMessage });
-      return { provider: '' };
-    }
+    return {
+      provider: defaultProvider,
+      apiKey: providerSettings.apiKey,
+      model: providerSettings.model,
+      apiUrl: providerSettings.apiUrl,
+      additionalConfig: providerSettings.additionalConfig,
+    };
   }
 
   /**

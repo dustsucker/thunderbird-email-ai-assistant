@@ -430,22 +430,20 @@ export class AnalyzeEmail {
 
   /**
    * Loads custom tags from ConfigRepository.
+   *
+   * Issue #33: read errors propagate and abort the analysis — silently
+   * continuing with an empty (or default) tagset would send the wrong
+   * classification prompt to the provider.
    */
   private async loadCustomTags(): Promise<
     Array<{ key: string; name: string; description: string }>
   > {
-    try {
-      const customTags = await this.configRepository.getCustomTags();
-      return customTags.map((tag) => ({
-        key: tag.key,
-        name: tag.name,
-        description: tag.prompt ?? '',
-      }));
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.warn('[WARN] Failed to load custom tags', { error: errorMessage });
-      return [];
-    }
+    const customTags = await this.configRepository.getCustomTags();
+    return customTags.map((tag) => ({
+      key: tag.key,
+      name: tag.name,
+      description: tag.prompt ?? '',
+    }));
   }
 
   /**

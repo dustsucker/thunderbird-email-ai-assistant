@@ -4,7 +4,7 @@
 
 import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach, afterEach, expectTypeOf } from 'vitest';
-import { StorageLocalConfigRepository } from '../src/infrastructure/repositories/StorageLocalConfigRepository';
+import { StorageLocalConfigRepository, ConfigNotSetError } from '../src/infrastructure/repositories/StorageLocalConfigRepository';
 import type { ILogger } from '../src/infrastructure/interfaces/ILogger';
 import type {
   IProviderSettings,
@@ -176,11 +176,13 @@ describe('StorageLocalConfigRepository', () => {
       );
     });
 
-    it('should throw error when getting non-existent provider settings', async () => {
+    it('should throw ConfigNotSetError when getting non-existent provider settings', async () => {
+      await expect(repository.getProviderSettings('nonexistent')).rejects.toBeInstanceOf(
+        ConfigNotSetError
+      );
       await expect(repository.getProviderSettings('nonexistent')).rejects.toThrow(
         'Provider settings not found for provider: nonexistent'
       );
-      expect(mockLogger.error).toHaveBeenCalled();
     });
 
     it('should get all provider settings', async () => {
@@ -307,11 +309,8 @@ describe('StorageLocalConfigRepository', () => {
       );
     });
 
-    it('should throw error when app config does not exist', async () => {
-      await expect(repository.getAppConfig()).rejects.toThrow(
-        'Application configuration not found'
-      );
-      expect(mockLogger.error).toHaveBeenCalled();
+    it('should throw ConfigNotSetError when app config does not exist', async () => {
+      await expect(repository.getAppConfig()).rejects.toBeInstanceOf(ConfigNotSetError);
     });
 
     it('should update existing app config', async () => {

@@ -1946,19 +1946,17 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Loads custom tags from storage
+ * Loads custom tags from storage.
+ *
+ * Issue #33: the `{ customTags: DEFAULTS.customTags }` seed only applies when
+ * the key is NOT SET (storage returns the default itself). Read errors
+ * propagate so the caller never renders/saves defaults over real tag data.
  */
 async function loadCustomTags(): Promise<CustomTags> {
-  try {
-    const { customTags } = (await messenger.storage.local.get({
-      customTags: DEFAULTS.customTags,
-    })) as CustomTagsStorage;
-    return customTags || DEFAULTS.customTags;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Error loading custom tags', { error: errorMessage });
-    return DEFAULTS.customTags;
-  }
+  const { customTags } = (await messenger.storage.local.get({
+    customTags: DEFAULTS.customTags,
+  })) as CustomTagsStorage;
+  return customTags || DEFAULTS.customTags;
 }
 
 /**

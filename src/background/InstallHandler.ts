@@ -10,6 +10,7 @@ import { injectable, inject } from 'tsyringe';
 import { container } from 'tsyringe';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
+import { ConfigNotSetError } from '@/infrastructure/repositories/StorageLocalConfigRepository';
 
 // ============================================================================
 // Install Handler
@@ -94,11 +95,14 @@ export class InstallHandler {
       try {
         const configRepository = container.resolve<IConfigRepository>('IConfigRepository');
 
-        // Initialize app config if not exists
+        // Initialize app config if not exists. Issue #33: only a missing key
+        // (ConfigNotSetError) may be seeded with defaults — a storage read
+        // error must never overwrite the user's config with defaults.
         try {
           await configRepository.getAppConfig();
           this.logger.info('App config already exists, skipping defaults');
-        } catch {
+        } catch (error) {
+          if (!(error instanceof ConfigNotSetError)) throw error;
           this.logger.info('Setting default app config');
           await configRepository.setAppConfig({
             defaultProvider: 'ollama',
@@ -108,11 +112,12 @@ export class InstallHandler {
           });
         }
 
-        // Initialize ollama provider settings if not exists
+        // Initialize ollama provider settings if not exists (same rule as above)
         try {
           await configRepository.getProviderSettings('ollama');
           this.logger.info('Ollama provider settings already exist, skipping defaults');
-        } catch {
+        } catch (error) {
+          if (!(error instanceof ConfigNotSetError)) throw error;
           this.logger.info('Setting default ollama provider settings');
           await configRepository.setProviderSettings('ollama', {
             apiKey: '',

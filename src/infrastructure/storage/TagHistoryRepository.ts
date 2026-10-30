@@ -14,6 +14,23 @@ import type { IRandom } from '@/domain/interfaces/IRandom';
 import type { TagHistoryItem } from '@/shared/types/TagHistory';
 import { MAX_HISTORY_PER_MESSAGE, TAG_HISTORY_STORAGE_KEY } from '@/shared/types/TagHistory';
 
+/**
+ * Type guard for stored history entries (issue #33): corrupt entries are
+ * dropped instead of crashing undo/trim logic later with undefined fields.
+ */
+function isTagHistoryItem(entry: unknown): entry is TagHistoryItem {
+  if (typeof entry !== 'object' || entry === null) return false;
+  const item = entry as Partial<TagHistoryItem>;
+  return (
+    typeof item.id === 'string' &&
+    typeof item.messageId === 'string' &&
+    typeof item.timestamp === 'number' &&
+    Array.isArray(item.addedTags) &&
+    Array.isArray(item.removedTags) &&
+    Array.isArray(item.previousTags)
+  );
+}
+
 // ============================================================================
 // Tag History Repository
 // ============================================================================
@@ -198,12 +215,36 @@ export class TagHistoryRepository {
   /**
    * Gets all history items from storage.
    *
+   * Issue #33: a missing key is a legitimate empty history, but a non-array
+   * value is corruption and throws — returning [] would let the next
+   * recordChange() overwrite the damaged data with a fresh list. Entries that
+   * are not well-formed history items are filtered out (same validate-and-drop
+   * pattern as EmailAnalysisTracker).
+   *
    * @returns Promise resolving to array of history items
+   * @throws Error when the stored history is corrupt (not an array)
    */
   private async getHistory(): Promise<TagHistoryItem[]> {
     const result = await messenger.storage.local.get(TAG_HISTORY_STORAGE_KEY);
     const history = result[TAG_HISTORY_STORAGE_KEY];
-    return Array.isArray(history) ? history : [];
+
+    if (history === undefined) {
+      return [];
+    }
+    if (!Array.isArray(history)) {
+      throw new Error(
+        `Tag history storage is corrupt: expected array, got ${typeof history}`
+      );
+    }
+
+    const valid = history.filter(isTagHistoryItem);
+    if (valid.length !== history.length) {
+      this.logger.warn('Dropped invalid tag history entries', {
+        total: history.length,
+        valid: valid.length,
+      });
+    }
+    return valid;
   }
 
   /**
