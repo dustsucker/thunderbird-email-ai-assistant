@@ -3,8 +3,8 @@ import {
   ITagManager,
   ThunderbirdTag,
   TagUpdateOptions,
-} from '../../infrastructure/interfaces/ITagManager';
-import { ILogger } from '../../infrastructure/interfaces/ILogger';
+  ILogger,
+} from '@/domain/interfaces';
 import { IConfigRepository, ICustomTag } from '../../infrastructure/interfaces/IConfigRepository';
 import { HARDCODED_TAGS, TAG_KEY_PREFIX } from '@/shared/constants/TagConstants';
 

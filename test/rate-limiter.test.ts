@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { RateLimiterService } from '../src/application/services/RateLimiterService';
 import type { AppConfig } from '../src/shared/types/ProviderTypes';
 import { DEFAULTS } from '../src/shared/types/ProviderTypes';
-import type { ILogger } from '../src/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type { ModelConcurrencyConfig } from '../src/application/services/RateLimiterService';
 
 describe('RateLimiterService - Semaphore Management', () => {

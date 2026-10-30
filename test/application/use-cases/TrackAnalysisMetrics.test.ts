@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { TrackAnalysisMetrics } from '../../../src/application/use-cases/TrackAnalysisMetrics';
 import { MetricsRepository } from '../../../src/infrastructure/storage/MetricsRepository';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type { IClock } from '@/domain/interfaces/IClock';
 
 // Mock messenger.storage.local

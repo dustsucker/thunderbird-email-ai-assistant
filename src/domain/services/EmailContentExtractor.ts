@@ -1,11 +1,4 @@
-import {
-  EmailPart,
-  ParsedEmail,
-  StructuredEmailData,
-  PromptBuilderResult,
-  Attachment,
-} from '@/shared/types/EmailPart';
-import { CustomTags } from '@/shared/types/ProviderTypes';
+import { EmailPart, ParsedEmail, Attachment } from '@/shared/types/EmailPart';
 import {
   hasNestedParts,
   isPlainTextBody,
@@ -51,37 +44,5 @@ export class EmailContentExtractor {
     const finalBody: string = htmlBody ? convertHtmlToText(htmlBody) : textBody;
 
     return { body: finalBody, attachments };
-  }
-
-  buildPrompt(
-    structuredData: StructuredEmailData,
-    customTags: CustomTags,
-    promptTemplate: string
-  ): PromptBuilderResult {
-    const headersJSON: string = JSON.stringify(structuredData.headers, null, 2);
-    const attachmentsJSON: string = JSON.stringify(structuredData.attachments, null, 2);
-
-    const customInstructions: string = customTags
-      .map((tag) => `- ${tag.key}: (boolean) ${tag.prompt}`)
-      .join('\n');
-
-    const fullInstructions: string = `${promptTemplate}\n${customInstructions}`;
-
-    const finalPrompt: string = fullInstructions
-      .replace('{headers}', headersJSON)
-      .replace('{body}', structuredData.body)
-      .replace('{attachments}', attachmentsJSON);
-
-    return {
-      prompt: finalPrompt,
-      allTagsDescription: customInstructions,
-    };
-  }
-
-  truncateText(text: string, maxLength: number): string {
-    if (text.length <= maxLength) {
-      return text;
-    }
-    return text.substring(0, maxLength);
   }
 }

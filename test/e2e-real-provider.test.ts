@@ -3,7 +3,7 @@ import { ConsoleLogger } from '../src/infrastructure/logger/ConsoleLogger';
 import { BaseProviderAdapter } from '../src/infrastructure/providers';
 // Direct import for testing
 import { ZaiPaaSProvider } from '../src/infrastructure/providers/impl/ZaiPaaSProvider';
-import type { ILogger } from '../src/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import { loadEmailFixture } from './fixtures/fixture-loader';
 import { getTestConfig, TEST_TIMEOUT } from './test-config';
 import { DEFAULT_CUSTOM_TAGS } from '../src/shared/types/ProviderTypes';

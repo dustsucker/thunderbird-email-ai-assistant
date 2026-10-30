@@ -44,8 +44,6 @@ describe('ExtractEmailContentUseCase', () => {
   beforeEach(() => {
     mockContentExtractor = {
       findEmailParts: vi.fn(),
-      buildPrompt: vi.fn(),
-      truncateText: vi.fn((text, max) => text.substring(0, max)),
     } as unknown as EmailContentExtractor;
 
     mockLogger = createMockLogger();

@@ -12,7 +12,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import type { ILogger } from '../interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type {
   IConfigRepository,
   IAppConfig,

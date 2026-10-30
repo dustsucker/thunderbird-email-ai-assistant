@@ -12,7 +12,7 @@ import { injectable, container, inject, InjectionToken } from 'tsyringe';
 import { BaseProviderAdapter } from './BaseProviderAdapter';
 import type { BaseProvider } from './BaseProvider';
 import type { IProvider } from '../interfaces/IProvider';
-import type { ILogger } from '../interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import { OpenAIProvider } from './impl/OpenAIProvider';
 import { ClaudeProvider } from './impl/ClaudeProvider';
 import { GeminiProvider } from './impl/GeminiProvider';

@@ -19,7 +19,7 @@ import type {
   ITagResponse,
   IAnalyzeInput,
 } from '../interfaces/IProvider';
-import type { ILogger } from '../interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type { Tag } from '@/shared/types/ProviderTypes';
 import 'reflect-metadata';
 

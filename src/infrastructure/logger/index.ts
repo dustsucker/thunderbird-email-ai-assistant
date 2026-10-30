@@ -5,4 +5,4 @@
  */
 
 export { ConsoleLogger } from './ConsoleLogger';
-export type { ILogger } from '../interfaces/ILogger';
+export type { ILogger } from '@/domain/interfaces';

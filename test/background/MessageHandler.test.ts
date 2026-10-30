@@ -6,10 +6,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MessageHandler } from '@/interfaces/background/MessageHandler';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { ICache, ICacheStats } from '@/infrastructure/interfaces/ICache';
 import type { IQueue, IQueueStats } from '@/infrastructure/interfaces/IQueue';
-import type { ITagManager } from '@/domain/interfaces';
+import type { ITagManager, ILogger } from '@/domain/interfaces';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';

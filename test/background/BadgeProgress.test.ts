@@ -12,7 +12,7 @@ import type { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import type { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import { PriorityQueue } from '@/application/services/PriorityQueue';
 import { ToolbarHandler } from '@/background/ToolbarHandler';
 import { container } from 'tsyringe';

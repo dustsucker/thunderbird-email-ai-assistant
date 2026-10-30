@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EmailEventListener } from '@/interfaces/background/EmailEventListener';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
 import { StorageLocalConfigRepository } from '@/infrastructure/repositories/StorageLocalConfigRepository';

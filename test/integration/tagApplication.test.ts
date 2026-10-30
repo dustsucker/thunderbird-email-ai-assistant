@@ -17,10 +17,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import type { IMailReader, IEmailMessage } from '@/infrastructure/interfaces/IMailReader';
-import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
+import type { ITagManager, ILogger } from '@/domain/interfaces';
 import type { IProvider, IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import type { ICache } from '@/infrastructure/interfaces/ICache';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';

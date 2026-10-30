@@ -5,7 +5,7 @@
 import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach, afterEach, expectTypeOf } from 'vitest';
 import { StorageLocalConfigRepository, ConfigNotSetError } from '../src/infrastructure/repositories/StorageLocalConfigRepository';
-import type { ILogger } from '../src/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type {
   IProviderSettings,
   ICustomTag,

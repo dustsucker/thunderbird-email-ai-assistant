@@ -7,7 +7,7 @@
  */
 
 import { injectable } from 'tsyringe';
-import type { ILogger } from '../interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import { sanitizeForLogging } from '@/shared/utils/loggingUtils';
 import { debugLogBuffer, type DebugLogLevel } from './DebugLogBuffer';
 

@@ -12,8 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ApplyTagsToEmail } from '@/application/use-cases/ApplyTagsToEmail';
-import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ITagManager, ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 
 describe('ApplyTagsToEmail - real current-tag reads (Issue #32)', () => {

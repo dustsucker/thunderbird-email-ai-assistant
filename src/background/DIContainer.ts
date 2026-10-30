@@ -12,11 +12,10 @@ import { container } from 'tsyringe';
 // Core Interfaces
 // ============================================================================
 
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { ICache } from '@/infrastructure/interfaces/ICache';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import type { IMailReader } from '@/infrastructure/interfaces/IMailReader';
-import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
+import type { ITagManager, ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import type { IClock } from '@/domain/interfaces/IClock';
 import type { IRandom } from '@/domain/interfaces/IRandom';

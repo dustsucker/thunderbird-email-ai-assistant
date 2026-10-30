@@ -14,12 +14,11 @@ import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsSer
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { TagHistoryRepository } from '@/infrastructure/storage/TagHistoryRepository';
 import { TAG_HISTORY_STORAGE_KEY } from '@/shared/types/TagHistory';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import type { IProvider } from '@/infrastructure/interfaces/IProvider';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import type { ICache } from '@/infrastructure/interfaces/ICache';
-import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
+import type { ITagManager, ILogger } from '@/domain/interfaces';
 import type { IEmailMessage, IMailReader } from '@/infrastructure/interfaces/IMailReader';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';

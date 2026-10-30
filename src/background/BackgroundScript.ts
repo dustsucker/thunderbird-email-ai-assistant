@@ -9,7 +9,7 @@
 import { injectable } from 'tsyringe';
 import { container } from 'tsyringe';
 
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { ConsoleLogger } from '@/infrastructure/logger/ConsoleLogger';
 import type { DebugLogLevel } from '@/infrastructure/logger/DebugLogBuffer';

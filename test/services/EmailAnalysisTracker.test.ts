@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 
 // ============================================================================
 // Mock Browser API

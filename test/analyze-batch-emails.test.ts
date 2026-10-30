@@ -3,7 +3,7 @@ import { container } from 'tsyringe';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';

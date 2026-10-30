@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MetricsRepository } from '../../../src/infrastructure/storage/MetricsRepository';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { ILogger } from '@/domain/interfaces';
 import type { IClock } from '@/domain/interfaces/IClock';
 import type { IRandom } from '@/domain/interfaces/IRandom';
 

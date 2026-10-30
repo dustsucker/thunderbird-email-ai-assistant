@@ -17,9 +17,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ThunderbirdTagManager } from '@/interfaces/adapters/ThunderbirdTagManager';
 import { ApplyTagsToEmail } from '@/application/use-cases/ApplyTagsToEmail';
-import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository, ICustomTag } from '@/infrastructure/interfaces/IConfigRepository';
-import type { ITagManager } from '@/infrastructure/interfaces/ITagManager';
+import type { ITagManager, ILogger } from '@/domain/interfaces';
 import { HARDCODED_TAGS, TAG_KEY_PREFIX } from '../src/shared/constants/TagConstants';
 
 /**
