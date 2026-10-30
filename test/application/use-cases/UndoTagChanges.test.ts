@@ -67,6 +67,7 @@ describe('UndoTagChanges', () => {
       removeTagFromMessage: vi.fn(),
       getTagsOnMessage: vi.fn().mockResolvedValue([]),
       setTagsOnMessage: vi.fn(),
+      getTagsOnMessage: vi.fn(),
       clearTagsFromMessage: vi.fn(),
       tagExists: vi.fn(),
       ensureTagExists: vi.fn(),
@@ -171,6 +172,36 @@ describe('UndoTagChanges', () => {
       expect(mockTagManager.addTagToMessage).toHaveBeenCalledWith(789, 'personal');
     });
 
+    it('should restore the previous tag state of the message (#31)', async () => {
+      // Recorded change: message had ['personal'], tagging replaced it with ['business']
+      const historyItem: TagHistoryItem = {
+        id: 'history-1',
+        messageId: '123',
+        timestamp: 1709251200000,
+        addedTags: [{ key: 'business', tag: 'Business' }],
+        removedTags: [{ key: 'personal', tag: 'Personal' }],
+        previousTags: [{ key: 'personal', tag: 'Personal' }],
+      };
+      mockStorage.tagHistory = [historyItem];
+
+      // Stateful fake of the AI tags currently on the message
+      let messageTags = ['_ma_business'];
+      const toInternal = (key: string) => `_ma_${key}`;
+      vi.mocked(mockTagManager.removeTagFromMessage).mockImplementation(async (_messageId, key) => {
+        messageTags = messageTags.filter((k) => k !== toInternal(key));
+      });
+      vi.mocked(mockTagManager.addTagToMessage).mockImplementation(async (_messageId, key) => {
+        if (!messageTags.includes(toInternal(key))) {
+          messageTags.push(toInternal(key));
+        }
+      });
+
+      const result = await useCase.execute('123');
+
+      expect(result).toBe(true);
+      expect(messageTags).toEqual(['_ma_personal']);
+    });
+
     it('should remove history item after successful undo', async () => {
       const historyItem: TagHistoryItem = {
         id: 'history-1',
@@ -213,7 +244,7 @@ describe('UndoTagChanges', () => {
   // ==========================================================================
 
   describe('execute - error handling', () => {
-    it('should return false for invalid message ID', async () => {
+    it('should throw for invalid message ID (not "no history")', async () => {
       const historyItem: TagHistoryItem = {
         id: 'history-1',
         messageId: 'invalid-id',
@@ -224,9 +255,9 @@ describe('UndoTagChanges', () => {
       };
       mockStorage.tagHistory = [historyItem];
 
-      const result = await useCase.execute('invalid-id');
-
-      expect(result).toBe(false);
+      await expect(useCase.execute('invalid-id')).rejects.toThrow(
+        'Undo failed for message invalid-id: Invalid message ID: invalid-id'
+      );
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to undo tag changes',
         expect.objectContaining({
@@ -236,7 +267,7 @@ describe('UndoTagChanges', () => {
       );
     });
 
-    it('should return false when tag manager throws error', async () => {
+    it('should throw when tag manager fails (distinguishable from "no history", #31)', async () => {
       const historyItem: TagHistoryItem = {
         id: 'history-1',
         messageId: '123',
@@ -251,9 +282,9 @@ describe('UndoTagChanges', () => {
         new Error('Tag manager error')
       );
 
-      const result = await useCase.execute('123');
-
-      expect(result).toBe(false);
+      await expect(useCase.execute('123')).rejects.toThrow(
+        'Undo failed for message 123: Tag manager error'
+      );
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to undo tag changes',
         expect.objectContaining({
@@ -263,7 +294,7 @@ describe('UndoTagChanges', () => {
       );
     });
 
-    it('should handle non-Error thrown values', async () => {
+    it('should throw with message for non-Error thrown values', async () => {
       const historyItem: TagHistoryItem = {
         id: 'history-1',
         messageId: '123',
@@ -276,14 +307,28 @@ describe('UndoTagChanges', () => {
 
       vi.mocked(mockTagManager.removeTagFromMessage).mockRejectedValue('String error');
 
-      const result = await useCase.execute('123');
-
-      expect(result).toBe(false);
+      await expect(useCase.execute('123')).rejects.toThrow('Undo failed for message 123: String error');
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to undo tag changes',
         expect.objectContaining({
           error: 'String error',
         })
+      );
+    });
+
+    it('should throw a distinguishable error on history storage failure (#31)', async () => {
+      const messengerGlobal = (globalThis as Record<string, unknown>).messenger as {
+        storage: { local: { get: ReturnType<typeof vi.fn> } };
+      };
+      messengerGlobal.storage.local.get.mockRejectedValue(new Error('storage unavailable'));
+
+      // Must reject — not return false ("no history") — so the caller can show a real error
+      await expect(useCase.execute('123')).rejects.toThrow(
+        'Undo failed for message 123: storage unavailable'
+      );
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Failed to undo tag changes',
+        expect.objectContaining({ messageId: '123', error: 'storage unavailable' })
       );
     });
   });

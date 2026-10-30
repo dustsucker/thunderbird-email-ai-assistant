@@ -652,6 +652,22 @@ export class ThunderbirdTagManager implements ITagManager {
   /**
    * @inheritdoc
    */
+  async getTagsOnMessage(messageId: number): Promise<string[]> {
+    try {
+      const header = await messenger.messages.get(messageId);
+      return (header.tags ?? [])
+        .filter((key) => key.startsWith(TAG_KEY_PREFIX))
+        .map((key) => key.slice(TAG_KEY_PREFIX.length));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to get tags from message', { messageId, error: errorMessage });
+      throw new Error(`Failed to get tags from message ${messageId}: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * @inheritdoc
+   */
   async clearTagsFromMessage(messageId: number): Promise<void> {
     this.logger.debug('Clearing AI tags from message', { messageId });
 

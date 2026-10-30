@@ -30,6 +30,7 @@ import { RetrieveEmailUseCase } from '@/application/use-cases/RetrieveEmailUseCa
 import { ExtractEmailContentUseCase } from '@/application/use-cases/ExtractEmailContentUseCase';
 import { CacheAnalysisUseCase } from '@/application/use-cases/CacheAnalysisUseCase';
 import { ApplyTagsWithConfidenceUseCase } from '@/application/use-cases/ApplyTagsWithConfidenceUseCase';
+import type { TagHistoryRepository } from '@/infrastructure/storage/TagHistoryRepository';
 
 /**
  * NOTE: This test file must be run as part of the full test suite (npm test)
@@ -144,6 +145,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       ensureTagExists: vi.fn(),
       getTagsOnMessage: vi.fn().mockResolvedValue([]),
       setTagsOnMessage: vi.fn().mockResolvedValue(undefined),
+      getTagsOnMessage: vi.fn().mockResolvedValue([]),
       addTagToMessage: vi.fn(),
       removeTagFromMessage: vi.fn(),
       clearTagsFromMessage: vi.fn(),
@@ -211,6 +213,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
     const applyTagsWithConfidenceUseCase = new ApplyTagsWithConfidenceUseCase(
       tagManager,
       configRepository,
+      { recordChange: vi.fn().mockResolvedValue(undefined) } as unknown as TagHistoryRepository,
       logger
     );
 

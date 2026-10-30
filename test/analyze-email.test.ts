@@ -13,6 +13,7 @@ import { RetrieveEmailUseCase } from '@/application/use-cases/RetrieveEmailUseCa
 import { ExtractEmailContentUseCase } from '@/application/use-cases/ExtractEmailContentUseCase';
 import { CacheAnalysisUseCase } from '@/application/use-cases/CacheAnalysisUseCase';
 import { ApplyTagsWithConfidenceUseCase } from '@/application/use-cases/ApplyTagsWithConfidenceUseCase';
+import type { TagHistoryRepository } from '@/infrastructure/storage/TagHistoryRepository';
 
 describe('AnalyzeEmail - Logging Tests', () => {
   let logger: ILogger;
@@ -76,6 +77,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
       ensureTagExists: vi.fn(),
       getTagsOnMessage: vi.fn().mockResolvedValue([]),
       setTagsOnMessage: vi.fn(),
+      getTagsOnMessage: vi.fn().mockResolvedValue([]),
       addTagToMessage: vi.fn(),
       removeTagFromMessage: vi.fn(),
       clearTagsFromMessage: vi.fn(),
@@ -140,6 +142,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
     const applyTagsWithConfidenceUseCase = new ApplyTagsWithConfidenceUseCase(
       tagManager,
       configRepository,
+      { recordChange: vi.fn().mockResolvedValue(undefined) } as unknown as TagHistoryRepository,
       logger
     );
 

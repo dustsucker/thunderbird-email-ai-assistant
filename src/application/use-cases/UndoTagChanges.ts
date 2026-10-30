@@ -56,6 +56,8 @@ export class UndoTagChanges {
    *
    * @param messageId - The message ID to undo tag changes for
    * @returns Promise resolving to true if undo was successful, false if no history exists
+   * @throws {Error} If the undo fails (storage or tag API error) — distinguishable
+   * from "no history" (false) so the caller can show a real error (#31)
    *
    * @example
    * ```typescript
@@ -68,13 +70,13 @@ export class UndoTagChanges {
   async execute(messageId: string): Promise<boolean> {
     this.logger.info('Undoing tag changes', { messageId });
 
-    const historyItem = await this.historyRepository.getLatestForMessage(messageId);
-    if (!historyItem) {
-      this.logger.warn('No tag history found for message', { messageId });
-      return false;
-    }
-
     try {
+      const historyItem = await this.historyRepository.getLatestForMessage(messageId);
+      if (!historyItem) {
+        this.logger.warn('No tag history found for message', { messageId });
+        return false;
+      }
+
       const messageIdNum = parseInt(messageId, 10);
       if (isNaN(messageIdNum)) {
         throw new Error(`Invalid message ID: ${messageId}`);
@@ -104,12 +106,9 @@ export class UndoTagChanges {
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to undo tag changes', {
-        messageId,
-        historyId: historyItem.id,
-        error: errorMessage,
-      });
-      return false;
+      this.logger.error('Failed to undo tag changes', { messageId, error: errorMessage });
+      // Real undo failures must not masquerade as "no history" (false) (#31)
+      throw new Error(`Undo failed for message ${messageId}: ${errorMessage}`);
     }
   }
 }

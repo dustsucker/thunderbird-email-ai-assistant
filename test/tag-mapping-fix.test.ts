@@ -671,6 +671,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         removeTagFromMessage: vi.fn().mockResolvedValue(undefined),
         getTagsOnMessage: vi.fn().mockResolvedValue([]),
         setTagsOnMessage: vi.fn().mockResolvedValue(undefined),
+        getTagsOnMessage: vi.fn().mockResolvedValue([]),
         clearTagsFromMessage: vi.fn().mockResolvedValue(undefined),
         addTagToMessages: vi.fn().mockResolvedValue(undefined),
         setTagsOnMessages: vi.fn().mockResolvedValue(undefined),

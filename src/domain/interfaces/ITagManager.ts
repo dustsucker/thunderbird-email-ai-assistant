@@ -119,6 +119,17 @@ export interface ITagManager {
   setTagsOnMessage(messageId: number, tagKeys: string[]): Promise<void>;
 
   /**
+   * Gets the AI-namespace tag keys currently set on a message.
+   *
+   * Returns defined (unprefixed) keys, i.e. the internal `_ma_` prefix is
+   * stripped. Non-AI tags (e.g. `$label1`) are not included.
+   *
+   * @param messageId - Message ID to read tags from
+   * @returns Promise resolving to array of defined tag keys
+   */
+  getTagsOnMessage(messageId: number): Promise<string[]>;
+
+  /**
    * Adds a tag to a message without removing existing tags.
    *
    * @param messageId - Message ID to tag

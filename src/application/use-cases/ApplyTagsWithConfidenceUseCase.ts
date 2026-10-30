@@ -10,6 +10,7 @@
 import { injectable, inject } from 'tsyringe';
 import type { ITagManager, ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
+import { TagHistoryRepository } from '@/infrastructure/storage/TagHistoryRepository';
 import { meetsTagThreshold, getEffectiveThreshold } from '@/shared/utils/confidenceUtils';
 import { HARDCODED_TAG_KEYS } from '@/shared/constants/TagConstants';
 import type { Tag } from '@/shared/types/ProviderTypes';
@@ -78,6 +79,7 @@ export class ApplyTagsWithConfidenceUseCase {
   constructor(
     @inject('ITagManager') private readonly tagManager: ITagManager,
     @inject('IConfigRepository') private readonly configRepository: IConfigRepository,
+    private readonly tagHistoryRepository: TagHistoryRepository,
     @inject('ILogger') private readonly logger: ILogger
   ) {
     this.logger.debug('✅ ApplyTagsWithConfidenceUseCase initialized');
@@ -203,6 +205,19 @@ export class ApplyTagsWithConfidenceUseCase {
           });
         }
       }
+
+      // Record history BEFORE mutating tags so Undo can restore the previous state (#31).
+      // previousTags are defined keys as read from the message; added/removed is the
+      // diff against tagsToApply (setTagsOnMessage replaces all AI-namespace tags).
+      const previousTagKeys = await this.tagManager.getTagsOnMessage(messageIdNum);
+      const toTagObjects = (keys: string[]) =>
+        keys.map((key) => ({ key, tag: tagMap.get(key)?.name ?? key }));
+      await this.tagHistoryRepository.recordChange(
+        messageId,
+        toTagObjects(tagsToApply.filter((k) => !previousTagKeys.includes(k))),
+        toTagObjects(previousTagKeys.filter((k) => !tagsToApply.includes(k))),
+        toTagObjects(previousTagKeys)
+      );
 
       // Apply tags (even if empty array - to clear any existing tags and for consistency)
       await this.tagManager.setTagsOnMessage(messageIdNum, tagsToApply);

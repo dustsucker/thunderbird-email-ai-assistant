@@ -6,6 +6,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ApplyTagsWithConfidenceUseCase } from '../../../src/application/use-cases/ApplyTagsWithConfidenceUseCase';
+import { UndoTagChanges } from '../../../src/application/use-cases/UndoTagChanges';
+import { TagHistoryRepository } from '../../../src/infrastructure/storage/TagHistoryRepository';
 import type { ITagManager } from '../../../src/domain/interfaces/ITagManager';
 import type {
   IAppConfig,
@@ -15,6 +17,8 @@ import type { Tag } from '../../../src/shared/types/ProviderTypes';
 import {
   createMockLogger,
   createMockConfigRepository,
+  createMockClock,
+  createMockRandom,
 } from '../../helpers/mock-factories';
 
 // ============================================================================
@@ -49,6 +53,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
   let mockTagManager: ITagManager;
   let mockConfigRepository = createMockConfigRepository();
   let mockLogger = createMockLogger();
+  let mockHistoryRepository: { recordChange: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     mockTagManager = {
@@ -62,6 +67,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
       removeTagFromMessage: vi.fn(),
       getTagsOnMessage: vi.fn().mockResolvedValue([]),
       setTagsOnMessage: vi.fn(),
+      getTagsOnMessage: vi.fn().mockResolvedValue([]),
       clearTagsFromMessage: vi.fn(),
       tagExists: vi.fn(),
       ensureTagExists: vi.fn(),
@@ -71,8 +77,14 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
 
     mockConfigRepository = createMockConfigRepository();
     mockLogger = createMockLogger();
+    mockHistoryRepository = { recordChange: vi.fn().mockResolvedValue({ id: 'history-1' }) };
 
-    useCase = new ApplyTagsWithConfidenceUseCase(mockTagManager, mockConfigRepository, mockLogger);
+    useCase = new ApplyTagsWithConfidenceUseCase(
+      mockTagManager,
+      mockConfigRepository,
+      mockHistoryRepository as unknown as TagHistoryRepository,
+      mockLogger
+    );
   });
 
   afterEach(() => {
@@ -513,6 +525,124 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
 
       expect(result.appliedTags).toEqual(['is_scam']);
       expect(mockTagManager.setTagsOnMessage).toHaveBeenCalledWith(123, ['is_scam']);
+    });
+  });
+
+  // ==========================================================================
+  // Tag History Recording (#31) — recordChange() must be wired into the flow
+  // ==========================================================================
+
+  describe('tag history recording (#31)', () => {
+    beforeEach(() => {
+      vi.mocked(mockConfigRepository.getAppConfig).mockResolvedValue({
+        defaultProvider: 'openai',
+        enableNotifications: true,
+        enableLogging: false,
+        minConfidenceThreshold: 70,
+      } as IAppConfig);
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue(KNOWN_CUSTOM_TAGS);
+      vi.mocked(mockTagManager.setTagsOnMessage).mockResolvedValue();
+    });
+
+    it('records the change with previous/added/removed before applying tags', async () => {
+      vi.mocked(mockTagManager.getTagsOnMessage).mockResolvedValue(['personal']);
+
+      await useCase.execute('123', ['business', 'personal'], 0.9);
+
+      expect(mockHistoryRepository.recordChange).toHaveBeenCalledTimes(1);
+      expect(mockHistoryRepository.recordChange).toHaveBeenCalledWith(
+        '123',
+        [{ key: 'business', tag: 'business' }], // added (not previously on message)
+        [], // removed
+        [{ key: 'personal', tag: 'personal' }] // previous state
+      );
+
+      // recordChange must run BEFORE setTagsOnMessage so the previous state is captured
+      const recordOrder = vi.mocked(mockHistoryRepository.recordChange).mock
+        .invocationCallOrder[0];
+      const setOrder = vi.mocked(mockTagManager.setTagsOnMessage).mock.invocationCallOrder[0];
+      expect(recordOrder).toBeLessThan(setOrder);
+    });
+
+    it('records removed tags when nothing meets the threshold (clearing is a change)', async () => {
+      vi.mocked(mockTagManager.getTagsOnMessage).mockResolvedValue(['business']);
+
+      const result = await useCase.execute('123', ['business'], 0.1); // 10% < 70%
+
+      expect(result.appliedTags).toEqual([]);
+      expect(mockHistoryRepository.recordChange).toHaveBeenCalledWith(
+        '123',
+        [],
+        [{ key: 'business', tag: 'business' }],
+        [{ key: 'business', tag: 'business' }]
+      );
+    });
+
+    it('does not record when tagging is skipped (applyTags=false)', async () => {
+      await useCase.execute('123', ['business'], 0.9, 'reason', { applyTags: false });
+
+      expect(mockHistoryRepository.recordChange).not.toHaveBeenCalled();
+    });
+
+    it('apply → undo round trip restores the previous tag state (#31)', async () => {
+      // Real storage-backed history repository
+      const mockStorage: Record<string, unknown> = {};
+      (globalThis as Record<string, unknown>).messenger = {
+        storage: {
+          local: {
+            get: vi.fn(async (keys?: string | string[]) => {
+              const result: Record<string, unknown> = {};
+              const keyArray = typeof keys === 'string' ? [keys] : (keys ?? []);
+              for (const key of keyArray) {
+                if (mockStorage[key] !== undefined) result[key] = mockStorage[key];
+              }
+              return result;
+            }),
+            set: vi.fn(async (items: Record<string, unknown>) => {
+              Object.assign(mockStorage, items);
+            }),
+          },
+        },
+      };
+
+      // Stateful fake of the AI-namespace tags on message 123
+      const toInternal = (key: string) => `_ma_${key}`;
+      let messageTags = ['_ma_personal'];
+      vi.mocked(mockTagManager.getTagsOnMessage).mockImplementation(async () =>
+        messageTags.filter((k) => k.startsWith('_ma_')).map((k) => k.slice('_ma_'.length))
+      );
+      vi.mocked(mockTagManager.setTagsOnMessage).mockImplementation(async (_messageId, keys) => {
+        messageTags = keys.map(toInternal);
+      });
+      vi.mocked(mockTagManager.addTagToMessage).mockImplementation(async (_messageId, key) => {
+        if (!messageTags.includes(toInternal(key))) messageTags.push(toInternal(key));
+      });
+      vi.mocked(mockTagManager.removeTagFromMessage).mockImplementation(async (_messageId, key) => {
+        messageTags = messageTags.filter((k) => k !== toInternal(key));
+      });
+
+      const historyRepository = new TagHistoryRepository(
+        mockLogger,
+        createMockClock(1709251200000),
+        createMockRandom('history-uuid-1')
+      );
+      const applyUseCase = new ApplyTagsWithConfidenceUseCase(
+        mockTagManager,
+        mockConfigRepository,
+        historyRepository,
+        mockLogger
+      );
+      const undoUseCase = new UndoTagChanges(mockLogger, mockTagManager, historyRepository);
+
+      // Tag the mail: ['personal'] gets replaced by ['business']
+      const result = await applyUseCase.execute('123', ['business'], 0.9);
+      expect(result.appliedTags).toEqual(['business']);
+      expect(messageTags).toEqual(['_ma_business']);
+
+      // Undo must find history (not report "no history") and restore the previous state
+      const undone = await undoUseCase.execute('123');
+      expect(undone).toBe(true);
+      expect(messageTags).toEqual(['_ma_personal']);
     });
   });
 });
