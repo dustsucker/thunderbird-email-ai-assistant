@@ -102,7 +102,6 @@ interface GeneralSettingsElements {
   providerSelect: HTMLSelectElement;
   generalForm: HTMLFormElement;
   generalStatusMessage: HTMLSpanElement;
-  statusMessage: HTMLSpanElement;
   ollamaApiUrl: HTMLInputElement | null;
   ollamaModel: HTMLInputElement | null;
   openaiApiKey: HTMLInputElement | null;
@@ -134,7 +133,7 @@ interface TagManagementElements {
   modal: HTMLDivElement;
   modalTitle: HTMLHeadingElement;
   tagForm: HTMLFormElement;
-  closeModalBtn: HTMLSpanElement;
+  closeModalBtn: HTMLButtonElement;
   addNewTagBtn: HTMLButtonElement;
   tagIndex: HTMLInputElement;
   tagName: HTMLInputElement;
@@ -372,7 +371,6 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
   const providerSelect = getElementById<HTMLSelectElement>('provider');
   const generalForm = getElementById<HTMLFormElement>('provider-options-form');
   const generalStatusMessage = getElementById<HTMLSpanElement>('provider-status-message');
-  const statusMessage = getElementById<HTMLSpanElement>('provider-status-message');
   const ollamaApiUrl = getElementById<HTMLInputElement>('ollama-api-url');
   const ollamaModel = getElementById<HTMLInputElement>('ollama-model');
   const openaiApiKey = getElementById<HTMLInputElement>('openai-api-key');
@@ -397,7 +395,7 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
   );
   const confidenceValue = getElementById<HTMLSpanElement>('confidence-value');
 
-  if (!providerSelect || !generalForm || !generalStatusMessage || !statusMessage) {
+  if (!providerSelect || !generalForm || !generalStatusMessage) {
     throw new Error('Required general settings elements not found');
   }
 
@@ -405,7 +403,6 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
     providerSelect,
     generalForm,
     generalStatusMessage,
-    statusMessage,
     ollamaApiUrl,
     ollamaModel,
     openaiApiKey,
@@ -438,7 +435,7 @@ function getTagManagementElements(): TagManagementElements {
   const modal = getElementById<HTMLDivElement>('tag-modal');
   const modalTitle = getElementById<HTMLHeadingElement>('modal-title');
   const tagForm = getElementById<HTMLFormElement>('tag-form');
-  const closeModalBtn = document.querySelector<HTMLSpanElement>('.close-button');
+  const closeModalBtn = document.querySelector<HTMLButtonElement>('button.close-button');
   const addNewTagBtn = getElementById<HTMLButtonElement>('add-new-tag-btn');
   const tagIndex = getElementById<HTMLInputElement>('tag-index');
   const tagName = getElementById<HTMLInputElement>('tag-name');
@@ -526,23 +523,77 @@ function handleTabClick(
       return;
     }
 
-    tabs.forEach((tab) => {
-      tab.classList.remove('active');
-      tab.setAttribute('aria-selected', String(tab === clickedTab));
-    });
-    clickedTab.classList.add('active');
+    applyActiveTab(tabs, tabContents, clickedTab, targetTabId);
+  };
+}
 
-    tabContents.forEach((content) => content.classList.remove('active'));
+/**
+ * Applies the active state of a tab and syncs aria-selected + roving tabindex.
+ */
+function applyActiveTab(
+  tabs: NodeListOf<HTMLButtonElement>,
+  tabContents: NodeListOf<HTMLDivElement>,
+  activeTab: HTMLButtonElement,
+  targetTabId: string
+): void {
+  tabs.forEach((tab) => {
+    tab.classList.remove('active');
+    tab.setAttribute('aria-selected', String(tab === activeTab));
+    // Roving tabindex: only the active tab is reachable via Tab key (#19)
+    tab.tabIndex = tab === activeTab ? 0 : -1;
+  });
+  activeTab.classList.add('active');
 
-    const targetContent = document.getElementById(targetTabId);
-    if (targetContent) {
-      targetContent.classList.add('active');
-    } else {
-      logger.warn('Target tab content not found', { tabId: targetTabId });
+  tabContents.forEach((content) => content.classList.remove('active'));
+
+  const targetContent = document.getElementById(targetTabId);
+  if (targetContent) {
+    targetContent.classList.add('active');
+  } else {
+    logger.warn('Target tab content not found', { tabId: targetTabId });
+  }
+
+  // Debug tab polls only while visible
+  debugTab.onTabVisibilityChanged(targetTabId === 'debug');
+}
+
+/**
+ * Arrow-key navigation for the tablist (#19): Left/Right move cyclically,
+ * Home/End jump to the first/last tab and activate it.
+ */
+function handleTabKeydown(tabs: NodeListOf<HTMLButtonElement>): (event: KeyboardEvent) => void {
+  return (event: KeyboardEvent): void => {
+    const tabArray = Array.from(tabs);
+    const currentIndex = tabArray.indexOf(document.activeElement as HTMLButtonElement);
+    if (currentIndex === -1) {
+      return;
     }
 
-    // Debug tab polls only while visible
-    debugTab.onTabVisibilityChanged(targetTabId === 'debug');
+    let nextIndex: number;
+    switch (event.key) {
+      case 'ArrowRight':
+        nextIndex = (currentIndex + 1) % tabArray.length;
+        break;
+      case 'ArrowLeft':
+        nextIndex = (currentIndex - 1 + tabArray.length) % tabArray.length;
+        break;
+      case 'Home':
+        nextIndex = 0;
+        break;
+      case 'End':
+        nextIndex = tabArray.length - 1;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    const nextTab = tabArray[nextIndex];
+    if (!nextTab || !nextTab.dataset.tab) {
+      return;
+    }
+    nextTab.focus();
+    applyActiveTab(tabs, document.querySelectorAll('.tab-content'), nextTab, nextTab.dataset.tab);
   };
 }
 
@@ -560,6 +611,9 @@ export function initializeTabs(
 ): void {
   tabs.forEach((tab) => {
     tab.addEventListener('click', handleTabClick(tabs, tabContents));
+    tab.addEventListener('keydown', handleTabKeydown(tabs));
+    // Roving tabindex initial state
+    tab.tabIndex = tab.classList.contains('active') ? 0 : -1;
   });
 }
 
@@ -901,10 +955,10 @@ async function handleGeneralSettingsSubmit(
   logger.debug('[DEBUG-options] handleGeneralSettingsSubmit() called', { provider });
 
   if (!isValidProvider(provider)) {
-    logger.warn('[DEBUG-options] Invalid provider selected', { provider });
+    logger.warn('[DEBUG-options] Ungültiger Provider ausgewählt', { provider });
     return {
       success: false,
-      message: 'Invalid provider selected',
+      message: 'Ungültiger Provider ausgewählt.',
     };
   }
 
@@ -949,7 +1003,7 @@ async function handleGeneralSettingsSubmit(
         logger.error('[DEBUG-options] Error requesting permission', { error: errorMessage });
         return {
           success: false,
-          message: 'Error with permission request',
+          message: 'Fehler bei der Berechtigungsanfrage.',
         };
       }
     } else {
@@ -1002,17 +1056,17 @@ async function handleGeneralSettingsSubmit(
         providerSettings,
       });
 
-      logger.debug('[DEBUG-options] Settings saved successfully');
+      logger.debug('[DEBUG-options] Einstellungen erfolgreich gespeichert');
 
       return {
         success: true,
-        message: 'Settings saved!',
+        message: 'Einstellungen gespeichert.',
       };
     } else {
-      logger.warn('[DEBUG-options] Permission denied, settings not saved');
+      logger.warn('[DEBUG-options] Zugriff verweigert, Einstellungen nicht gespeichert');
       return {
         success: false,
-        message: 'Permission denied. Settings not saved.',
+        message: 'Zugriff verweigert. Einstellungen wurden nicht gespeichert.',
       };
     }
   } catch (error) {
@@ -1020,7 +1074,7 @@ async function handleGeneralSettingsSubmit(
     logger.error('[DEBUG-options] Save failed', { error: errorMessage });
     return {
       success: false,
-      message: 'Error saving settings',
+      message: 'Fehler beim Speichern der Einstellungen.',
     };
   }
 }
@@ -1395,6 +1449,33 @@ async function runConnectionTest(
 }
 
 /**
+ * Shows or clears an inline hint below a Z.ai model field (e.g. when the model
+ * list could not be fetched and only the saved/static suggestions remain).
+ */
+function showZaiModelHint(modelInput: HTMLElement, message: string): void {
+  const group = modelInput.closest('.form-group');
+  if (!group) {
+    return;
+  }
+
+  const existing = group.querySelector<HTMLParagraphElement>('.zai-model-hint');
+  if (!message) {
+    existing?.remove();
+    return;
+  }
+
+  if (existing) {
+    existing.textContent = message;
+    return;
+  }
+
+  const hint = document.createElement('p');
+  hint.className = 'field-error zai-model-hint';
+  hint.textContent = message;
+  group.appendChild(hint);
+}
+
+/**
  * Populates the z.ai model dropdown with available models from the API
  */
 async function populateZaiModels(provider: 'zaiPaas' | 'zaiCoding'): Promise<void> {
@@ -1425,9 +1506,23 @@ async function populateZaiModels(provider: 'zaiPaas' | 'zaiCoding'): Promise<voi
       option.value = model;
       datalist.appendChild(option);
     });
+
+    // fetchZaiModels liefert bei nicht erreichbarer API eine Fallback-Liste mit
+    // Flag statt zu werfen (#13) – dann weist der Hinweis auf die Liste hin.
+    const fetchFailed = (models as { fetchFailed?: boolean }).fetchFailed === true;
+    showZaiModelHint(
+      zaiModelSelect,
+      fetchFailed
+        ? 'Modellliste konnte nicht geladen werden – gespeicherte Modelle werden angezeigt.'
+        : ''
+    );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(`Failed to populate ${provider} models`, { error: errorMessage });
+    showZaiModelHint(
+      zaiModelSelect,
+      'Modellliste konnte nicht geladen werden – gespeicherte Modelle werden angezeigt.'
+    );
   }
 }
 
@@ -1460,13 +1555,13 @@ function renderTagList(
       <div class="tag-color-preview" style="background-color: ${escapeHtml(tag.color)};"></div>
       <div class="tag-details">
         <div class="tag-name">${escapeHtml(tag.name)}</div>
-        <div class="tag-key">Key: ${escapeHtml(tag.key)}</div>
+        <div class="tag-key">Schlüssel: ${escapeHtml(tag.key)}</div>
         <div class="tag-prompt">Prompt: ${escapeHtml(tag.prompt || '')}</div>
-        <div class="tag-threshold ${thresholdClass}">Threshold: ${escapeHtml(thresholdDisplay)}</div>
+        <div class="tag-threshold ${thresholdClass}">Schwellwert: ${escapeHtml(thresholdDisplay)}</div>
       </div>
       <div class="tag-actions">
-        <button class="edit-tag-btn" data-index="${index}">Edit</button>
-        <button class="delete-tag-btn" data-index="${index}">Delete</button>
+        <button class="edit-tag-btn" data-index="${index}">Bearbeiten</button>
+        <button class="delete-tag-btn" data-index="${index}">Löschen</button>
       </div>
     `;
     container.appendChild(item);
@@ -1486,46 +1581,10 @@ function cleanupResources(): void {
 // ============================================================================
 
 /**
- * Error display element in the options page
+ * Returns the static error overlay from options.html (single DOM instance, #18).
  */
-let errorDisplayElement: HTMLDivElement | null = null;
-
-/**
- * Creates the error display overlay if it doesn't exist
- */
-function ensureErrorDisplay(): HTMLDivElement {
-  if (errorDisplayElement) {
-    return errorDisplayElement;
-  }
-
-  const errorOverlay = document.createElement('div');
-  errorOverlay.id = 'error-display-overlay';
-  errorOverlay.className = 'error-display-overlay';
-  errorOverlay.innerHTML = `
-    <div class="error-display-content">
-      <div class="error-display-header">
-        <span class="error-display-icon"></span>
-        <h3 id="error-display-title"></h3>
-        <button class="error-display-close">&times;</button>
-      </div>
-      <p id="error-display-message"></p>
-      <div id="error-display-details" style="margin-top: 10px; font-size: 12px; color: #666;"></div>
-    </div>
-  `;
-
-  const closeButton = errorOverlay.querySelector('.error-display-close') as HTMLButtonElement;
-  if (closeButton) {
-    closeButton.addEventListener('click', () => {
-      if (errorDisplayElement) {
-        errorDisplayElement.remove();
-        errorDisplayElement = null;
-      }
-    });
-  }
-
-  document.body.appendChild(errorOverlay);
-  errorDisplayElement = errorOverlay;
-  return errorOverlay;
+function getErrorDisplay(): HTMLDivElement | null {
+  return document.getElementById('error-display-overlay') as HTMLDivElement | null;
 }
 
 /**
@@ -1533,7 +1592,12 @@ function ensureErrorDisplay(): HTMLDivElement {
  * @param error - Error information to display
  */
 function showError(error: ErrorDisplay): void {
-  const overlay = ensureErrorDisplay();
+  const overlay = getErrorDisplay();
+  if (!overlay) {
+    logger.error('Error display overlay not found', { message: error.message });
+    return;
+  }
+
   const title = overlay.querySelector('#error-display-title') as HTMLElement;
   const message = overlay.querySelector('#error-display-message') as HTMLElement;
   const details = overlay.querySelector('#error-display-details') as HTMLElement;
@@ -1556,7 +1620,9 @@ function showError(error: ErrorDisplay): void {
   }
 
   // Set title based on type and severity
-  const typeTitle = error.type ? error.type.charAt(0).toUpperCase() + error.type.slice(1) : 'Error';
+  const typeTitle = error.type
+    ? error.type.charAt(0).toUpperCase() + error.type.slice(1)
+    : 'Fehler';
   title.textContent = `${typeTitle} (${error.severity})`;
 
   // Set message
@@ -1592,21 +1658,22 @@ function showError(error: ErrorDisplay): void {
       break;
   }
 
-  // Auto-hide info and warning errors after 5 seconds
-  if (error.severity !== ErrorSeverity.CRITICAL) {
-    setTimeout(() => {
-      if (overlay && overlay.parentNode) {
-        overlay.remove();
-        errorDisplayElement = null;
-      }
-    }, 5000);
-  }
+  // Kein Auto-Hide mehr (#18): Info/Warnungen bleiben stehen, bis sie
+  // geschlossen oder durch die nächste Meldung ersetzt werden.
 
   logger.info('Error displayed to user', {
     severity: error.severity,
     type: error.type,
     message: error.message,
   });
+}
+
+/** Hides the static error overlay. */
+function hideErrorDisplay(): void {
+  const overlay = getErrorDisplay();
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
 }
 
 /**
@@ -1636,7 +1703,7 @@ async function sendMessage<T = unknown>(message: BatchRuntimeMessage): Promise<T
         }
       });
     } else {
-      reject(new Error('Browser runtime not available'));
+      reject(new Error('Browser-Laufzeitumgebung nicht verfügbar'));
     }
   });
 }
@@ -1799,6 +1866,9 @@ async function saveCustomTags(customTags: CustomTags): Promise<void> {
   }
 }
 
+/** Element that opened the modal; regains focus when the dialog closes (#19). */
+let modalTrigger: HTMLElement | null = null;
+
 /**
  * Opens the tag modal for creating or editing
  */
@@ -1807,7 +1877,7 @@ function openModal(elements: TagManagementElements, context: TagEditContext): vo
   elements.tagIndex.value = context.index.toString();
 
   if (context.tag) {
-    elements.modalTitle.textContent = 'Edit Tag';
+    elements.modalTitle.textContent = 'Tag bearbeiten';
     elements.tagName.value = context.tag.name;
     elements.tagKey.value = context.tag.key;
     elements.tagColor.value = context.tag.color;
@@ -1817,17 +1887,47 @@ function openModal(elements: TagManagementElements, context: TagEditContext): vo
       elements.tagThreshold.value = context.tag.minConfidenceThreshold.toString();
     }
   } else {
-    elements.modalTitle.textContent = 'Add New Tag';
+    elements.modalTitle.textContent = 'Neuen Tag hinzufügen';
   }
 
+  modalTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   elements.modal.style.display = 'flex';
+  elements.closeModalBtn.focus();
 }
 
 /**
- * Closes the tag modal
+ * Closes the tag modal and restores focus to the trigger
  */
 function closeModal(elements: TagManagementElements): void {
   elements.modal.style.display = 'none';
+  modalTrigger?.focus();
+  modalTrigger = null;
+}
+
+/**
+ * Keeps Tab focus inside the dialog while it is open (#19).
+ */
+function trapModalFocus(event: KeyboardEvent, modal: HTMLElement): void {
+  const focusable = Array.from(
+    modal.querySelectorAll<HTMLElement>(
+      'button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter((el) => el.offsetParent !== null);
+  if (focusable.length === 0) {
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement;
+
+  if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 /**
@@ -1854,7 +1954,7 @@ function handleTagListClick(
 
       if (target.classList.contains('delete-tag-btn')) {
         const tag = customTags[index];
-        if (confirm(`Are you sure you want to delete the "${tag.name}" tag?`)) {
+        if (confirm(`Soll der Tag "${tag.name}" wirklich gelöscht werden?`)) {
           (customTags as Tag[]).splice(index, 1);
           saveCustomTags(customTags)
             .then(async () => {
@@ -1990,7 +2090,25 @@ function initializeOptionsPage(): void {
       logger.error('Failed to load general settings on init', { error });
     });
 
+    // Dirty-Tracking (#17): ungespeicherte Änderungen warnen vor dem Schließen
+    let providerFormDirty = false;
+    const markProviderFormDirty = (): void => {
+      providerFormDirty = true;
+    };
+    elements.generalForm.addEventListener('input', markProviderFormDirty);
+    elements.providerSelect.addEventListener('change', markProviderFormDirty);
+
+    window.addEventListener('beforeunload', (event) => {
+      if (providerFormDirty) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    });
+
     // General settings form handler
+    const submitButton = elements.generalForm.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
     elements.generalForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -2005,13 +2123,27 @@ function initializeOptionsPage(): void {
         return;
       }
 
-      const result = await handleGeneralSettingsSubmit(elements);
+      // Busy state (#17): speichern kann Permissions-Dialog und Netzwerk umfassen
+      const originalLabel = submitButton?.textContent ?? '';
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Wird gespeichert…';
+      }
 
-      if (result.success) {
-        setStatusMessage(elements.generalStatusMessage, result.message);
-        setStatusMessage(elements.statusMessage, 'General settings saved!');
-      } else {
-        setStatusMessage(elements.generalStatusMessage, result.message, 'error');
+      try {
+        const result = await handleGeneralSettingsSubmit(elements);
+
+        if (result.success) {
+          setStatusMessage(elements.generalStatusMessage, result.message);
+          providerFormDirty = false;
+        } else {
+          setStatusMessage(elements.generalStatusMessage, result.message, 'error');
+        }
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = originalLabel;
+        }
       }
     });
 
@@ -2039,7 +2171,6 @@ function initializeOptionsPage(): void {
       }
     });
 
-    // Feldfehler verschwinden, sobald im Feld nachgebessert wird
     elements.generalForm.addEventListener('input', (e) => {
       const target = e.target as HTMLInputElement;
       if (target.dataset.validate) {
@@ -2150,6 +2281,22 @@ function initializeOptionsPage(): void {
       }
     });
 
+    // Dialog keyboard support (#19): Escape closes, Tab stays inside
+    document.addEventListener('keydown', (e) => {
+      if (elements.modal.style.display === 'none') {
+        return;
+      }
+      if (e.key === 'Escape') {
+        closeModal(elements);
+      } else if (e.key === 'Tab') {
+        trapModalFocus(e, elements.modal);
+      }
+    });
+
+    // Static error overlay close button (#18)
+    const errorCloseBtn = document.querySelector<HTMLButtonElement>('.error-display-close');
+    errorCloseBtn?.addEventListener('click', hideErrorDisplay);
+
     // Tag list click handler
     elements.tagListContainer.addEventListener(
       'click',
@@ -2184,36 +2331,12 @@ function initializeOptionsPage(): void {
       });
     }
 
-    // Save manual review button handler (acts as refresh)
-    const saveManualReviewBtn = document.getElementById('save-manual-review-btn');
-    const manualReviewStatusMessage = document.getElementById('manual-review-status-message');
-    if (saveManualReviewBtn && manualReviewStatusMessage) {
-      saveManualReviewBtn.addEventListener('click', async () => {
-        try {
-          // Trigger refresh of manual review
-          const refreshBtn = document.getElementById('refresh-review-btn') as HTMLButtonElement;
-          if (refreshBtn) {
-            refreshBtn.click();
-          }
-          setStatusMessage(
-            manualReviewStatusMessage as HTMLSpanElement,
-            'Manuelle Überprüfung aktualisiert!'
-          );
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          logger.error('Failed to save manual review', { error: errorMessage });
-          setStatusMessage(
-            manualReviewStatusMessage as HTMLSpanElement,
-            `Fehler: ${errorMessage}`,
-            'error'
-          );
-        }
-      });
-    }
+    // Manual review: no save handler anymore (#10) – the tab shows an honest
+    // empty state until analysis results land here (future feature).
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to initialize options page', { error: errorMessage });
-    document.body.innerHTML = `<p style="color: red;">Error initializing options page: ${escapeHtml(errorMessage)}</p>`;
+    document.body.innerHTML = `<p style="color: red;">Fehler beim Initialisieren der Einstellungsseite: ${escapeHtml(errorMessage)}</p>`;
   }
 }
 
