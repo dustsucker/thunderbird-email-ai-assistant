@@ -381,6 +381,32 @@ function determineErrorSeverity(error: unknown, type: ErrorType): ErrorSeverity 
 }
 
 /**
+ * Shows the error as a notification when the runtime-message channel to the
+ * options page is dead (options closed / event page restart), so critical
+ * errors are not silently dropped (issue #18).
+ *
+ * @param errorDisplay - Error information to display
+ */
+async function showNotificationFallback(errorDisplay: ErrorDisplay): Promise<void> {
+  try {
+    if (typeof messenger === 'undefined' || !messenger.notifications) {
+      return;
+    }
+    await messenger.notifications.create({
+      type: 'basic',
+      iconUrl: 'icon.png',
+      title: 'AI Tag Assistant',
+      message: errorDisplay.message,
+    });
+  } catch (error) {
+    // Notifications are best-effort; never let the fallback throw
+    logger.debug('Notification fallback failed', {
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+    });
+  }
+}
+
+/**
  * Sends error display message to UI via runtime API
  * Note: This function works in background script context
  *
@@ -397,15 +423,13 @@ async function sendErrorToUI(errorDisplay: ErrorDisplay): Promise<void> {
 
       // Try to send message to options page
       // @ts-expect-error - browser runtime sendMessage is valid for WebExtensions
-      browser.runtime.sendMessage(message).catch((reason: unknown) => {
-        // Options page might not be open, this is acceptable
-        const errorMsg = reason instanceof Error ? reason.message : String(reason);
-        if (!errorMsg.includes('Receiving end does not exist')) {
-          logger.warn('Failed to send error to UI', { error: errorMsg });
-        }
+      browser.runtime.sendMessage(message).catch((_reason: unknown) => {
+        // Issue #18: channel may be dead (options page closed) — fall back to a
+        // notification instead of dropping the error.
+        void showNotificationFallback(errorDisplay);
       });
     }
-  } catch (error) {
+  } catch {
     // Runtime API not available (not in extension context)
     logger.debug('Runtime API not available for error display');
   }
