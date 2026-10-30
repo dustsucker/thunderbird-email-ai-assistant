@@ -11,14 +11,54 @@
         <h1>Mail Assistant Einstellungen</h1>
       </header>
 
-      <div class="tab-bar">
-        <button class="tab-button active" data-tab="provider-settings">Provider</button>
-        <button class="tab-button" data-tab="custom-tags">Benutzerdefinierte Tags</button>
-        <button class="tab-button" data-tab="manual-review">Manuelle Überprüfung</button>
-        <button class="tab-button" data-tab="debug">Debug</button>
+      <div class="tab-bar" role="tablist" aria-label="Einstellungsbereiche">
+        <button
+          type="button"
+          class="tab-button active"
+          id="tab-provider-settings"
+          data-tab="provider-settings"
+          role="tab"
+          aria-selected="true"
+          aria-controls="provider-settings"
+        >
+          Provider
+        </button>
+        <button
+          type="button"
+          class="tab-button"
+          id="tab-custom-tags"
+          data-tab="custom-tags"
+          role="tab"
+          aria-selected="false"
+          aria-controls="custom-tags"
+        >
+          Benutzerdefinierte Tags
+        </button>
+        <button
+          type="button"
+          class="tab-button"
+          id="tab-manual-review"
+          data-tab="manual-review"
+          role="tab"
+          aria-selected="false"
+          aria-controls="manual-review"
+        >
+          Manuelle Überprüfung
+        </button>
+        <button
+          type="button"
+          class="tab-button"
+          id="tab-debug"
+          data-tab="debug"
+          role="tab"
+          aria-selected="false"
+          aria-controls="debug"
+        >
+          Debug
+        </button>
       </div>
 
-      <div id="provider-settings" class="tab-content active">
+      <div id="provider-settings" class="tab-content active" role="tabpanel" aria-labelledby="tab-provider-settings">
         <section class="provider-section">
           <h2>Provider auswählen</h2>
           <div class="form-group">
@@ -37,7 +77,7 @@
           </div>
 
           <div class="form-group">
-            <label for="min-confidence-threshold">
+            <label for="min-confidence-threshold-slider">
               Minimales Konfidenz-Level: <span id="confidence-value">70</span>%
             </label>
             <div style="display: flex; align-items: center; gap: 10px">
@@ -48,6 +88,7 @@
                 min="0"
                 max="100"
                 value="70"
+                aria-describedby="min-confidence-help"
                 style="flex: 1"
               />
               <input
@@ -57,10 +98,12 @@
                 min="0"
                 max="100"
                 value="70"
+                aria-label="Minimales Konfidenz-Level in Prozent"
+                aria-describedby="min-confidence-help"
                 style="width: 70px"
               />
             </div>
-            <p class="help-text">
+            <p class="help-text" id="min-confidence-help">
               Tags werden nur angewendet, wenn das Konfidenz-Level dieses Wert erreicht oder
               überschreitet. Ein höherer Wert bedeutet mehr Sicherheit, aber weniger automatisch
               angewendete Tags.
@@ -68,7 +111,7 @@
           </div>
 
           <div class="provider-settings-container">
-            <form id="provider-options-form">
+            <form id="provider-options-form" novalidate>
               <div id="ollama-settings" class="provider-settings active">
                 <h3>Ollama-Konfiguration</h3>
                 <div class="form-group">
@@ -76,11 +119,9 @@
                   <input
                     type="url"
                     id="ollama-api-url"
+                    data-validate="url"
                     name="ollama-api-url"
                     placeholder="http://localhost:11434"
-                    pattern="https?://.+"
-                    title="Bitte geben Sie eine gültige URL ein (http:// oder https://)"
-                    required
                   />
                 </div>
                 <div class="form-group">
@@ -88,10 +129,20 @@
                   <input
                     type="text"
                     id="ollama-model"
+                    data-validate="required"
                     name="ollama-model"
                     placeholder="llama3.2"
-                    required
                   />
+                </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    class="btn-secondary test-connection"
+                    data-provider="ollama"
+                  >
+                    Verbindung testen
+                  </button>
+                  <span class="connection-result" role="status"></span>
                 </div>
                 <div class="privacy-notice local-notice">
                   <p>
@@ -110,12 +161,18 @@
                   <input
                     type="password"
                     id="mistral-api-key"
+                    data-validate="api-key"
                     name="mistral-api-key"
                     placeholder="Geben Sie Ihren Mistral API-Schlüssel ein"
-                    pattern=".{10,}"
-                    title="API-Schlüssel muss mindestens 10 Zeichen lang sein"
-                    required
                   />
+                  <button
+                    type="button"
+                    class="key-toggle"
+                    aria-pressed="false"
+                    aria-controls="mistral-api-key"
+                  >
+                    Anzeigen
+                  </button>
                 </div>
                 <div class="form-group">
                   <label for="mistral-model">Modell (optional):</label>
@@ -126,6 +183,16 @@
                     placeholder="Provider-Standard"
                   />
                   <p class="help-text">Leer lassen, um den Standard des Providers zu verwenden.</p>
+                </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    class="btn-secondary test-connection"
+                    data-provider="mistral"
+                  >
+                    Verbindung testen
+                  </button>
+                  <span class="connection-result" role="status"></span>
                 </div>
                 <div class="privacy-notice">
                   <p>
@@ -142,12 +209,18 @@
                   <input
                     type="password"
                     id="gemini-api-key"
+                    data-validate="api-key"
                     name="gemini-api-key"
                     placeholder="Geben Sie Ihren Gemini API-Schlüssel ein"
-                    pattern=".{10,}"
-                    title="API-Schlüssel muss mindestens 10 Zeichen lang sein"
-                    required
                   />
+                  <button
+                    type="button"
+                    class="key-toggle"
+                    aria-pressed="false"
+                    aria-controls="gemini-api-key"
+                  >
+                    Anzeigen
+                  </button>
                 </div>
                 <div class="form-group">
                   <label for="gemini-model">Modell (optional):</label>
@@ -158,6 +231,16 @@
                     placeholder="Provider-Standard"
                   />
                   <p class="help-text">Leer lassen, um den Standard des Providers zu verwenden.</p>
+                </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    class="btn-secondary test-connection"
+                    data-provider="gemini"
+                  >
+                    Verbindung testen
+                  </button>
+                  <span class="connection-result" role="status"></span>
                 </div>
                 <div class="privacy-notice">
                   <p>
@@ -174,12 +257,18 @@
                   <input
                     type="password"
                     id="deepseek-api-key"
+                    data-validate="api-key"
                     name="deepseek-api-key"
                     placeholder="Geben Sie Ihren DeepSeek API-Schlüssel ein"
-                    pattern=".{10,}"
-                    title="API-Schlüssel muss mindestens 10 Zeichen lang sein"
-                    required
                   />
+                  <button
+                    type="button"
+                    class="key-toggle"
+                    aria-pressed="false"
+                    aria-controls="deepseek-api-key"
+                  >
+                    Anzeigen
+                  </button>
                 </div>
                 <div class="form-group">
                   <label for="deepseek-model">Modell (optional):</label>
@@ -190,6 +279,16 @@
                     placeholder="Provider-Standard"
                   />
                   <p class="help-text">Leer lassen, um den Standard des Providers zu verwenden.</p>
+                </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    class="btn-secondary test-connection"
+                    data-provider="deepseek"
+                  >
+                    Verbindung testen
+                  </button>
+                  <span class="connection-result" role="status"></span>
                 </div>
                 <div class="privacy-notice">
                   <p>
@@ -206,12 +305,18 @@
                   <input
                     type="password"
                     id="openrouter-api-key"
+                    data-validate="api-key"
                     name="openrouter-api-key"
                     placeholder="Geben Sie Ihren OpenRouter API-Schlüssel ein"
-                    pattern=".{10,}"
-                    title="API-Schlüssel muss mindestens 10 Zeichen lang sein"
-                    required
                   />
+                  <button
+                    type="button"
+                    class="key-toggle"
+                    aria-pressed="false"
+                    aria-controls="openrouter-api-key"
+                  >
+                    Anzeigen
+                  </button>
                 </div>
                 <div class="form-group">
                   <label for="openrouter-model">Modell:</label>
@@ -221,6 +326,16 @@
                     name="openrouter-model"
                     placeholder="z.B. openai/gpt-4o-mini"
                   />
+                </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    class="btn-secondary test-connection"
+                    data-provider="openrouter"
+                  >
+                    Verbindung testen
+                  </button>
+                  <span class="connection-result" role="status"></span>
                 </div>
                 <div class="privacy-notice">
                   <p>
@@ -237,12 +352,18 @@
                   <input
                     type="password"
                     id="openai-api-key"
+                    data-validate="api-key"
                     name="openai-api-key"
                     placeholder="Geben Sie Ihren OpenAI API-Schlüssel ein"
-                    pattern=".{10,}"
-                    title="API-Schlüssel muss mindestens 10 Zeichen lang sein"
-                    required
                   />
+                  <button
+                    type="button"
+                    class="key-toggle"
+                    aria-pressed="false"
+                    aria-controls="openai-api-key"
+                  >
+                    Anzeigen
+                  </button>
                 </div>
                 <div class="form-group">
                   <label for="openai-model">Modell (optional):</label>
@@ -253,6 +374,16 @@
                     placeholder="Provider-Standard"
                   />
                   <p class="help-text">Leer lassen, um den Standard des Providers zu verwenden.</p>
+                </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    class="btn-secondary test-connection"
+                    data-provider="openai"
+                  >
+                    Verbindung testen
+                  </button>
+                  <span class="connection-result" role="status"></span>
                 </div>
                 <div class="privacy-notice">
                   <p>
@@ -269,12 +400,18 @@
                   <input
                     type="password"
                     id="claude-api-key"
+                    data-validate="api-key"
                     name="claude-api-key"
                     placeholder="Geben Sie Ihren Claude API-Schlüssel ein"
-                    pattern=".{10,}"
-                    title="API-Schlüssel muss mindestens 10 Zeichen lang sein"
-                    required
                   />
+                  <button
+                    type="button"
+                    class="key-toggle"
+                    aria-pressed="false"
+                    aria-controls="claude-api-key"
+                  >
+                    Anzeigen
+                  </button>
                 </div>
                 <div class="form-group">
                   <label for="claude-model">Modell (optional):</label>
@@ -285,6 +422,16 @@
                     placeholder="Provider-Standard"
                   />
                   <p class="help-text">Leer lassen, um den Standard des Providers zu verwenden.</p>
+                </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    class="btn-secondary test-connection"
+                    data-provider="claude"
+                  >
+                    Verbindung testen
+                  </button>
+                  <span class="connection-result" role="status"></span>
                 </div>
                 <div class="privacy-notice">
                   <p>
@@ -301,22 +448,28 @@
                   <input
                     type="password"
                     id="zaiPaasApiKey"
+                    data-validate="api-key"
                     name="zaiPaasApiKey"
                     placeholder="Geben Sie Ihren Zai PaaS API-Schlüssel ein"
-                    pattern=".{10,}"
-                    title="API-Schlüssel muss mindestens 10 Zeichen lang sein"
-                    required
                   />
+                  <button
+                    type="button"
+                    class="key-toggle"
+                    aria-pressed="false"
+                    aria-controls="zaiPaasApiKey"
+                  >
+                    Anzeigen
+                  </button>
                 </div>
                 <div class="form-group">
                   <label for="zaiPaasModel">Model:</label>
                   <input
                     type="text"
                     id="zaiPaasModel"
+                    data-validate="required"
                     name="zaiPaasModel"
                     list="zaiPaasModelList"
                     placeholder="Modell auswählen oder Namen eingeben"
-                    required
                   />
                   <datalist id="zaiPaasModelList">
                     <option value="glm-4.5"></option>
@@ -327,6 +480,16 @@
                     Wählen Sie ein Modell aus der Liste oder geben Sie einen benutzerdefinierten
                     Modellnamen ein.
                   </p>
+                </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    class="btn-secondary test-connection"
+                    data-provider="zai-paas"
+                  >
+                    Verbindung testen
+                  </button>
+                  <span class="connection-result" role="status"></span>
                 </div>
                 <div class="privacy-notice">
                   <p>
@@ -343,22 +506,28 @@
                   <input
                     type="password"
                     id="zaiCodingApiKey"
+                    data-validate="api-key"
                     name="zaiCodingApiKey"
                     placeholder="Geben Sie Ihren Zai Coding API-Schlüssel ein"
-                    pattern=".{10,}"
-                    title="API-Schlüssel muss mindestens 10 Zeichen lang sein"
-                    required
                   />
+                  <button
+                    type="button"
+                    class="key-toggle"
+                    aria-pressed="false"
+                    aria-controls="zaiCodingApiKey"
+                  >
+                    Anzeigen
+                  </button>
                 </div>
                 <div class="form-group">
                   <label for="zaiCodingModel">Model:</label>
                   <input
                     type="text"
                     id="zaiCodingModel"
+                    data-validate="required"
                     name="zaiCodingModel"
                     list="zaiCodingModelList"
                     placeholder="Modell auswählen oder Namen eingeben"
-                    required
                   />
                   <datalist id="zaiCodingModelList">
                     <option value="glm-4.7"></option>
@@ -371,6 +540,16 @@
                     Modellnamen ein.
                   </p>
                 </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    class="btn-secondary test-connection"
+                    data-provider="zai-coding"
+                  >
+                    Verbindung testen
+                  </button>
+                  <span class="connection-result" role="status"></span>
+                </div>
                 <div class="privacy-notice">
                   <p>
                     <strong>Datenschutz-Hinweis:</strong> E-Mails werden an Zai Coding zur
@@ -381,7 +560,7 @@
 
               <div class="form-group form-actions">
                 <button type="submit" class="btn-primary">Provider-Einstellungen speichern</button>
-                <span id="provider-status-message"></span>
+                <span id="provider-status-message" aria-live="polite"></span>
               </div>
             </form>
           </div>
@@ -396,7 +575,7 @@
               </div>
               <p class="card-description">Alle wartenden E-Mail-Analysen sofort stoppen.</p>
               <button type="button" id="kill-queue-btn" class="btn-danger">Queue leeren</button>
-              <span id="queue-status-message" class="status-message"></span>
+              <span id="queue-status-message" aria-live="polite" class="status-message"></span>
             </div>
 
             <div class="system-card cache-card">
@@ -410,13 +589,13 @@
               </p>
               <div class="cache-stats" id="cache-stats"></div>
               <button type="button" id="clear-cache-btn" class="btn-secondary">Cache leeren</button>
-              <span id="cache-status-message" class="status-message"></span>
+              <span id="cache-status-message" aria-live="polite" class="status-message"></span>
             </div>
           </div>
         </section>
       </div>
 
-      <div id="custom-tags" class="tab-content">
+      <div id="custom-tags" class="tab-content" role="tabpanel" aria-labelledby="tab-custom-tags">
         <section class="custom-tags-section">
           <h2>Benutzerdefinierte Tags</h2>
           <p class="help-text">
@@ -427,12 +606,12 @@
           <div class="form-group form-actions">
             <button id="add-new-tag-btn" class="btn-primary">Neuen Tag hinzufügen</button>
             <button id="save-custom-tags-btn" class="btn-primary">Tags speichern</button>
-            <span id="custom-tags-status-message"></span>
+            <span id="custom-tags-status-message" aria-live="polite"></span>
           </div>
         </section>
       </div>
 
-      <div id="manual-review" class="tab-content">
+      <div id="manual-review" class="tab-content" role="tabpanel" aria-labelledby="tab-manual-review">
         <section class="manual-review-section">
           <div class="review-header-actions">
             <h2>Manuelle Überprüfung</h2>
@@ -475,11 +654,11 @@
           <div id="manual-review-container"></div>
           <div class="form-group form-actions">
             <button id="save-manual-review-btn" class="btn-primary">Speichern</button>
-            <span id="manual-review-status-message"></span>
+            <span id="manual-review-status-message" aria-live="polite"></span>
           </div>
         </section>
       </div>
-      <div id="debug" class="tab-content">
+      <div id="debug" class="tab-content" role="tabpanel" aria-labelledby="tab-debug">
         <section class="debug-section">
           <div class="results-header-actions">
             <h2>Verarbeitungs-Queue</h2>
@@ -536,7 +715,7 @@
                 <span class="debug-stat-label">Ø Wartezeit</span>
               </div>
             </div>
-            <span id="debug-cancel-status" class="status-message"></span>
+            <span id="debug-cancel-status" aria-live="polite" class="status-message"></span>
             <p id="debug-queue-empty" class="debug-empty">Keine Verarbeitung aktiv</p>
           </div>
         </section>

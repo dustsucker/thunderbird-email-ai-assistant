@@ -15,8 +15,18 @@ import {
   debounce,
 } from './src/infrastructure/providers/ProviderUtils';
 
-import { logger } from './src/infrastructure/providers/ProviderUtils';
+import { logger, maskApiKey } from './src/infrastructure/providers/ProviderUtils';
 import { fetchZaiModels } from './src/infrastructure/providers';
+import type { BaseProviderSettings } from './src/infrastructure/providers/BaseProvider';
+import { ClaudeProvider } from './src/infrastructure/providers/impl/ClaudeProvider';
+import { DeepseekProvider } from './src/infrastructure/providers/impl/DeepseekProvider';
+import { GeminiProvider } from './src/infrastructure/providers/impl/GeminiProvider';
+import { MistralProvider } from './src/infrastructure/providers/impl/MistralProvider';
+import { OllamaProvider } from './src/infrastructure/providers/impl/OllamaProvider';
+import { OpenAIProvider } from './src/infrastructure/providers/impl/OpenAIProvider';
+import { OpenRouterProvider } from './src/infrastructure/providers/impl/OpenRouterProvider';
+import { ZaiCodingProvider } from './src/infrastructure/providers/impl/ZaiCodingProvider';
+import { ZaiPaaSProvider } from './src/infrastructure/providers/impl/ZaiPaaSProvider';
 import { DebugTab } from './src/interfaces/options/DebugTab';
 
 declare const messenger: {
@@ -516,7 +526,10 @@ function handleTabClick(
       return;
     }
 
-    tabs.forEach((tab) => tab.classList.remove('active'));
+    tabs.forEach((tab) => {
+      tab.classList.remove('active');
+      tab.setAttribute('aria-selected', String(tab === clickedTab));
+    });
     clickedTab.classList.add('active');
 
     tabContents.forEach((content) => content.classList.remove('active'));
@@ -560,24 +573,16 @@ export function initializeTabs(
 function showRelevantSettings(provider: string): void {
   logger.debug('[DEBUG-options] showRelevantSettings() called', { provider });
 
+  // Pflichtfelder werden nicht mehr pauschal gesetzt: die Pruefung passiert in
+  // validateProviderPanel() ueber data-validate (siehe #7).
   document.querySelectorAll<HTMLElement>('.provider-settings').forEach((div) => {
     div.style.display = 'none';
-    div
-      .querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[required], select[required]')
-      .forEach((field) => {
-        field.removeAttribute('required');
-      });
   });
 
   const settingsToShow = document.getElementById(`${provider}-settings`);
   if (settingsToShow && isProviderSettingsElement(settingsToShow)) {
     logger.debug('[DEBUG-options] Showing settings for provider', { provider });
     settingsToShow.style.display = 'block';
-    settingsToShow
-      .querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')
-      .forEach((field) => {
-        field.setAttribute('required', '');
-      });
   } else {
     logger.warn('[DEBUG-options] No settings found for provider', { provider });
   }
@@ -1136,13 +1141,233 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
 }
 
 /**
- * Sets a status message and clears it after a delay
+ * Pending auto-clear timers, so a message never disappears under a newer one.
  */
-function setStatusMessage(element: HTMLSpanElement, message: string, delay: number = 3000): void {
+const statusTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+
+/**
+ * Sets a status message. Success messages clear themselves after 3 s,
+ * errors stay until the next message (see #8).
+ */
+function setStatusMessage(
+  element: HTMLSpanElement,
+  message: string,
+  kind: 'success' | 'error' = 'success'
+): void {
+  const pending = statusTimers.get(element);
+  if (pending !== undefined) {
+    clearTimeout(pending);
+    statusTimers.delete(element);
+  }
+
   element.textContent = message;
-  setTimeout(() => {
-    element.textContent = '';
-  }, delay);
+  element.classList.toggle('status-error', kind === 'error');
+
+  if (kind === 'error') {
+    return;
+  }
+
+  statusTimers.set(
+    element,
+    setTimeout(() => {
+      element.textContent = '';
+    }, 3000)
+  );
+}
+
+/**
+ * Writes or clears the inline error text below a field (replaces the native bubble).
+ */
+function showFieldError(field: HTMLInputElement, message: string): void {
+  const group = field.closest('.form-group');
+  if (!group) {
+    return;
+  }
+
+  if (!message) {
+    group.querySelector('.field-error')?.remove();
+    field.removeAttribute('aria-invalid');
+    if (field.dataset.baseDescribedBy !== undefined) {
+      if (field.dataset.baseDescribedBy) {
+        field.setAttribute('aria-describedby', field.dataset.baseDescribedBy);
+      } else {
+        field.removeAttribute('aria-describedby');
+      }
+    }
+    return;
+  }
+
+  let errorElement = group.querySelector<HTMLParagraphElement>('.field-error');
+  if (!errorElement) {
+    errorElement = document.createElement('p');
+    errorElement.className = 'field-error';
+    errorElement.id = `${field.id}-error`;
+    group.appendChild(errorElement);
+  }
+  errorElement.textContent = message;
+
+  field.dataset.baseDescribedBy ??= field.getAttribute('aria-describedby') ?? '';
+  field.setAttribute('aria-invalid', 'true');
+  field.setAttribute(
+    'aria-describedby',
+    [field.dataset.baseDescribedBy, errorElement.id].filter(Boolean).join(' ')
+  );
+}
+
+/**
+ * Validates the visible provider panel against the data-validate rules in the markup.
+ *
+ * @returns true when every field of the panel is valid
+ */
+function validateProviderPanel(panel: HTMLElement): boolean {
+  let valid = true;
+
+  panel.querySelectorAll<HTMLInputElement>('input[data-validate]').forEach((field) => {
+    const value = field.value.trim();
+    const rule = field.dataset.validate;
+    let error = '';
+
+    if (rule === 'api-key') {
+      error =
+        value === ''
+          ? 'API-Schlüssel erforderlich.'
+          : value.length < 10
+            ? 'Mindestens 10 Zeichen.'
+            : '';
+    } else if (rule === 'url') {
+      error = /^https?:\/\/.+/.test(value)
+        ? ''
+        : 'Bitte eine gültige URL angeben (http:// oder https://).';
+    } else if (rule === 'required') {
+      error = value === '' ? 'Pflichtfeld.' : '';
+    }
+
+    showFieldError(field, error);
+    if (error) {
+      valid = false;
+    }
+  });
+
+  return valid;
+}
+
+/**
+ * Shows or hides the value of a masked API key field.
+ */
+function toggleKeyVisibility(button: HTMLButtonElement): void {
+  const input = getElementById<HTMLInputElement>(button.getAttribute('aria-controls') ?? '');
+  if (!input) {
+    return;
+  }
+
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  button.setAttribute('aria-pressed', String(show));
+  button.textContent = show ? 'Verbergen' : 'Anzeigen';
+}
+
+/**
+ * Logger for directly instantiated providers: ProviderUtils.logger lacks the
+ * maskApiKey the ILogger interface requires.
+ */
+const providerLogger = { ...logger, maskApiKey };
+
+/**
+ * Resolves the provider class used for the connection test.
+ *
+ * Same classes the background uses (see ProviderFactory), instantiated directly
+ * like fetchZaiModels() does — no second HTTP path.
+ */
+function createProviderForConnectionTest(provider: string): {
+  listModels(settings: BaseProviderSettings): Promise<string[]>;
+} {
+  switch (provider) {
+    case Provider.OLLAMA:
+      return new OllamaProvider(providerLogger);
+    case Provider.MISTRAL:
+      return new MistralProvider(providerLogger);
+    case Provider.GEMINI:
+      return new GeminiProvider(providerLogger);
+    case Provider.DEEPSEEK:
+      return new DeepseekProvider(providerLogger);
+    case Provider.OPENROUTER:
+      return new OpenRouterProvider(providerLogger);
+    case Provider.OPENAI:
+      return new OpenAIProvider(providerLogger);
+    case Provider.CLAUDE:
+      return new ClaudeProvider(providerLogger);
+    case Provider.ZAI_PAAS:
+      return new ZaiPaaSProvider(providerLogger);
+    case Provider.ZAI_CODING:
+      return new ZaiCodingProvider(providerLogger);
+    default:
+      throw new Error(`Unbekannter Provider: ${provider}`);
+  }
+}
+
+/**
+ * Minimal connection test: asks the provider for its model list (GET /models).
+ *
+ * Success = at least one model came back, everything else is reported as a
+ * readable error instead of a thrown exception.
+ */
+export async function testProviderConnection(
+  provider: string,
+  settings: BaseProviderSettings
+): Promise<{ ok: boolean; message: string }> {
+  try {
+    const models = await createProviderForConnectionTest(provider).listModels(settings);
+
+    if (models.length > 0) {
+      return { ok: true, message: `Verbindung OK – ${models.length} Modelle verfügbar.` };
+    }
+
+    return {
+      ok: false,
+      message:
+        'Verbindung fehlgeschlagen: keine Modelle erhalten. API-Schlüssel, Modell und ' +
+        'Erreichbarkeit prüfen (Details im Debug-Protokoll).',
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { ok: false, message: `Verbindung fehlgeschlagen: ${errorMessage}` };
+  }
+}
+
+/**
+ * Runs the connection test for the panel button and writes the inline result.
+ */
+async function runConnectionTest(
+  button: HTMLButtonElement,
+  elements: GeneralSettingsElements
+): Promise<void> {
+  const provider = button.dataset.provider ?? '';
+  const resultElement = button.nextElementSibling as HTMLSpanElement | null;
+
+  button.disabled = true;
+  if (resultElement) {
+    resultElement.className = 'connection-result';
+    resultElement.textContent = 'Teste Verbindung…';
+  }
+
+  try {
+    const settings = convertToProviderSettings(gatherProviderSettings(provider, elements));
+    const result = await testProviderConnection(provider, settings);
+
+    if (resultElement) {
+      resultElement.textContent = result.message;
+      resultElement.classList.add(result.ok ? 'is-ok' : 'is-error');
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('[DEBUG-options] Connection test failed', { provider, error: errorMessage });
+    if (resultElement) {
+      resultElement.textContent = `Verbindung fehlgeschlagen: ${errorMessage}`;
+      resultElement.classList.add('is-error');
+    }
+  } finally {
+    button.disabled = false;
+  }
 }
 
 /**
@@ -1427,12 +1652,16 @@ async function handleKillQueueClick(killQueueBtn: HTMLButtonElement): Promise<vo
     if (response.success) {
       setStatusMessage(killQueueBtn.nextElementSibling as HTMLSpanElement, response.message);
     } else {
-      setStatusMessage(killQueueBtn.nextElementSibling as HTMLSpanElement, response.message);
+      setStatusMessage(killQueueBtn.nextElementSibling as HTMLSpanElement, response.message, 'error');
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to clear queue', { error: errorMessage });
-    setStatusMessage(killQueueBtn.nextElementSibling as HTMLSpanElement, `Fehler: ${errorMessage}`);
+    setStatusMessage(
+      killQueueBtn.nextElementSibling as HTMLSpanElement,
+      `Fehler: ${errorMessage}`,
+      'error'
+    );
   } finally {
     killQueueBtn.disabled = false;
   }
@@ -1444,24 +1673,28 @@ async function handleKillQueueClick(killQueueBtn: HTMLButtonElement): Promise<vo
 async function handleClearCacheClick(elements: CacheManagementElements): Promise<void> {
   try {
     elements.clearCacheBtn.disabled = true;
-    elements.cacheStatusMessage.textContent = 'Cache wird geleert...';
+    setStatusMessage(elements.cacheStatusMessage, 'Cache wird geleert...');
 
     const response = await sendMessage<{ success: boolean; message: string }>({
       action: 'clearCache',
     });
 
-    if (response.success) {
-      elements.cacheStatusMessage.textContent = response.message;
-    } else {
-      elements.cacheStatusMessage.textContent = response.message;
-    }
+    setStatusMessage(
+      elements.cacheStatusMessage,
+      response.message,
+      response.success ? 'success' : 'error'
+    );
 
     // Refresh cache stats after clearing
     await updateCacheStats(elements);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to clear cache', { error: errorMessage });
-    elements.cacheStatusMessage.textContent = `Fehler beim Leeren des Cache: ${errorMessage}`;
+    setStatusMessage(
+      elements.cacheStatusMessage,
+      `Fehler beim Leeren des Cache: ${errorMessage}`,
+      'error'
+    );
   } finally {
     elements.clearCacheBtn.disabled = false;
   }
@@ -1726,13 +1959,25 @@ function initializeOptionsPage(): void {
     // General settings form handler
     elements.generalForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      const activePanel = document.getElementById(`${elements.providerSelect.value}-settings`);
+      if (activePanel && !validateProviderPanel(activePanel)) {
+        setStatusMessage(
+          elements.generalStatusMessage,
+          'Bitte die markierten Felder korrigieren.',
+          'error'
+        );
+        return;
+      }
+
       const result = await handleGeneralSettingsSubmit(elements);
 
-      setStatusMessage(elements.generalStatusMessage, result.message);
       if (result.success) {
+        setStatusMessage(elements.generalStatusMessage, result.message);
         setStatusMessage(elements.statusMessage, 'General settings saved!');
       } else {
-        setStatusMessage(elements.statusMessage, result.message);
+        setStatusMessage(elements.generalStatusMessage, result.message, 'error');
+        setStatusMessage(elements.statusMessage, result.message, 'error');
       }
     });
 
@@ -1740,6 +1985,32 @@ function initializeOptionsPage(): void {
     elements.providerSelect.addEventListener('change', (e) => {
       const target = e.target as HTMLSelectElement;
       showRelevantSettings(target.value);
+    });
+
+    // Show/Hide der API-Keys und Verbindungstest pro Provider
+    elements.generalForm.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+
+      const toggle = target.closest<HTMLButtonElement>('.key-toggle');
+      if (toggle) {
+        toggleKeyVisibility(toggle);
+        return;
+      }
+
+      const testButton = target.closest<HTMLButtonElement>('.test-connection');
+      if (testButton) {
+        runConnectionTest(testButton, elements).catch((error) => {
+          logger.error('Failed to test provider connection', { error });
+        });
+      }
+    });
+
+    // Feldfehler verschwinden, sobald im Feld nachgebessert wird
+    elements.generalForm.addEventListener('input', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.dataset.validate) {
+        showFieldError(target, '');
+      }
     });
 
     // Confidence threshold slider synchronization
@@ -1870,7 +2141,11 @@ function initializeOptionsPage(): void {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           logger.error('Failed to save custom tags', { error: errorMessage });
-          setStatusMessage(customTagsStatusMessage as HTMLSpanElement, `Fehler: ${errorMessage}`);
+          setStatusMessage(
+            customTagsStatusMessage as HTMLSpanElement,
+            `Fehler: ${errorMessage}`,
+            'error'
+          );
         }
       });
     }
@@ -1893,7 +2168,11 @@ function initializeOptionsPage(): void {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           logger.error('Failed to save manual review', { error: errorMessage });
-          setStatusMessage(manualReviewStatusMessage as HTMLSpanElement, `Fehler: ${errorMessage}`);
+          setStatusMessage(
+            manualReviewStatusMessage as HTMLSpanElement,
+            `Fehler: ${errorMessage}`,
+            'error'
+          );
         }
       });
     }
