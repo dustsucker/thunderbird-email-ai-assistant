@@ -8,10 +8,17 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
-import type { BatchProgress, BatchProgressListener } from '@/application/use-cases/AnalyzeBatchEmails';
+import type {
+  BatchProgress,
+  BatchProgressListener,
+} from '@/application/use-cases/AnalyzeBatchEmails';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
 import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsService';
+import {
+  mapAnalysisErrorToUserMessage,
+  formatTagResultMessage,
+} from '@/shared/utils/errorMessages';
 
 // ============================================================================
 // Thunderbird API Types (inline declarations)
@@ -128,9 +135,11 @@ export class ToolbarHandler implements BatchProgressListener {
   private setBadgeText(text: string): void {
     const browserAction = messenger.browserAction || messenger.action;
 
-    const withBadge = browserAction as unknown as {
-      setBadgeText?: (details: { text: string; tabId?: number }) => Promise<void>;
-    } | undefined;
+    const withBadge = browserAction as unknown as
+      | {
+          setBadgeText?: (details: { text: string; tabId?: number }) => Promise<void>;
+        }
+      | undefined;
 
     if (typeof withBadge?.setBadgeText === 'function') {
       void withBadge.setBadgeText({ text }).catch((error) => {
@@ -139,6 +148,34 @@ export class ToolbarHandler implements BatchProgressListener {
         });
       });
     }
+  }
+
+  /**
+   * Reads the enableNotifications flag from storage.local (default: true).
+   */
+  private async isNotificationsEnabled(): Promise<boolean> {
+    try {
+      const data = await messenger.storage.local.get({
+        appConfig: { enableNotifications: true },
+      });
+      const appConfig = data.appConfig as { enableNotifications?: boolean } | undefined;
+      return appConfig?.enableNotifications !== false;
+    } catch (error) {
+      this.logger.debug('Could not read enableNotifications flag, defaulting to enabled', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return true;
+    }
+  }
+
+  /**
+   * Shows a notification unless the user disabled notifications.
+   */
+  private async notify(title: string, message: string): Promise<void> {
+    if (!(await this.isNotificationsEnabled())) {
+      return;
+    }
+    await messenger.notifications.create({ type: 'basic', iconUrl: 'icon.png', title, message });
   }
 
   /**
@@ -153,34 +190,22 @@ export class ToolbarHandler implements BatchProgressListener {
       const displayedMessage = displayedMessages[0];
 
       if (!displayedMessage) {
-        await messenger.notifications.create({
-          type: 'basic',
-          iconUrl: 'icon.png',
-          title: 'Keine Nachricht',
-          message: 'Keine Nachricht in diesem Tab angezeigt',
-        });
+        await this.notify('Keine Nachricht', 'Keine Nachricht in diesem Tab angezeigt');
         return;
       }
 
       const messageId = displayedMessage.id;
       this.logger.info('Toolbar button: Starting single message analysis', { messageId });
 
-      await messenger.notifications.create({
-        type: 'basic',
-        iconUrl: 'icon.png',
-        title: 'Analyse gestartet',
-        message: `Analyse für Nachricht ${messageId} gestartet`,
-      });
+      await this.notify('Analyse gestartet', 'Die Analyse wurde gestartet.');
 
       const providerSettings = await this.providerSettingsService.getProviderSettings();
 
       if (!providerSettings.provider) {
-        await messenger.notifications.create({
-          type: 'basic',
-          iconUrl: 'icon.png',
-          title: 'Fehler',
-          message: 'Kein Provider konfiguriert. Bitte überprüfen Sie Ihre Einstellungen.',
-        });
+        await this.notify(
+          'Fehler',
+          'Kein Provider konfiguriert. Bitte überprüfen Sie Ihre Einstellungen.'
+        );
         return;
       }
 
@@ -189,16 +214,15 @@ export class ToolbarHandler implements BatchProgressListener {
         messageId,
         tags: result.tags,
       });
+      await this.notify(
+        'Analyse abgeschlossen',
+        formatTagResultMessage(result.tags, result.confidence)
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to handle toolbar button click', { error: errorMessage });
 
-      await messenger.notifications.create({
-        type: 'basic',
-        iconUrl: 'icon.png',
-        title: 'Fehler',
-        message: `Analyse fehlgeschlagen: ${errorMessage}`,
-      });
+      await this.notify('Fehler', mapAnalysisErrorToUserMessage(errorMessage));
     }
   }
 }

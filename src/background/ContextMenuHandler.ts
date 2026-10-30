@@ -14,6 +14,10 @@ import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { UndoTagChanges } from '@/application/use-cases/UndoTagChanges';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
 import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsService';
+import {
+  mapAnalysisErrorToUserMessage,
+  formatTagResultMessage,
+} from '@/shared/utils/errorMessages';
 
 // ============================================================================
 // Thunderbird API Types (inline declarations)
@@ -138,10 +142,7 @@ export class ContextMenuHandler {
       }
 
       /** Creates one menu item, logging the real lastError text on failure. */
-      const createMenu = (
-        properties: Record<string, unknown>,
-        label: string
-      ): void => {
+      const createMenu = (properties: Record<string, unknown>, label: string): void => {
         messenger.menus.create(properties as never, () => {
           const lastError =
             typeof browser !== 'undefined' && browser.runtime?.lastError
@@ -330,12 +331,10 @@ export class ContextMenuHandler {
     });
 
     // Show notification
-    await messenger.notifications.create({
-      type: 'basic',
-      iconUrl: 'icon.png',
-      title: 'Batch-Analysis gestartet',
-      message: `Batch-Analysis für Ordner "${folder.name}" gestartet`,
-    });
+    await this.notify(
+      'Batch-Analysis gestartet',
+      `Batch-Analysis für Ordner "${folder.name}" gestartet`
+    );
 
     try {
       this.logger.info('Batch Step 1: Getting provider settings...');
@@ -347,12 +346,10 @@ export class ContextMenuHandler {
       });
 
       if (!providerSettings.provider) {
-        await messenger.notifications.create({
-          type: 'basic',
-          iconUrl: 'icon.png',
-          title: 'Fehler',
-          message: 'Kein Provider konfiguriert. Bitte überprüfen Sie Ihre Einstellungen.',
-        });
+        await this.notify(
+          'Fehler',
+          'Kein Provider konfiguriert. Bitte überprüfen Sie Ihre Einstellungen.'
+        );
         return;
       }
 
@@ -360,12 +357,10 @@ export class ContextMenuHandler {
       const messageIds = await this.getMessagesToAnalyze(folder.id);
 
       if (messageIds.length === 0) {
-        await messenger.notifications.create({
-          type: 'basic',
-          iconUrl: 'icon.png',
-          title: 'Keine Nachrichten',
-          message: `Keine Nachrichten in Ordner "${folder.name}" gefunden.`,
-        });
+        await this.notify(
+          'Keine Nachrichten',
+          `Keine Nachrichten in Ordner "${folder.name}" gefunden.`
+        );
         return;
       }
 
@@ -386,12 +381,10 @@ export class ContextMenuHandler {
         failed: result.failureCount,
       });
 
-      await messenger.notifications.create({
-        type: 'basic',
-        iconUrl: 'icon.png',
-        title: 'Batch-Analysis abgeschlossen',
-        message: `Analyzed ${result.successCount}/${result.total} messages successfully.`,
-      });
+      await this.notify(
+        'Batch-Analysis abgeschlossen',
+        `${result.successCount}/${result.total} Nachrichten erfolgreich analysiert.`
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
@@ -399,12 +392,7 @@ export class ContextMenuHandler {
         error: errorMessage,
         stack: errorStack,
       });
-      await messenger.notifications.create({
-        type: 'basic',
-        iconUrl: 'icon.png',
-        title: 'Fehler',
-        message: `Batch-Analyse fehlgeschlagen: ${errorMessage}`,
-      });
+      await this.notify('Fehler', mapAnalysisErrorToUserMessage(errorMessage));
     }
   }
 
@@ -434,12 +422,7 @@ export class ContextMenuHandler {
     this.logger.info('Starting single message analysis', { messageId });
 
     // Show notification
-    await messenger.notifications.create({
-      type: 'basic',
-      iconUrl: 'icon.png',
-      title: 'Analyse gestartet',
-      message: `Analyse für Nachricht ${messageId} gestartet`,
-    });
+    await this.notify('Analyse gestartet', 'Die Analyse wurde gestartet.');
 
     try {
       this.logger.info('Step 1: Getting provider settings...');
@@ -451,12 +434,10 @@ export class ContextMenuHandler {
       });
 
       if (!providerSettings.provider) {
-        await messenger.notifications.create({
-          type: 'basic',
-          iconUrl: 'icon.png',
-          title: 'Fehler',
-          message: 'Kein Provider konfiguriert. Bitte überprüfen Sie Ihre Einstellungen.',
-        });
+        await this.notify(
+          'Fehler',
+          'Kein Provider konfiguriert. Bitte überprüfen Sie Ihre Einstellungen.'
+        );
         return;
       }
 
@@ -467,6 +448,10 @@ export class ContextMenuHandler {
         messageId,
         tags: result.tags,
       });
+      await this.notify(
+        'Analyse abgeschlossen',
+        formatTagResultMessage(result.tags, result.confidence)
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
@@ -475,12 +460,7 @@ export class ContextMenuHandler {
         error: errorMessage,
         stack: errorStack,
       });
-      await messenger.notifications.create({
-        type: 'basic',
-        iconUrl: 'icon.png',
-        title: 'Fehler',
-        message: `Analyse fehlgeschlagen: ${errorMessage}`,
-      });
+      await this.notify('Fehler', mapAnalysisErrorToUserMessage(errorMessage));
     }
   }
 
@@ -508,32 +488,48 @@ export class ContextMenuHandler {
       const success = await this.undoTagChanges.execute(String(messageId));
 
       if (success) {
-        await messenger.notifications.create({
-          type: 'basic',
-          iconUrl: 'icon.png',
-          title: 'Tags rückgängig gemacht',
-          message: `Tag-Änderungen für Nachricht ${messageId} wurden rückgängig gemacht.`,
-        });
+        await this.notify(
+          'Tags rückgängig gemacht',
+          'Die Tag-Änderungen wurden rückgängig gemacht.'
+        );
         this.logger.info('Undo tag changes completed successfully', { messageId });
       } else {
-        await messenger.notifications.create({
-          type: 'basic',
-          iconUrl: 'icon.png',
-          title: 'Keine Historie gefunden',
-          message: `Keine Tag-Änderungshistorie für Nachricht ${messageId} vorhanden.`,
-        });
+        await this.notify('Keine Historie gefunden', 'Keine Tag-Änderungshistorie vorhanden.');
         this.logger.info('No tag history found to undo', { messageId });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to undo tag changes', { messageId, error: errorMessage });
-      await messenger.notifications.create({
-        type: 'basic',
-        iconUrl: 'icon.png',
-        title: 'Fehler',
-        message: `Rückgängig machen fehlgeschlagen: ${errorMessage}`,
-      });
+      await this.notify('Fehler', mapAnalysisErrorToUserMessage(errorMessage));
     }
+  }
+
+  /**
+   * Reads the enableNotifications flag from storage.local (default: true).
+   */
+  private async isNotificationsEnabled(): Promise<boolean> {
+    try {
+      const data = await messenger.storage.local.get({
+        appConfig: { enableNotifications: true },
+      });
+      const appConfig = data.appConfig as { enableNotifications?: boolean } | undefined;
+      return appConfig?.enableNotifications !== false;
+    } catch (error) {
+      this.logger.debug('Could not read enableNotifications flag, defaulting to enabled', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return true;
+    }
+  }
+
+  /**
+   * Shows a notification unless the user disabled notifications.
+   */
+  private async notify(title: string, message: string): Promise<void> {
+    if (!(await this.isNotificationsEnabled())) {
+      return;
+    }
+    await messenger.notifications.create({ type: 'basic', iconUrl: 'icon.png', title, message });
   }
 
   /**
