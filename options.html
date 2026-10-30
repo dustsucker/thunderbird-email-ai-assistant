@@ -79,7 +79,7 @@
 
           <div class="form-group">
             <label for="min-confidence-threshold-slider">
-              Minimales Konfidenz-Level: <span id="confidence-value">70</span>%
+              Mindest-Konfidenz: <span id="confidence-value">70</span>%
             </label>
             <div style="display: flex; align-items: center; gap: 10px">
               <input
@@ -99,7 +99,7 @@
                 min="0"
                 max="100"
                 value="70"
-                aria-label="Minimales Konfidenz-Level in Prozent"
+                aria-label="Mindest-Konfidenz in Prozent"
                 aria-describedby="min-confidence-help"
                 style="width: 70px"
               />
@@ -122,11 +122,14 @@
                     id="ollama-api-url"
                     data-validate="url"
                     name="ollama-api-url"
-                    placeholder="http://localhost:11434"
+                    placeholder="http://localhost:11434/api/generate"
                   />
+                  <p class="help-text">
+                    Vollständige Generate-URL inkl. <code>/api/generate</code>.
+                  </p>
                 </div>
                 <div class="form-group">
-                  <label for="ollama-model">Model:</label>
+                  <label for="ollama-model">Modell:</label>
                   <input
                     type="text"
                     id="ollama-model"
@@ -147,11 +150,13 @@
                 </div>
                 <div class="privacy-notice local-notice">
                   <p>
-                    <strong>Local Processing:</strong> Ollama runs entirely on your computer. Your
-                    emails never leave your device, ensuring maximum privacy.
+                    <strong>Lokale Verarbeitung:</strong> Ollama läuft vollständig auf Ihrem
+                    Computer. Ihre E-Mails verlassen Ihr Gerät nicht – für maximale Privatsphäre.
                   </p>
-                  <p>To add a new model, run <code>ollama pull &lt;model_name&gt;</code>.</p>
-                  <p>Start Ollama with: <code>OLLAMA_ORIGINS='*' ollama serve</code></p>
+                  <p>
+                    Neues Modell hinzufügen: <code>ollama pull &lt;modellname&gt;</code>. Ollama
+                    starten mit: <code>OLLAMA_ORIGINS='*' ollama serve</code>
+                  </p>
                 </div>
               </div>
 
@@ -527,7 +532,7 @@
                   </button>
                 </div>
                 <div class="form-group">
-                  <label for="zaiPaasModel">Model:</label>
+                  <label for="zaiPaasModel">Modell:</label>
                   <input
                     type="text"
                     id="zaiPaasModel"
@@ -585,7 +590,7 @@
                   </button>
                 </div>
                 <div class="form-group">
-                  <label for="zaiCodingModel">Model:</label>
+                  <label for="zaiCodingModel">Modell:</label>
                   <input
                     type="text"
                     id="zaiCodingModel"
@@ -716,10 +721,12 @@
             </div>
           </div>
 
-          <div id="manual-review-container"></div>
-          <div class="form-group form-actions">
-            <button id="save-manual-review-btn" class="btn-primary">Speichern</button>
-            <span id="manual-review-status-message" aria-live="polite"></span>
+          <div id="manual-review-container">
+            <p class="manual-review-empty">
+              Noch keine Analysen zur manuellen Überprüfung.
+              <br />
+              Ergebnisse mit niedriger Konfidenz erscheinen hier automatisch nach Analysen.
+            </p>
           </div>
         </section>
       </div>
@@ -779,6 +786,10 @@
                 <span id="debug-stat-avg-wait" class="debug-stat-value">0 ms</span>
                 <span class="debug-stat-label">Ø Wartezeit</span>
               </div>
+              <div class="debug-stat" id="debug-stat-cache-errors-wrap" hidden>
+                <span id="debug-stat-cache-errors" class="debug-stat-value">0</span>
+                <span class="debug-stat-label">Cache-Fehler</span>
+              </div>
             </div>
             <span id="debug-cancel-status" aria-live="polite" class="status-message"></span>
             <p id="debug-queue-empty" class="debug-empty">Keine Verarbeitung aktiv</p>
@@ -795,6 +806,27 @@
               <button type="button" id="debug-clear-log-btn" class="btn-secondary">
                 Protokoll leeren
               </button>
+            </div>
+          </div>
+
+          <div class="debug-log-toolbar">
+            <div class="filter-group">
+              <label class="checkbox-label" for="debug-enable-logging">
+                <input type="checkbox" id="debug-enable-logging" />
+                Protokollierung aktivieren
+              </label>
+              <p class="help-text">
+                Zeichnet Diagnose-Informationen zur Fehleranalyse auf.
+              </p>
+            </div>
+            <div class="filter-group">
+              <label for="debug-log-level">Protokoll-Level:</label>
+              <select id="debug-log-level">
+                <option value="debug">Debug</option>
+                <option value="info" selected>Info</option>
+                <option value="warn">Warnung</option>
+                <option value="error">Fehler</option>
+              </select>
             </div>
           </div>
 
@@ -818,9 +850,16 @@
       </div>
     </div>
 
-    <div id="tag-modal" class="modal" style="display: none">
+    <div
+      id="tag-modal"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      style="display: none"
+    >
       <div class="modal-content">
-        <span class="close-button">&times;</span>
+        <button type="button" class="close-button" aria-label="Dialog schließen">&times;</button>
         <h2 id="modal-title">Neuen Tag hinzufügen</h2>
         <form id="tag-form">
           <input type="hidden" id="tag-index" value="" />

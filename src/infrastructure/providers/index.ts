@@ -50,7 +50,10 @@ export async function fetchZaiModels(apiKey: string): Promise<string[]> {
     return await provider.listModels({ apiKey });
   } catch {
     // Only the model dropdown wants a usable list when the API is unreachable;
-    // the connection test must keep seeing the real failure.
-    return ['glm-4.5', 'glm-4.5-air', 'glm-4-plus', 'glm-4.5-airx', 'glm-4.5-flash'];
+    // the connection test must keep seeing the real failure. The flag makes the
+    // fallback detectable for the UI (#13) while the array stays backward-compatible.
+    return Object.assign(['glm-4.5', 'glm-4.5-air', 'glm-4-plus', 'glm-4.5-airx', 'glm-4.5-flash'], {
+      fetchFailed: true,
+    });
   }
 }

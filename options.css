@@ -236,7 +236,7 @@ button:disabled {
   transform: translateY(1px);
 }
 
-#general-status-message {
+#provider-status-message {
   margin-left: var(--spacing-md);
   font-style: italic;
   color: var(--color-success);
@@ -696,6 +696,11 @@ button:disabled {
   font-weight: bold;
   cursor: pointer;
   transition: color var(--transition-fast);
+  /* Button-Reset (#19): das Schließen-Element ist jetzt ein echtes <button> */
+  background: none;
+  border: none;
+  padding: 0;
+  line-height: 1;
 }
 
 .close-button:hover {
@@ -1384,6 +1389,22 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+/* Checkbox-Steuerung im Debug-Tab (#3-UI) */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.checkbox-label input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
 .debug-log-list {
   display: flex;
   flex-direction: column;
@@ -1473,5 +1494,77 @@ button:disabled {
   .debug-log-ctx {
     grid-column: 1 / -1;
     padding-left: 0;
+  }
+}
+
+/* ============================================================================
+   Dark Mode (#19) – folgt dem Muster aus src/interfaces/shared/styles/indicators.css:
+   die :root-Variablen werden im dunklen Farbschema überschrieben.
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --color-gray-100: #1c222b;
+    --color-gray-200: #2a3340;
+    --color-gray-300: #3e4a5a;
+    --color-gray-600: #a7b2bf;
+    --color-gray-700: #ccd5df;
+    --color-white: #141a21;
+    --color-text-primary: #e8eaed;
+    --color-text-secondary: #c9d1d9;
+    --color-text-tertiary: #aeb8c2;
+    --color-primary-light: #12293f;
+
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 6px 12px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Hart codierte helle Flächen, die nicht über Variablen laufen */
+  .privacy-notice {
+    background-color: #3a3012;
+  }
+
+  .privacy-notice.local-notice {
+    background-color: #14301d;
+  }
+
+  .privacy-notice code {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .error-display-content {
+    background-color: var(--color-white);
+  }
+
+  .error-display-content > p {
+    color: var(--color-text-primary);
+  }
+
+  #error-display-details {
+    background-color: var(--color-gray-100);
+    border-color: var(--color-gray-300);
+    color: var(--color-text-secondary);
+  }
+
+  .debug-level-warn {
+    background-color: #3a3012;
+    color: #ffd970;
+  }
+
+  .result-tag.tag-below-threshold {
+    background-color: #3a3012;
+  }
+
+  .result-tag.tag-below-threshold .tag-name {
+    color: #ffd970;
+  }
+
+  .tag-confidence-badge.confidence-medium,
+  .status-pending,
+  .debug-batch-cancelled {
+    color: var(--color-text-primary);
   }
 }
