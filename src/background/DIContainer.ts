@@ -26,7 +26,8 @@ import type { IRandom } from '@/domain/interfaces/IRandom';
 // ============================================================================
 
 import { ConsoleLogger } from '@/infrastructure/logger/ConsoleLogger';
-import { MemoryCache } from '@/infrastructure/cache/MemoryCache';import { PriorityQueue } from '@/application/services/PriorityQueue';
+import { MemoryCache } from '@/infrastructure/cache/MemoryCache';
+import { PriorityQueue } from '@/application/services/PriorityQueue';
 import { ThunderbirdMailReader } from '@/interfaces/adapters/ThunderbirdMailReader';
 import { ThunderbirdTagManager } from '@/interfaces/adapters/ThunderbirdTagManager';
 import { StorageLocalConfigRepository } from '@/infrastructure/repositories/StorageLocalConfigRepository';

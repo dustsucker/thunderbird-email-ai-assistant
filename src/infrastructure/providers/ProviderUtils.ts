@@ -513,26 +513,6 @@ function hasStatus(obj: unknown): obj is { status: number } {
  * @template T - Return type of the function
  * @param fn - Async function to retry
  * @param options - Retry configuration options
- * @returns Promise resolving to the function result
- * @throws The last error if all retries are exhausted
- *
- * @example
- * await retryWithBackoff(() => fetch('/api/data'), { maxRetries: 3 })
- *
- * @example
- * await retryWithBackoff(() => fetchData(), {
- *   maxRetries: 5,
- *   baseDelay: 2000,
- *   factor: 2,
- *   jitter: 0.3
- * })
- */
-/**
- * Retries an async function with exponential backoff and jitter
- *
- * @template T - Return type of the function
- * @param fn - Async function to retry
- * @param options - Retry configuration options
  * @param logContext - Optional context (e.g. runId) merged into retry logs
  * @returns Promise resolving to the function result
  * @throws The last error if all retries are exhausted
