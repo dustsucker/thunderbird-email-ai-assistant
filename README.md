@@ -109,17 +109,17 @@ After installing the add-on, you can configure it by going to `Tools > Add-ons a
 
 The General tab allows you to select your preferred LLM provider and enter the necessary credentials (API Key or local URL).
 
-![Ollama Settings](doc/screenshots/settings-ollama.png)
+![Ollama Settings](doc/screenshots/outdated/settings-ollama.png)
 _Ollama provider settings, with fields for a local URL and model name._
 
-![Mistral Settings](doc/screenshots/settings-mistral.png)
+![Mistral Settings](doc/screenshots/outdated/settings-mistral.png)
 _Settings for a cloud provider like Mistral, requiring an API key._
 
 ### Custom Tags
 
 The Custom Tags tab is where you can define the categories for email analysis. You can add, edit, or delete tags. Each tag has a name, a unique key, a color, and a specific prompt instruction that tells the LLM what to check for.
 
-![Custom Tags](doc/screenshots/settings-tags.png)
+![Custom Tags](doc/screenshots/outdated/settings-tags.png)
 _The interface for managing custom tags._
 
 ### Confidence Thresholds
@@ -147,7 +147,7 @@ Once configured, the extension will automatically process new incoming emails. I
 Once automated tagging is working, you may create filters that will move tagged messages to folders or take other actions. You should set those filters to run
 periodically, as tagging is executed after initial filtering.
 
-![Tagged Message](doc/screenshots/tagged-message.png)
+![Tagged Message](doc/screenshots/outdated/tagged-message.png)
 _An example of an email that has been automatically tagged by the assistant._
 
 ## Development
