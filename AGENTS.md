@@ -194,6 +194,7 @@ try {
 | Mistral          | `mistral`    | `apiKey`, `model` |
 | DeepSeek         | `deepseek`   | `apiKey`, `model` |
 | OpenRouter       | `openrouter` | `apiKey`, `model` |
+| OpenRouter Decisions (Jev/Clef/…) | `openrouter-decisions` | `apiKey`, `model`, opt. `additionalConfig.tagThreshold` |
 | ZAI PaaS         | `zai-paas`   | `apiKey`, `model` |
 | ZAI Coding       | `zai-coding` | `apiKey`, `model` |
 

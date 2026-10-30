@@ -436,6 +436,7 @@ export class AppConfigService {
       [Provider.MISTRAL]: 10,
       [Provider.DEEPSEEK]: 10,
       [Provider.OPENROUTER]: 10,
+      [Provider.OPENROUTER_DECISIONS]: 10,
       [Provider.ZAI_PAAS]: 5,
       [Provider.ZAI_CODING]: 5,
     };
@@ -581,6 +582,12 @@ export class AppConfigService {
       openrouter: {
         apiKey: this.defaults.openrouterApiKey,
         model: 'openai/gpt-4o-mini',
+      },
+      'openrouter-decisions': {
+        apiKey: this.defaults.openrouterApiKey,
+        model: 'typesafe/jev-1.14',
+        apiUrl: 'https://openrouter.ai/api/alpha/decisions',
+        additionalConfig: { tagThreshold: 0.6 },
       },
       'zai-paas': {
         apiKey: this.defaults.zaiPaasApiKey,

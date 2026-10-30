@@ -24,6 +24,7 @@ const PROVIDER_DEFAULT_CONCURRENCY: Record<Provider, number> = {
   [Provider.MISTRAL]: 10,
   [Provider.DEEPSEEK]: 10,
   [Provider.OPENROUTER]: 10,
+  [Provider.OPENROUTER_DECISIONS]: 10,
   [Provider.ZAI_PAAS]: 5,
   [Provider.ZAI_CODING]: 5,
 } as const;

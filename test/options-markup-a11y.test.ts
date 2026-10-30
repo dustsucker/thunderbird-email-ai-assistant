@@ -62,7 +62,7 @@ describe('options.html', () => {
     );
     const toggles = container.querySelectorAll<HTMLButtonElement>('.key-toggle');
 
-    expect(passwordFields.length).toBe(8);
+    expect(passwordFields.length).toBe(9);
     expect(toggles.length).toBe(passwordFields.length);
 
     toggles.forEach((toggle) => {
@@ -82,7 +82,7 @@ describe('options.html', () => {
     expect(form?.hasAttribute('novalidate')).toBe(true);
 
     const panels = container.querySelectorAll<HTMLElement>('.provider-settings');
-    expect(panels.length).toBe(9);
+    expect(panels.length).toBe(10);
 
     panels.forEach((panel) => {
       expect(panel.querySelector('.test-connection')).not.toBeNull();
@@ -90,7 +90,7 @@ describe('options.html', () => {
       expect(panel.querySelectorAll('[required], [pattern]').length).toBe(0);
     });
 
-    expect(container.querySelectorAll('#provider-options-form [data-validate]').length).toBe(12);
+    expect(container.querySelectorAll('#provider-options-form [data-validate]').length).toBe(13);
   });
 
   it('kündigt Statusmeldungen per aria-live an', () => {

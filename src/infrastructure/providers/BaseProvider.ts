@@ -25,6 +25,8 @@ export interface BaseProviderSettings {
   apiKey?: string;
   apiUrl?: string;
   model?: string;
+  /** Provider-specific extra config, carried over from IProviderSettings by the adapter */
+  additionalConfig?: Record<string, unknown>;
 }
 
 /**
