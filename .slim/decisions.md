@@ -6,3 +6,26 @@
 2026-10-30 | UX-A nextElementSibling-Lookup fuer .connection-result (arbiter #6) | deferred | vorbestehendes Muster aus Kill-Queue; Umbau auf aria-controls in eigenem Refactor | master
 2026-10-30 | UX-A Fake-Timer-Block in options-page-init.test.ts (arbiter #5) | deferred | Assertion ist vakuos, aber status-error-Klasse deckt den Fall; kein Verhalten beeinflusst | master
 2026-10-30 | Other 7 providers swallow listModels into [] instead of throwing | deferred | Lesbare Fehlermeldung ("keine Modelle erhalten"), kein falsches Erfolgssignal; Vertrag #1 erfuellt | master
+2026-10-30 | F1 prettier debt (options.ts/html, test) | deferred_with_reason | pre-existing at parent d840399, style-only, outside fix scope; style commit later | checker
+2026-10-30 | B2-F1 batch catch stays error-level (ContextMenuHandler.ts:391) | deferred | catch is primary reporter for settings/message-fetch failures, demotion would hide real errors | master
+2026-10-30 | PR#26 DebugTab direct storage.local appConfig writes bypass repo queue (write-only UI, logLevel not in IAppConfig) | deferred | latent, non-blocking; wire into IConfigRepository in follow-up | arbiter
+2026-10-30 | PR#24 stale ARCHITECTURE.md + confidence-thresholds.md refs to deleted options files | deferred | doc-only follow-up pass | arbiter
+2026-10-30 | PR#27 runId via (input as {runId?}) casts in BaseProviderAdapter.ts:188 | deferred | works, type-check green; declare on IAnalyzeInput in follow-up | arbiter
+2026-10-30 | PR#27 enableLogging=false silences error logs too (master switch, BackgroundScript.ts:126) | deferred | deliberate per issue #3; revisit if users report | arbiter
+2026-10-30 | PR#27 DebugLogBuffer cap 500->2000 without per-entry truncation | deferred | storage.session growth only, monitored | arbiter
+2026-10-30 | PR#27 openrouterapikey missing from SENSITIVE_FIELDS | FIXED on main be6a707 | defense-in-depth | arbiter
+2026-10-30 | #30-F1 tote Prompt-Route EmailContentExtractor.buildPrompt (can_defer) | deferred_with_reason | Dead-Code-Entfernung ist Scope von Issue-35-Lane; Fix verliert dort nicht die Evidenz | Master
+2026-10-30 | #30-F2 Headers-JSON-Fence (can_defer) | deferred_with_reason | Issue-30-Scope war explizit nur Body; Headers-Fence als akzeptiertes Restrisiko dokumentiert | Master
+2026-10-30 | log-findings F1: marger scam-Befund (< globales Gate) verwirft jetzt auch starke Custom-Tags via Min-Semantik | deferred_with_reason | exakt die im Brief spezifizierte Semantik ('schwächster bestandener Tag = Minimum'), durch Test :264-276 abgesichert; pro-Tag-Gate wäre eigener Issue | Master
+2026-10-30 | log-findings F2: 2 Lint-Errors email-event-listener.test.ts auf Branch-Basis f48d406 | rejected_false_positive | nicht aus dem Diff; auf main bereits durch #30-Drive-by behoben, bei Merge gegenbaut | Master
+2026-10-30 | #41-F1: AbortError-Retry-Quirk nur allusiv kommentiert (can_defer) | deferred_with_reason | reine Kommentar-Politur im Testfile, Verhalten out of Issue-Scope; Quirk ist im Test via maxRetries:0 korrekt isoliert | Master
+2026-10-30 | #32-F1: stale _ma_-Tag (Registry-Eintrag gelöscht) blockiert setTagsOnMessage gesamt (fail-loud) | deferred_with_reason | Fail-loud schlägt Silent-Loss; Validator-Drop wäre Verhaltensänderung — als Follow-up-Issue dokumentiert, nicht in dieser Lane | Master
+2026-10-30 | #32-F2: _ma_-Key-Namensraum nicht reserviert dokumentiert | deferred_with_reason | Pre-existing-Konvention, konsistent; Dokumentation wandert in #38-Docs-Lane (AGENTS.md) | Master
+2026-10-30 | #31-F1: getTagsOnMessage-Duplikation #31/#32 | fixed | Union-Merge lief; tsc-Dedupe der Mock-Literals folgt als Main-Fixup | Master
+2026-10-30 | #31-F2: fail-loud recordChange blockiert Tagging bei Storage-Fehler | deferred_with_reason | All-or-nothing-Atomizität gewollt (Issue-Philosophie fail-loud); Checker bewertet angemessen | Master
+2026-10-30 | #31-F3: ApplyTagsToEmail (2. Tagging-Pfad, runtime-dead) ohne Undo-History | deferred_with_reason | out of Issue-31-Scope; Follow-up-Issue bei Wrap-up angelegt | Master
+2026-10-30 | #28-F1: Number('')===0 — leerer confidence-String still zu 0 koerziert statt Throw | deferred_with_reason | Downstream-Impact identisch zu legitimem confidence:0 (Warn-Pfad, kein Fake-Erfolg); alter Code defaultete '' zu 0.5; Präzisions-Fix als Einzeiler später | Master
+2026-10-30 | #33-F1: Auto-Neue-Mail-Pfad (EmailEventListener) schluckt Lesefehler ohne Notification | deferred_with_reason | user-getriggerte Pfade notifizieren; Auto-Pfad-Notification als Follow-up (mit #29-F2 cancelled-Zweig bündeln) | Master
+2026-10-30 | #33-F2: options.ts loadCustomTags .catch nur logger.error — Settings-UI zeigt leer statt Hinweis | deferred_with_reason | Bug (stille DEFAULTS) ist behoben; UI-Hinweis ist Enhancement, Follow-up | Master
+2026-10-30 | #33-F3: ConfigNotSetError-Import aus infrastructure in application/background | deferred_with_reason | Grenzwertig, Interfaces liegen im Projekt ebenfalls unter infrastructure/; kein Handlungsdruck | Master
+2026-10-30 | #29-F2: cancelled-Batches zeigen success/partial ohne Abbruch-Hinweis | deferred_with_reason | Issue regelt nur Queue-Defekte; Abbruch-Reporting vorher gleich schwach; eigener Notification-Zweig als Follow-up (mit #33-F1 bündeln) | Master
