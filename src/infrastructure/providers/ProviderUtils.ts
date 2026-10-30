@@ -795,9 +795,10 @@ export function validateLLMResponse(response: unknown): TagResponse {
         });
       } catch (parseError) {
         const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+        // Issue #2: log length metadata only — never raw LLM response content
         logError('Failed to parse JSON response', {
           error: errorMessage,
-          response: response.substring(0, 200),
+          responseLength: response.length,
         });
         // Return fallback response
         return {

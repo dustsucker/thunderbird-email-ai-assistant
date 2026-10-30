@@ -13,21 +13,34 @@
 export type LogContext = Record<string, unknown>;
 
 /**
- * Sensitive field patterns to mask
+ * Sensitive field names to mask (exact match, case-insensitive).
+ *
+ * Issue #2: exact field-name matching instead of substring matching, so
+ * legitimate fields like `tagKey`, `cacheKey` or `key` are NOT masked.
  */
-const SENSITIVE_PATTERNS = [
+const SENSITIVE_FIELDS = new Set([
   'apikey',
   'api_key',
   'api-key',
-  'key',
   'token',
+  'access_token',
+  'refresh_token',
+  'id_token',
   'password',
   'secret',
+  'client_secret',
   'credential',
-  'auth',
+  'credentials',
   'authorization',
-  'private',
-] as const;
+  'privatekey',
+  'private_key',
+]);
+
+/**
+ * Fields whose values are redacted entirely (PII / raw LLM output) instead of
+ * partially masked: email subjects and raw model responses. (Issue #2)
+ */
+const REDACTED_FIELDS = new Set(['subject', 'response']);
 
 /**
  * URL-sensitive query parameter patterns
@@ -85,14 +98,17 @@ export function maskSensitiveUrlParams(url: string): string {
 }
 
 /**
- * Checks if a field name is sensitive based on patterns.
- *
- * @param fieldName - The field name to check
- * @returns True if the field is sensitive
+ * Checks if a field name is sensitive based on exact (case-insensitive) match.
  */
 function isSensitiveField(fieldName: string): boolean {
-  const lowerField = fieldName.toLowerCase();
-  return SENSITIVE_PATTERNS.some((pattern) => lowerField.includes(pattern));
+  return SENSITIVE_FIELDS.has(fieldName.toLowerCase());
+}
+
+/**
+ * Checks if a field's value must be redacted entirely (PII / raw LLM output).
+ */
+function isRedactedField(fieldName: string): boolean {
+  return REDACTED_FIELDS.has(fieldName.toLowerCase());
 }
 
 /**
@@ -114,7 +130,8 @@ function isUrlWithParams(value: unknown): boolean {
  * Recursively sanitizes an object for safe logging by masking sensitive fields.
  *
  * This function handles:
- * - API keys, tokens, passwords, secrets (any field containing these patterns)
+ * - API keys, tokens, passwords, secrets (exact field-name match)
+ * - Email subjects and raw LLM responses (redacted entirely)
  * - URLs with sensitive query parameters
  * - Nested objects and arrays
  * - Circular reference protection via depth limit
@@ -167,7 +184,10 @@ export function sanitizeForLogging(data: unknown, depth: number = 0): unknown {
   const sanitized: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(data)) {
-    if (isSensitiveField(key)) {
+    if (isRedactedField(key)) {
+      // PII / raw LLM content: redact entirely, keep a length hint
+      sanitized[key] = typeof value === 'string' ? `[redacted ${value.length} chars]` : '[redacted]';
+    } else if (isSensitiveField(key)) {
       // Mask sensitive fields
       sanitized[key] = maskSensitiveValue(value);
     } else if (typeof value === 'string' && isUrlWithParams(value)) {

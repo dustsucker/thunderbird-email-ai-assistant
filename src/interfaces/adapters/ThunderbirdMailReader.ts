@@ -172,9 +172,9 @@ export class ThunderbirdMailReader implements IMailReader {
         message.body = bodyPart.body;
       }
 
+      // Issue #2: no email subject in logs (PII) — messageId is the correlation key
       this.logger.debug('Full message retrieved', {
         messageId: message.id,
-        subject: message.subject,
         from: message.from,
         partsCount: parts.length,
         attachmentsCount: message.attachments.length,
@@ -215,7 +215,8 @@ export class ThunderbirdMailReader implements IMailReader {
         from: messageDetails.from,
       };
 
-      this.logger.debug('Message headers retrieved', { messageId, subject: headersOnly.subject });
+      // Issue #2: no email subject in logs (PII) — messageId is the correlation key
+      this.logger.debug('Message headers retrieved', { messageId });
 
       return headersOnly;
     } catch (error) {
