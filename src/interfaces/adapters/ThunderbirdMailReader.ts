@@ -172,10 +172,10 @@ export class ThunderbirdMailReader implements IMailReader {
         message.body = bodyPart.body;
       }
 
-      // Issue #2: no email subject in logs (PII) — messageId is the correlation key
+      // Issue #2 / security hardening (paladin advisory): no subject or sender
+      // in logs (PII) — messageId is the correlation key
       this.logger.debug('Full message retrieved', {
         messageId: message.id,
-        from: message.from,
         partsCount: parts.length,
         attachmentsCount: message.attachments.length,
       });
@@ -423,7 +423,13 @@ export class ThunderbirdMailReader implements IMailReader {
    * @inheritdoc
    */
   async queryMessages(query: IEmailQuery): Promise<IEmailHeaders[]> {
-    this.logger.debug('Querying messages', { query });
+    // Security hardening (paladin advisory): user search strings (subject/from)
+    // are PII — log query shape only, messageId stays the correlation key
+    this.logger.debug('Querying messages', {
+      hasSubject: !!query.subject,
+      hasFrom: !!query.from,
+      limit: query.limit,
+    });
 
     // Thunderbird WebExtension API has limited query support
     // For now, just return all messages from folder and filter in-memory
@@ -473,7 +479,13 @@ export class ThunderbirdMailReader implements IMailReader {
       return filtered;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to query messages', { query, error: errorMessage });
+      // Security hardening (paladin advisory): metadata only — query strings are PII
+      this.logger.error('Failed to query messages', {
+        hasSubject: !!query.subject,
+        hasFrom: !!query.from,
+        limit: query.limit,
+        error: errorMessage,
+      });
       throw new Error(`Failed to query messages: ${errorMessage}`);
     }
   }
@@ -522,9 +534,12 @@ export class ThunderbirdMailReader implements IMailReader {
         raw: fileContent,
       };
 
+      // Security hardening (paladin advisory): EML content (subject/from) is PII —
+      // log shape metadata only
       this.logger.debug('EML file parsed', {
-        subject: message.subject,
-        from: message.from,
+        headerCount: Object.keys(headers).length,
+        bodyLength: body.length,
+        rawLength: fileContent.length,
       });
 
       return result;
