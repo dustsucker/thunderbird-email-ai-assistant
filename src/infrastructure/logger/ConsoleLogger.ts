@@ -11,6 +11,29 @@ import type { ILogger } from '../interfaces/ILogger';
 import { sanitizeForLogging } from '@/shared/utils/loggingUtils';
 import { debugLogBuffer, type DebugLogLevel } from './DebugLogBuffer';
 
+// ============================================================================
+// Shared Output Gate (issue #3)
+// ============================================================================
+
+const LEVEL_RANK: Record<DebugLogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
+
+/**
+ * Configuration for the shared logger gate.
+ */
+export interface LoggerGateConfig {
+  /** Master switch: `false` discards ALL output (console + debug buffer). */
+  enabled?: boolean;
+  /** Minimum level: messages below this level are discarded. */
+  level?: DebugLogLevel;
+}
+
+/**
+ * Output gate shared by ALL ConsoleLogger instances (DI-resolved and the
+ * module-level `sharedLogger`). Mutated via {@link ConsoleLogger.configure};
+ * read on every log call so a single config write affects every instance.
+ */
+const gate: { enabled: boolean; minLevel: DebugLogLevel } = { enabled: true, minLevel: 'debug' };
+
 /**
  * ConsoleLogger implementation.
  *
@@ -19,9 +42,32 @@ import { debugLogBuffer, type DebugLogLevel } from './DebugLogBuffer';
  * available in extension contexts) and Node.js environments. Messages are
  * formatted with a [LOG] prefix to distinguish them from other console output.
  * All context objects are automatically sanitized to prevent API key leakage.
+ * Output is gated on a shared level/enable switch (see {@link configure}).
  */
 @injectable()
 export class ConsoleLogger implements ILogger {
+  /**
+   * Configures the shared output gate for all ConsoleLogger instances.
+   *
+   * Called at startup with the persisted `enableLogging` config value.
+   *
+   * @param config - Partial gate configuration; omitted keys are unchanged
+   */
+  configure(config: LoggerGateConfig): void {
+    if (config.enabled !== undefined) gate.enabled = config.enabled;
+    if (config.level !== undefined) gate.minLevel = config.level;
+  }
+
+  /** Returns the current shared gate state (for tests/diagnostics). */
+  getGate(): Readonly<{ enabled: boolean; minLevel: DebugLogLevel }> {
+    return gate;
+  }
+
+  /** Returns true if a message at the given level passes the shared gate. */
+  private shouldLog(level: DebugLogLevel): boolean {
+    return gate.enabled && LEVEL_RANK[level] >= LEVEL_RANK[gate.minLevel];
+  }
+
   /**
    * Format a log message with optional context.
    * Context is sanitized to prevent sensitive data leakage.
@@ -57,6 +103,7 @@ export class ConsoleLogger implements ILogger {
    * @param context - Optional context object with additional metadata
    */
   debug(message: string, context?: Record<string, unknown>): void {
+    if (!this.shouldLog('debug')) return;
     console.debug(this.formatMessage(message, context));
     this.emit('debug', message, context);
   }
@@ -68,6 +115,7 @@ export class ConsoleLogger implements ILogger {
    * @param context - Optional context object with additional metadata
    */
   info(message: string, context?: Record<string, unknown>): void {
+    if (!this.shouldLog('info')) return;
     console.info(this.formatMessage(message, context));
     this.emit('info', message, context);
   }
@@ -79,6 +127,7 @@ export class ConsoleLogger implements ILogger {
    * @param context - Optional context object with additional metadata
    */
   warn(message: string, context?: Record<string, unknown>): void {
+    if (!this.shouldLog('warn')) return;
     console.warn(this.formatMessage(message, context));
     this.emit('warn', message, context);
   }
@@ -90,6 +139,7 @@ export class ConsoleLogger implements ILogger {
    * @param context - Optional context object with additional metadata
    */
   error(message: string, context?: Record<string, unknown>): void {
+    if (!this.shouldLog('error')) return;
     console.error(this.formatMessage(message, context));
     this.emit('error', message, context);
   }
@@ -118,3 +168,10 @@ export class ConsoleLogger implements ILogger {
     return `${key.slice(0, 7)}...${key.slice(-3)}`;
   }
 }
+
+/**
+ * Module-level logger for non-DI call sites (ProviderUtils, MemoryCache).
+ * Shares the gate and the debug buffer with every DI-resolved ConsoleLogger,
+ * so a single `configure()` at startup governs all logging paths (issue #11).
+ */
+export const sharedLogger = new ConsoleLogger();

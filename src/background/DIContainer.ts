@@ -26,8 +26,7 @@ import type { IRandom } from '@/domain/interfaces/IRandom';
 // ============================================================================
 
 import { ConsoleLogger } from '@/infrastructure/logger/ConsoleLogger';
-import { MemoryCache } from '@/infrastructure/cache/MemoryCache';
-import { PriorityQueue } from '@/application/services/PriorityQueue';
+import { MemoryCache } from '@/infrastructure/cache/MemoryCache';import { PriorityQueue } from '@/application/services/PriorityQueue';
 import { ThunderbirdMailReader } from '@/interfaces/adapters/ThunderbirdMailReader';
 import { ThunderbirdTagManager } from '@/interfaces/adapters/ThunderbirdTagManager';
 import { StorageLocalConfigRepository } from '@/infrastructure/repositories/StorageLocalConfigRepository';
@@ -79,17 +78,24 @@ import { MetricsRepository } from '@/infrastructure/storage/MetricsRepository';
 // ============================================================================
 
 /**
- * Simple console logger for startup before DI container is ready.
+ * Startup logging before the DI container is ready (issue #3).
+ * Goes through the standard ConsoleLogger path — gated, sanitized and written
+ * to the shared debug buffer — instead of raw console output. Safe pre-DI:
+ * ConsoleLogger instances share module-level gate state.
  */
+const startupConsole = new ConsoleLogger();
+
 export const startupLogger = {
   info: (message: string, meta?: Record<string, unknown>) => {
-    console.log(`[Background Startup] ${message}`, meta || '');
+    startupConsole.info(`[Background Startup] ${message}`, meta);
   },
   warn: (message: string, meta?: Record<string, unknown>) => {
-    console.warn(`[Background Startup] ${message}`, meta || '');
+    startupConsole.warn(`[Background Startup] ${message}`, meta);
   },
   error: (message: string, error?: unknown) => {
-    console.error(`[Background Startup] ${message}`, error || '');
+    startupConsole.error(`[Background Startup] ${message}`, {
+      error: error instanceof Error ? error.message : String(error ?? 'unknown'),
+    });
   },
 };
 

@@ -794,7 +794,8 @@ export class MessageHandler {
     entries: import('@/infrastructure/logger/DebugLogBuffer').DebugLogEntry[];
     droppedCount: number;
   } {
-    this.logger.info('Handling getDebugLogs message');
+    // debug: polling endpoint — info here would spam the log on every UI refresh
+    this.logger.debug('Handling getDebugLogs message');
 
     return {
       success: true,
@@ -831,7 +832,8 @@ export class MessageHandler {
     queue: IQueueStats;
     batch: Awaited<ReturnType<AnalyzeBatchEmails['getProgress']>>;
   }> {
-    this.logger.info('Handling getQueueStats message');
+    // debug: polling endpoint — info here would spam the log on every UI refresh
+    this.logger.debug('Handling getQueueStats message');
 
     const queue = await this.queue.getStats();
     const batch = await this.analyzeBatch.getProgress();

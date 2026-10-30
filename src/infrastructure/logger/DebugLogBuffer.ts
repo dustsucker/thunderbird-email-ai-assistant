@@ -1,9 +1,9 @@
 /**
  * DebugLogBuffer
  *
- * Ring buffer for debug log entries, capped at 500 entries (FIFO).
- * Captures entries from BOTH logger sources (ConsoleLogger and ProviderUtils
- * module logger) via the shared module-level singleton `debugLogBuffer`.
+ * Ring buffer for debug log entries, capped at 2000 entries (FIFO).
+ * Captures entries from the shared logger path (ConsoleLogger instances,
+ * including the module-level `sharedLogger` used by ProviderUtils).
  *
  * Mirrors the buffer to `storage.session` (key 'debugLogs') with a 1000ms
  * trailing throttle so the buffer survives event-page suspend/wake.
@@ -50,7 +50,7 @@ interface SessionStorageApi {
 // ============================================================================
 
 /** Maximum number of entries kept (ring buffer). */
-export const DEBUG_LOG_BUFFER_CAP = 500;
+export const DEBUG_LOG_BUFFER_CAP = 2000;
 
 /** Storage key for the session mirror. */
 const STORAGE_KEY = 'debugLogs';
