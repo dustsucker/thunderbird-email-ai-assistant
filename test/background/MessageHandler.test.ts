@@ -206,7 +206,7 @@ describe('MessageHandler', () => {
           success: boolean;
           entries: unknown[];
           droppedCount: number;
-          cacheErrorCount?: number;
+          cacheErrors?: number;
         };
       }).handleGetDebugLogs();
 
@@ -218,7 +218,7 @@ describe('MessageHandler', () => {
         ],
         droppedCount: 7,
         // optional field added in issue #8 (0 for non-MemoryCache mocks)
-        cacheErrorCount: 0,
+        cacheErrors: 0,
       });
     });
 

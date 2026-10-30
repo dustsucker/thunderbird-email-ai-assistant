@@ -795,7 +795,7 @@ export class MessageHandler {
     entries: import('@/infrastructure/logger/DebugLogBuffer').DebugLogEntry[];
     droppedCount: number;
     /** Optional: swallowed cache-operation errors since start (issue #8) */
-    cacheErrorCount?: number;
+    cacheErrors?: number;
   } {
     // debug: polling endpoint — info here would spam the log on every UI refresh
     this.logger.debug('Handling getDebugLogs message');
@@ -804,7 +804,7 @@ export class MessageHandler {
       success: true,
       entries: this.debugLogBuffer.getEntries(),
       droppedCount: this.debugLogBuffer.getDroppedCount(),
-      cacheErrorCount: this.getCacheErrorCount(),
+      cacheErrors: this.getCacheErrorCount(),
     };
   }
 
@@ -833,6 +833,8 @@ export class MessageHandler {
    */
   private async handleGetQueueStats(): Promise<{
     success: true;
+    /** Optional: swallowed cache-operation errors since start (issue #8; key aligned to DebugTab consumer) */
+    cacheErrors?: number;
     queue: IQueueStats;
     batch: Awaited<ReturnType<AnalyzeBatchEmails['getProgress']>>;
   }> {
@@ -842,7 +844,7 @@ export class MessageHandler {
     const queue = await this.queue.getStats();
     const batch = await this.analyzeBatch.getProgress();
 
-    return { success: true, queue, batch };
+    return { success: true, cacheErrors: this.getCacheErrorCount(), queue, batch };
   }
 
   /**
@@ -857,7 +859,7 @@ export class MessageHandler {
     totalEntries?: number;
     hitRate?: number;
     /** Optional: swallowed cache-operation errors since start (issue #8) */
-    cacheErrorCount?: number;
+    cacheErrors?: number;
     message?: string;
   }> {
     this.logger.info('Handling getCacheStats message');
@@ -868,7 +870,7 @@ export class MessageHandler {
         success: true,
         totalEntries: stats.totalEntries,
         hitRate: stats.hitRate,
-        cacheErrorCount: this.getCacheErrorCount(),
+        cacheErrors: this.getCacheErrorCount(),
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
