@@ -89,6 +89,8 @@ export interface AnalysisPrompt {
 export interface AnalysisFeatures {
   enableNotifications: boolean;
   enableLogging: boolean;
+  /** Log level for the background logger gate ('debug'|'info'|'warn'|'error'); optional for backward compatibility */
+  logLevel?: string;
 }
 
 export interface ModelConcurrencyConfig {

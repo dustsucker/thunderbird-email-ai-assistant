@@ -12,6 +12,7 @@ import { container } from 'tsyringe';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { ConsoleLogger } from '@/infrastructure/logger/ConsoleLogger';
+import type { DebugLogLevel } from '@/infrastructure/logger/DebugLogBuffer';
 import { TagService } from '@/domain/services/TagService';
 import { EmailEventListener } from '@/interfaces/background/EmailEventListener';
 import { MessageHandler } from '@/interfaces/background/MessageHandler';
@@ -119,17 +120,23 @@ export class BackgroundScript {
   }
 
   /**
-   * Applies the persisted `enableLogging` config value to the shared logger
-   * gate (issue #3). No stored config yet → keep defaults (enabled, debug).
+   * Applies the persisted logging config to the shared logger gate (issue #3):
+   * `enableLogging` master switch and `logLevel` ('debug'|'info'|'warn'|'error',
+   * fallback 'debug'). No stored config yet → keep defaults (enabled, debug).
    */
   private async applyLoggingConfig(): Promise<void> {
     if (!(this.logger instanceof ConsoleLogger)) return;
     try {
       const configRepository = container.resolve<IConfigRepository>('IConfigRepository');
       const appConfig = await configRepository.getAppConfig();
-      this.logger.configure({ enabled: appConfig.enableLogging });
+      const storedLevel = appConfig.logLevel;
+      const level: DebugLogLevel =
+        storedLevel === 'info' || storedLevel === 'warn' || storedLevel === 'error'
+          ? storedLevel
+          : 'debug';
+      this.logger.configure({ enabled: appConfig.enableLogging, level });
     } catch {
-      this.logger.configure({ enabled: true });
+      this.logger.configure({ enabled: true, level: 'debug' });
     }
   }
 
