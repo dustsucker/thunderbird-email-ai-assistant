@@ -140,7 +140,7 @@ describe('OpenRouterDecisionsProvider', () => {
   // ==========================================================================
 
   describe('malformed answers', () => {
-    it('skips answers without a numeric noul and does not crash', async () => {
+    it('throws naming the model when every answer is malformed', async () => {
       decisionsResult = createMockFetchResponse({
         answers: {
           tag_0: { type: 'noul' },
@@ -151,11 +151,22 @@ describe('OpenRouterDecisionsProvider', () => {
         model: 'typesafe/jev-1.14',
       });
 
-      const result = await analyze();
-      expect(result.tags).toEqual([]);
+      // Schema drift must not degrade to a silent empty result (which would be cached)
+      await expect(analyze()).rejects.toThrow(
+        /no parseable tag probabilities for model typesafe\/jev-1\.14/
+      );
+    });
+
+    it('returns an empty result without throwing when no custom tags are configured', async () => {
+      decisionsResult = createMockFetchResponse(decisionsResponse({ scam: noul(0.99) }));
+
+      const result = await provider.analyze({
+        settings: validSettings,
+        structuredData: createMockStructuredData(),
+        customTags: [],
+      });
+      expect(result.tags).toEqual(['is_scam']);
       expect(result.confidence).toBe(0);
-      expect(result.is_scam).toBe(false);
-      expect(result.reasoning).toContain('tags: none');
     });
 
     it.each([['5', 5], ['-0.1', -0.1]])(
@@ -220,6 +231,72 @@ describe('OpenRouterDecisionsProvider', () => {
         decisionsResponse({ tag_0: noul(0.2), scam: noul(0.59) })
       );
       expect((await analyze()).is_scam).toBe(false);
+    });
+
+    it("appends 'is_scam' to tags at/above the threshold without changing confidence", async () => {
+      decisionsResult = createMockFetchResponse(
+        decisionsResponse({
+          tag_0: noul(0.91),
+          tag_1: noul(0.77),
+          tag_2: noul(0.1),
+          scam: noul(1),
+        })
+      );
+
+      const result = await analyze();
+      expect(result.tags).toEqual(['business', 'personal', 'is_scam']);
+      // Confidence stays min over custom tags only — the scam flag never drags the gate
+      expect(result.confidence).toBe(0.77);
+    });
+
+    it('keeps confidence 0 when only the scam answer clears the threshold', async () => {
+      decisionsResult = createMockFetchResponse(
+        decisionsResponse({ tag_0: noul(0.1), scam: noul(0.9) })
+      );
+
+      const result = await analyze();
+      expect(result.tags).toEqual(['is_scam']);
+      expect(result.confidence).toBe(0);
+    });
+
+    it('omits the is_scam tag when the scam answer is missing', async () => {
+      decisionsResult = createMockFetchResponse(decisionsResponse({ tag_0: noul(0.91) }));
+
+      const result = await analyze();
+      expect(result.tags).toEqual(['business']);
+      expect(result.is_scam).toBe(false);
+      expect(result.reasoning).toContain('scam=n/a');
+    });
+  });
+
+  // ==========================================================================
+  // Per-call parse context (concurrency safety)
+  // ==========================================================================
+
+  describe('per-call parse context', () => {
+    it('parses each call against its own tag list — no cross-talk between calls', async () => {
+      // Call 1: three tags, business=0.91 clears the default threshold 0.6
+      decisionsResult = createMockFetchResponse(
+        decisionsResponse({ tag_0: noul(0.91), tag_1: noul(0.1), tag_2: noul(0.1) })
+      );
+      const first = await analyze();
+      expect(first.tags).toEqual(['business']);
+
+      // Call 2 on the SAME cached instance: different settings and a single-tag list —
+      // tag_0=0.91 must resolve to 'newsletter' of THIS call, not call 1's 'business'
+      const second = await provider.analyze({
+        settings: { ...validSettings, additionalConfig: { tagThreshold: 0.5 } },
+        structuredData: createMockStructuredData(),
+        customTags: [{ key: 'newsletter', name: 'Newsletter', color: '#00FF00' }],
+      });
+      expect(second.tags).toEqual(['newsletter']);
+    });
+
+    it('throws before any fetch on invalid settings', async () => {
+      await expect(analyze({ ...validSettings, apiKey: 'too-short' })).rejects.toThrow(
+        /Invalid provider settings/
+      );
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
   });
 

@@ -50,13 +50,6 @@ export function readTagProbabilities(
 @injectable()
 export class OpenRouterDecisionsProvider extends BaseProvider {
   public readonly providerId = 'openrouter-decisions';
-  /**
-   * Request-scoped parse context: parseResponse receives only the raw body, so the
-   * tag order (→ tag_<i> keys) and threshold come from the request. Lazily read, so a
-   * cached adapter shared by concurrent workers still parses its own answers.
-   */
-  private customTags: CustomTags = [];
-  private threshold = DEFAULT_TAG_THRESHOLD;
 
   constructor(@inject('ILogger') protected readonly logger: ILogger) {
     super();
@@ -66,14 +59,15 @@ export class OpenRouterDecisionsProvider extends BaseProvider {
   public override async analyze(
     input: Parameters<BaseProvider['analyze']>[0]
   ): Promise<TagResponse> {
-    // Per-call context on instance fields: ProviderFactory caches one instance per id,
-    // so this is only safe while all concurrent calls share one settings snapshot.
-    // Upgrade to per-call parse context if BaseProvider.parseResponse ever takes it.
-    this.customTags = input.customTags;
-    this.threshold = getTagThreshold(input.settings);
+    // Defense-in-depth: this override bypasses BaseProvider.analyze(), so settings
+    // are re-checked here before any network call (AnalyzeEmail also validates upstream).
+    if (!this.validateSettings(input.settings)) {
+      throw new Error('Invalid provider settings: Missing required API key or model');
+    }
     // BaseProvider.analyze() re-validates through the generic tags/confidence/reasoning
     // schema, which drops is_scam — so parse and return the decisions result directly.
     const { settings, signal } = input;
+    const threshold = getTagThreshold(settings);
     this.logInfo('Starting email analysis', {
       providerId: this.providerId,
       tagCount: input.customTags.length,
@@ -81,7 +75,9 @@ export class OpenRouterDecisionsProvider extends BaseProvider {
     });
     const requestBody = this.buildRequestBody(settings, '', input.structuredData, input.customTags);
     const response = await this.executeRequest(settings, requestBody, signal);
-    return this.parseResponse(await response.json());
+    // Per-call parse context: ProviderFactory caches one instance shared by concurrent
+    // workers, so tag order (→ tag_<i> keys) and threshold travel as arguments.
+    return this.parseResponse(await response.json(), input.customTags, threshold);
   }
 
   protected getApiUrl(): string {
@@ -125,27 +121,43 @@ export class OpenRouterDecisionsProvider extends BaseProvider {
     };
   }
 
-  protected parseResponse(response: unknown): TagResponse {
-    const data: unknown = response;
-    if (!isObject(data)) {
+  protected override parseResponse(
+    response: unknown,
+    customTags: CustomTags = [],
+    threshold: number = DEFAULT_TAG_THRESHOLD
+  ): TagResponse {
+    if (!isObject(response)) {
       throw new Error('Invalid response structure from OpenRouter Decisions API');
     }
-    const answers = data.answers;
-    const model = typeof data.model === 'string' ? data.model : 'unknown model';
+    const answers = response.answers;
+    const model = typeof response.model === 'string' ? response.model : 'unknown model';
     if (!isObject(answers) || Object.keys(answers).length === 0) {
       throw new Error(`OpenRouter Decisions API returned no answers for model ${model}`);
     }
 
-    const threshold = this.threshold;
-    const probabilities = readTagProbabilities(answers, this.customTags);
+    const probabilities = readTagProbabilities(answers, customTags);
+    // Schema-drift guard: answers present but nothing parseable means the alpha API
+    // changed shape — fail loudly instead of silently caching an empty "analyzed" result.
+    if (customTags.length > 0 && probabilities.length === 0) {
+      throw new Error(
+        `OpenRouter Decisions API returned no parseable tag probabilities for model ${model}`
+      );
+    }
     const included = probabilities.filter((t) => t.p >= threshold);
     const scamP = noulProbability(answers[SCAM_QUESTION_ID]);
-    const usage = isObject(data.usage) ? data.usage : {};
+    const usage = isObject(response.usage) ? response.usage : {};
     const cost = typeof usage.cost === 'number' ? `$${usage.cost}` : 'n/a';
+    const tags = included.map((t) => t.key);
+    // Expose the scam decision as a real tag (maps to _ma_is_scam downstream);
+    // confidence below is computed from custom tags only, so the scam probability
+    // never drags the global confidence gate.
+    if (scamP !== undefined && scamP >= threshold) {
+      tags.push('is_scam');
+    }
 
     return {
-      tags: included.map((t) => t.key),
-      // Conservative overall gate: the weakest tag that made the cut
+      tags,
+      // Conservative overall gate: the weakest custom tag that made the cut
       confidence: included.length > 0 ? Math.min(...included.map((t) => t.p)) : 0,
       reasoning:
         `${model}: ` +

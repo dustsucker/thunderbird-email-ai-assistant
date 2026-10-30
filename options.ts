@@ -893,13 +893,19 @@ function gatherProviderSettings(
       if (!elements.openrouterDecisionsApiKey) {
         throw new Error('OpenRouter Decisions settings element not found');
       }
-      const rawThreshold = Number(elements.openrouterDecisionsThreshold?.value);
+      // trim() first: Number('') === 0 would persist 0 ("accept everything") on a
+      // cleared field instead of the default.
+      const rawThresholdInput = elements.openrouterDecisionsThreshold?.value.trim() ?? '';
+      const rawThreshold = Number(rawThresholdInput);
       const decisionsSettings = {
         ...baseSettings,
         openrouterDecisionsApiKey: elements.openrouterDecisionsApiKey.value.trim(),
         openrouterDecisionsModel: elements.openrouterDecisionsModel?.value.trim() || '',
         openrouterDecisionsThreshold:
-          Number.isFinite(rawThreshold) && rawThreshold >= 0 && rawThreshold <= 1
+          rawThresholdInput !== '' &&
+          Number.isFinite(rawThreshold) &&
+          rawThreshold >= 0 &&
+          rawThreshold <= 1
             ? rawThreshold
             : 0.6,
       };
