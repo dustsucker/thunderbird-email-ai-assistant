@@ -214,6 +214,8 @@ export class ApplyTagsWithConfidenceUseCase {
           applied: tagsToApply.length,
           total: tagKeys.length,
         });
+      } else if (tagKeys.length === 0) {
+        this.logger.warn('⚠️  Provider returned no tags', { messageId });
       } else {
         this.logger.warn('⚠️  No tags met confidence threshold', {
           messageId,

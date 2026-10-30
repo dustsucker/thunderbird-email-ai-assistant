@@ -290,6 +290,14 @@ export class AnalyzeEmail {
         tagsFound: analysisResult.tags.length,
         confidence: analysisResult.confidence,
       });
+      // Empty-catalog diagnosis: without configured tags the analyzer cannot propose
+      // anything — warn here instead of failing silently downstream.
+      if (analysisResult.tags.length === 0 && tagsToUse.length === 0) {
+        this.logger.warn('Kein Tag-Katalog konfiguriert — Analyzer kann keine Tags vorschlagen', {
+          runId,
+          messageId,
+        });
+      }
 
       // Step 8: Cache result
       this.logger.debug('[DEBUG] Step 8: Caching result');

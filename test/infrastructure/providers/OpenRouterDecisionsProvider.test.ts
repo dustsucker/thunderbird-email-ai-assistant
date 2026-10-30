@@ -157,8 +157,10 @@ describe('OpenRouterDecisionsProvider', () => {
       );
     });
 
-    it('returns an empty result without throwing when no custom tags are configured', async () => {
-      decisionsResult = createMockFetchResponse(decisionsResponse({ scam: noul(0.99) }));
+    it('returns the scam tag with its probability as confidence when no custom tags are configured', async () => {
+      // Regression (log finding): is_scam passed the internal threshold but was
+      // globally discarded with confidence 0% because only custom tags fed the gate.
+      decisionsResult = createMockFetchResponse(decisionsResponse({ scam: noul(0.6) }));
 
       const result = await provider.analyze({
         settings: validSettings,
@@ -166,7 +168,7 @@ describe('OpenRouterDecisionsProvider', () => {
         customTags: [],
       });
       expect(result.tags).toEqual(['is_scam']);
-      expect(result.confidence).toBe(0);
+      expect(result.confidence).toBe(0.6);
     });
 
     it.each([['5', 5], ['-0.1', -0.1]])(
@@ -245,18 +247,33 @@ describe('OpenRouterDecisionsProvider', () => {
 
       const result = await analyze();
       expect(result.tags).toEqual(['business', 'personal', 'is_scam']);
-      // Confidence stays min over custom tags only — the scam flag never drags the gate
+      // Scam passed at 1.0, so the min stays at the weakest custom tag (0.77)
       expect(result.confidence).toBe(0.77);
     });
 
-    it('keeps confidence 0 when only the scam answer clears the threshold', async () => {
+    it('uses the scam probability as confidence when only the scam answer clears the threshold', async () => {
       decisionsResult = createMockFetchResponse(
         decisionsResponse({ tag_0: noul(0.1), scam: noul(0.9) })
       );
 
       const result = await analyze();
       expect(result.tags).toEqual(['is_scam']);
-      expect(result.confidence).toBe(0);
+      expect(result.confidence).toBe(0.9);
+    });
+
+    it('lets the weakest passed probability set the minimum, scam included', async () => {
+      decisionsResult = createMockFetchResponse(
+        decisionsResponse({
+          tag_0: noul(0.91),
+          tag_1: noul(0.77),
+          tag_2: noul(0.1),
+          scam: noul(0.65),
+        })
+      );
+
+      const result = await analyze();
+      expect(result.tags).toEqual(['business', 'personal', 'is_scam']);
+      expect(result.confidence).toBe(0.65);
     });
 
     it('omits the is_scam tag when the scam answer is missing', async () => {

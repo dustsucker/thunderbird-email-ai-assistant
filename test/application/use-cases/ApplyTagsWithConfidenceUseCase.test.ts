@@ -142,6 +142,15 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
       expect(result.appliedTags).toEqual(['business', 'personal']);
       expect(result.lowConfidenceFlags).toEqual([]);
     });
+
+    it('applies provider decision tags (is_scam) that pass the global gate', async () => {
+      // Regression (log finding): scam findings arrived with confidence 0% and were
+      // dropped by the global gate despite passing the provider's internal threshold.
+      const result = await useCase.execute('123', ['is_scam'], 0.9);
+
+      expect(result.appliedTags).toEqual(['is_scam']);
+      expect(mockTagManager.setTagsOnMessage).toHaveBeenCalledWith(123, ['is_scam']);
+    });
   });
 
   // ==========================================================================
@@ -385,6 +394,18 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
         confidence: '50.0%',
         globalThreshold: 70,
       });
+    });
+
+    it('should warn "Provider returned no tags" when the provider found nothing', async () => {
+      await useCase.execute('123', [], 0.9);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith('⚠️  Provider returned no tags', {
+        messageId: '123',
+      });
+      expect(mockLogger.warn).not.toHaveBeenCalledWith(
+        '⚠️  No tags met confidence threshold',
+        expect.anything()
+      );
     });
 
     it('should log low-confidence flags', async () => {

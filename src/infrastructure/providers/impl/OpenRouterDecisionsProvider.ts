@@ -148,17 +148,21 @@ export class OpenRouterDecisionsProvider extends BaseProvider {
     const usage = isObject(response.usage) ? response.usage : {};
     const cost = typeof usage.cost === 'number' ? `$${usage.cost}` : 'n/a';
     const tags = included.map((t) => t.key);
-    // Expose the scam decision as a real tag (maps to _ma_is_scam downstream);
-    // confidence below is computed from custom tags only, so the scam probability
-    // never drags the global confidence gate.
-    if (scamP !== undefined && scamP >= threshold) {
+    // Expose the scam decision as a real tag (maps to _ma_is_scam downstream)
+    const scamPassed = scamP !== undefined && scamP >= threshold;
+    if (scamPassed) {
       tags.push('is_scam');
     }
 
+    // Overall confidence gate: every probability that passed the provider threshold
+    // feeds it, scam included — otherwise a scam-only finding (empty tag catalog)
+    // dies at the global gate with confidence 0 despite passing the internal check.
+    const passed = [...included.map((t) => t.p), ...(scamPassed ? [scamP] : [])];
+
     return {
       tags,
-      // Conservative overall gate: the weakest custom tag that made the cut
-      confidence: included.length > 0 ? Math.min(...included.map((t) => t.p)) : 0,
+      // Conservative overall gate: the weakest probability that made the cut
+      confidence: passed.length > 0 ? Math.min(...passed) : 0,
       reasoning:
         `${model}: ` +
         `tags: ${probabilities.map((t) => `${t.key}=${t.p.toFixed(3)}`).join(', ') || 'none'}; ` +
