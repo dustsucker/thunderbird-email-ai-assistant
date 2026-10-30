@@ -158,7 +158,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
     it('should log "Starting email analysis" with correct context', async () => {
       await analyzeEmail.execute('123', mockProviderSettings);
 
-      expect(logger.info).toHaveBeenCalledWith('🚀 Starting email analysis', {
+      expect(logger.info).toHaveBeenCalledWith('[INFO] Starting email analysis', {
         messageId: '123',
         providerId: mockProviderSettings.provider,
         config: { forceReanalyze: false, applyTags: true },
@@ -174,7 +174,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
 
       await analyzeEmail.execute('123', settingsWithId);
 
-      expect(logger.info).toHaveBeenCalledWith('🚀 Starting email analysis', {
+      expect(logger.info).toHaveBeenCalledWith('[INFO] Starting email analysis', {
         messageId: '123',
         providerId: 'custom-provider-id',
         config: { forceReanalyze: false, applyTags: true },
@@ -185,7 +185,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
       await analyzeEmail.execute('456', mockProviderSettings);
 
       const infoCall = logger.info as ReturnType<typeof vi.fn>;
-      expect(infoCall).toHaveBeenNthCalledWith(1, '🚀 Starting email analysis', {
+      expect(infoCall).toHaveBeenNthCalledWith(1, '[INFO] Starting email analysis', {
         messageId: '456',
         providerId: mockProviderSettings.provider,
         config: { forceReanalyze: false, applyTags: true },
@@ -198,7 +198,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
       await analyzeEmail.execute('999', mockProviderSettings);
 
       expect(logger.info).toHaveBeenCalledWith(
-        '✅ Email analysis completed successfully',
+        '[INFO] Email analysis completed successfully',
         expect.objectContaining({
           messageId: '999',
           tags: ['work'],
@@ -223,7 +223,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
       });
 
       // Should log that the email is being skipped
-      expect(logger.info).toHaveBeenCalledWith('⏭️ Skipping already-analyzed email', {
+      expect(logger.info).toHaveBeenCalledWith('[INFO] Skipping already-analyzed email', {
         messageId: '123',
       });
 
@@ -287,7 +287,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
 
       // Should log warning about the failure
       expect(logger.warn).toHaveBeenCalledWith(
-        '⚠️  Failed to mark email as analyzed',
+        '[WARN] Failed to mark email as analyzed',
         expect.objectContaining({
           messageId: '202',
           error: 'Failed to mark analyzed',
@@ -300,7 +300,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
 
       await analyzeEmail.execute('303', mockProviderSettings);
 
-      expect(logger.debug).toHaveBeenCalledWith('🔍 Checking if email was already analyzed');
+      expect(logger.debug).toHaveBeenCalledWith('[DEBUG] Checking if email was already analyzed');
     });
 
     it('should log debug message after successfully marking email as analyzed', async () => {
@@ -308,7 +308,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
 
       await analyzeEmail.execute('404', mockProviderSettings);
 
-      expect(logger.debug).toHaveBeenCalledWith('✅ Email marked as analyzed', {
+      expect(logger.debug).toHaveBeenCalledWith('[DEBUG] Email marked as analyzed', {
         messageId: '404',
       });
     });
@@ -327,6 +327,106 @@ describe('AnalyzeEmail - Logging Tests', () => {
 
       // Should call wasAnalyzed with numeric ID
       expect(analysisTracker.wasAnalyzed).toHaveBeenCalledWith(12345);
+    });
+  });
+
+  describe('#12 in-flight dedup / #8 abort / #9a TTL prune', () => {
+    it('#12: concurrent execute() for the same message joins one in-flight analysis', async () => {
+      const provider = (providerFactory.getProvider as unknown as () => IProvider)();
+      let resolveAnalyze!: (value: unknown) => void;
+      (provider.analyze as ReturnType<typeof vi.fn>).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveAnalyze = resolve;
+          })
+      );
+
+      const first = analyzeEmail.execute('123', mockProviderSettings);
+      const second = analyzeEmail.execute('123', mockProviderSettings);
+
+      // Second trigger joined the in-flight promise instead of re-analyzing.
+      await vi.waitFor(() => expect(provider.analyze).toHaveBeenCalledTimes(1));
+
+      resolveAnalyze({ tags: ['work'], confidence: 0.9, reasoning: 'r' });
+      const [r1, r2] = await Promise.all([first, second]);
+
+      expect(r1).toEqual(r2);
+      expect(logger.debug).toHaveBeenCalledWith('[DEBUG] Joining in-flight analysis', {
+        messageId: '123',
+      });
+    });
+
+    it('#8: propagates AbortError unchanged instead of wrapping it', async () => {
+      const provider = (providerFactory.getProvider as unknown as () => IProvider)();
+      const abortError = Object.assign(new Error('aborted'), { name: 'AbortError' });
+      (provider.analyze as ReturnType<typeof vi.fn>).mockRejectedValue(abortError);
+
+      await expect(analyzeEmail.execute('123', mockProviderSettings)).rejects.toBe(abortError);
+      expect(logger.error).not.toHaveBeenCalledWith(
+        '[ERROR] Email analysis failed',
+        expect.anything()
+      );
+    });
+
+    it('#9a: prunes expired low-confidence entries via the index key (no full storage scan)', async () => {
+      const store = new Map<string, unknown>();
+      const get = vi.fn(async (keys?: string | string[]) => {
+        if (typeof keys === 'string') {
+          return store.has(keys) ? { [keys]: store.get(keys) } : {};
+        }
+        return {};
+      });
+      const set = vi.fn(async (items: Record<string, unknown>) => {
+        for (const [key, value] of Object.entries(items)) store.set(key, value);
+      });
+      const remove = vi.fn(async (keys: string | string[]) => {
+        for (const key of Array.isArray(keys) ? keys : [keys]) store.delete(key);
+      });
+      (globalThis as unknown as Record<string, unknown>).messenger = {
+        storage: { local: { get, set, remove } },
+      };
+
+      try {
+        const now = Date.now();
+        store.set('lowConfidenceIndex', {
+          fresh: now,
+          old: now - 31 * 24 * 60 * 60 * 1000,
+        });
+
+        await (
+          analyzeEmail as unknown as {
+            storeLowConfidenceFlags: (
+              cacheKey: string,
+              flags: Array<{
+                tagKey: string;
+                confidence: number;
+                threshold: number;
+                thresholdType: 'custom' | 'global';
+                reasoning: string;
+              }>
+            ) => Promise<void>;
+          }
+        ).storeLowConfidenceFlags('newKey', [
+          {
+            tagKey: 'x',
+            confidence: 0.4,
+            threshold: 0.7,
+            thresholdType: 'global',
+            reasoning: 'r',
+          },
+        ]);
+
+        // Only the index key is read — never a full-storage get(null).
+        expect(get).toHaveBeenCalledWith('lowConfidenceIndex');
+        expect(get).not.toHaveBeenCalledWith(null);
+        // The index is updated via set ...
+        expect(set).toHaveBeenCalledWith({ lowConfidenceIndex: expect.any(Object) });
+        // ... and the expired entry is deleted via remove, NOT set(null).
+        expect(remove).toHaveBeenCalledWith(['lowConfidence_old']);
+        expect(store.has('lowConfidence_old')).toBe(false);
+      } finally {
+        delete (globalThis as unknown as Record<string, unknown>).messenger;
+      }
     });
   });
 });

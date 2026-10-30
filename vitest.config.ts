@@ -15,6 +15,7 @@ export default defineConfig({
       exclude: [
         'node_modules/',
         'dist/',
+        '.worktrees/',
         '**/*.test.ts',
         '**/*.config.ts',
         'scripts/',
@@ -23,6 +24,7 @@ export default defineConfig({
     },
     setupFiles: ['./test/test-setup.ts'],
     include: ['**/*.test.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.worktrees/**'],
   },
   resolve: {
     alias: {

@@ -13,12 +13,11 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import type { IMailReader } from '@/infrastructure/interfaces/IMailReader';
 import type { ILogger } from '@/domain/interfaces';
-import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
+import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsService';
 
 // ============================================================================
 // Type Definitions
@@ -89,6 +88,7 @@ export class EmailEventListener {
 
   private readonly analyzeBatch: AnalyzeBatchEmails;
   private readonly logger: ILogger;
+  private readonly providerSettingsService: ProviderSettingsService;
 
   private listenerState: ListenerState = {
     isRegistered: false,
@@ -108,21 +108,18 @@ export class EmailEventListener {
   /**
    * Creates a new EmailEventListener instance.
    *
-   * @param _mailReader - Mail reader for accessing email messages (reserved for future use)
-   * @param _analyzeEmail - Single email analysis use case (reserved for future use)
    * @param analyzeBatch - Batch email analysis use case
    * @param logger - Logger instance for logging operations
    * @param appConfigService - Config service for resolving provider settings
    */
   constructor(
-    @inject('IMailReader') _mailReader: IMailReader,
-    @inject(AnalyzeEmail) _analyzeEmail: AnalyzeEmail,
     @inject(AnalyzeBatchEmails) analyzeBatch: AnalyzeBatchEmails,
     @inject('ILogger') logger: ILogger,
-    @inject(AppConfigService) private readonly appConfigService: AppConfigService
+    @inject(AppConfigService) appConfigService: AppConfigService
   ) {
     this.analyzeBatch = analyzeBatch;
     this.logger = logger;
+    this.providerSettingsService = new ProviderSettingsService(appConfigService, logger);
 
     this.logger.debug('EmailEventListener service initialized');
   }
@@ -285,31 +282,11 @@ export class EmailEventListener {
   }
 
   /**
-   * Gets provider settings from the application config.
-   *
-   * Resolves settings the same way MessageHandler does:
-   * AppConfigService -> appConfig.defaultProvider -> providerSettings[defaultProvider].
+   * Gets provider settings via the shared ProviderSettingsService.
    *
    * @returns Provider settings
    */
-  private async getProviderSettings(): Promise<IProviderSettings> {
-    try {
-      const appConfig = await this.appConfigService.getAppConfig();
-      const defaultProvider = appConfig.defaultProvider;
-      const providerSettings = await this.appConfigService.getProviderSettings(defaultProvider);
-
-      return {
-        provider: defaultProvider,
-        apiKey: providerSettings.apiKey,
-        model: providerSettings.model,
-        apiUrl: providerSettings.apiUrl,
-        additionalConfig: providerSettings.additionalConfig,
-      };
-    } catch (error) {
-      this.logger.error('Failed to get provider settings', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return { provider: '' };
-    }
+  private getProviderSettings(): Promise<IProviderSettings> {
+    return this.providerSettingsService.getProviderSettings();
   }
 }

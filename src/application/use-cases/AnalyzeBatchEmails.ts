@@ -17,7 +17,7 @@ import { injectable, inject, container } from 'tsyringe';
 import type { IQueue } from '@/infrastructure/interfaces/IQueue';
 import type { ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
-import { AnalyzeEmail } from './AnalyzeEmail';
+import { AnalyzeEmail, isAbortError } from './AnalyzeEmail';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import { EmailAnalysisTracker } from '../services/EmailAnalysisTracker';
 
@@ -27,6 +27,9 @@ import { EmailAnalysisTracker } from '../services/EmailAnalysisTracker';
 
 /**
  * Progress tracking information for batch analysis.
+ *
+ * The ID arrays are optional: live progress notifications only carry counts
+ * (to avoid O(n²) cloning); call `getProgress()` when the IDs are needed.
  */
 export interface BatchProgress {
   /** Total number of emails to analyze */
@@ -41,10 +44,10 @@ export interface BatchProgress {
   isRunning: boolean;
   /** Whether the batch was cancelled */
   isCancelled: boolean;
-  /** Message IDs that have been processed */
-  processedMessageIds: string[];
-  /** Message IDs that failed to process */
-  failedMessageIds: string[];
+  /** Message IDs that have been processed (populated by getProgress) */
+  processedMessageIds?: string[];
+  /** Message IDs that failed to process (populated by getProgress) */
+  failedMessageIds?: string[];
 }
 
 /**
@@ -95,6 +98,8 @@ export interface BatchAnalysisResult {
   successCount: number;
   /** Number of failed analyses */
   failureCount: number;
+  /** Number of analyses cancelled via abort (not counted as failures) */
+  cancelledCount: number;
   /** Individual results for each email */
   results: EmailAnalysisResult[];
   /** Whether the batch was cancelled */
@@ -167,11 +172,14 @@ export class AnalyzeBatchEmails {
   private isCancelled = false;
   private processedCount = 0;
   private failedCount = 0;
+  private cancelledCount = 0;
   private totalCount = 0;
   private processedMessageIds: string[] = [];
   private failedMessageIds: string[] = [];
   private analysisResults: EmailAnalysisResult[] = [];
   private activeWorkers: Promise<void>[] = [];
+  /** Aborts in-flight provider requests when cancel() is called. */
+  private abortController: AbortController | null = null;
 
   // ==========================================================================
   // Constructor
@@ -189,7 +197,7 @@ export class AnalyzeBatchEmails {
     this.logger = logger;
     this.configRepository = configRepository;
     this.emailAnalysisTracker = emailAnalysisTracker;
-    this.logger.debug('AnalyzeBatchEmails use case initialized');
+    this.logger.debug('[DEBUG] AnalyzeBatchEmails use case initialized');
   }
 
   // ==========================================================================
@@ -215,7 +223,7 @@ export class AnalyzeBatchEmails {
    * ```
    */
   async execute(messageIds: string[], config: BatchAnalysisConfig): Promise<BatchAnalysisResult> {
-    this.logger.info('🚀 Starting batch email analysis', {
+    this.logger.info('[INFO] Starting batch email analysis', {
       messageCount: messageIds.length,
       provider: config.providerSettings.provider,
       config: {
@@ -227,7 +235,7 @@ export class AnalyzeBatchEmails {
     });
 
     // Load batch settings from AppConfig with fallback to defaults
-    this.logger.debug('➡️  Loading app config for concurrency limits');
+    this.logger.debug('[DEBUG] Loading app config for concurrency limits');
     const appConfig = await this.loadAppConfig();
     const concurrency =
       config.concurrency ?? this.getConcurrencyLimit(appConfig, config.providerSettings);
@@ -237,7 +245,7 @@ export class AnalyzeBatchEmails {
     const continueOnError =
       config.continueOnError ?? DEFAULT_BATCH_CONFIG.DEFAULT_CONTINUE_ON_ERROR;
 
-    this.logger.debug('✅ Batch configuration loaded', {
+    this.logger.debug('[DEBUG] Batch configuration loaded', {
       concurrency,
       priority,
       delayBetweenAnalyses,
@@ -245,11 +253,11 @@ export class AnalyzeBatchEmails {
     });
 
     if (this.isProcessing) {
-      this.logger.error('❌ Batch analysis already running');
+      this.logger.error('[ERROR] Batch analysis already running');
       throw new Error('Batch analysis is already running. Wait for current batch to complete.');
     }
 
-    this.logger.info('✅ Starting batch processing', {
+    this.logger.info('[INFO] Starting batch processing', {
       count: messageIds.length,
       priority,
       concurrency,
@@ -259,20 +267,22 @@ export class AnalyzeBatchEmails {
 
     try {
       // Initialize batch state
-      this.logger.debug('➡️  Initializing batch state');
+      this.logger.debug('[DEBUG] Initializing batch state');
       this.isProcessing = true;
       this.isCancelled = false;
       this.processedCount = 0;
       this.failedCount = 0;
+      this.cancelledCount = 0;
       this.totalCount = messageIds.length;
       this.processedMessageIds = [];
       this.failedMessageIds = [];
       this.analysisResults = [];
-      this.logger.debug('✅ Batch state initialized');
+      this.abortController = new AbortController();
+      this.logger.debug('[DEBUG] Batch state initialized');
       this.notifyProgress();
 
       // Enqueue all messages
-      this.logger.debug('➡️  Enqueuing messages', { count: messageIds.length });
+      this.logger.debug('[DEBUG] Enqueuing messages', { count: messageIds.length });
       for (const messageId of messageIds) {
         const queueItem: QueueItem = {
           messageId,
@@ -281,33 +291,34 @@ export class AnalyzeBatchEmails {
         await this.queue.enqueue(queueItem, priority);
       }
 
-      this.logger.debug('✅ All messages enqueued', { count: messageIds.length });
+      this.logger.debug('[DEBUG] All messages enqueued', { count: messageIds.length });
 
       // Start worker processes
-      this.logger.debug('➡️  Starting worker processes', { workerCount: concurrency });
+      this.logger.debug('[DEBUG] Starting worker processes', { workerCount: concurrency });
       for (let i = 0; i < concurrency; i++) {
         this.activeWorkers.push(this.startWorker(delayBetweenAnalyses, continueOnError));
       }
-      this.logger.debug('✅ Workers started');
+      this.logger.debug('[DEBUG] Workers started');
 
       // Wait for all workers to complete
-      this.logger.debug('⏳ Waiting for all workers to complete');
+      this.logger.debug('[DEBUG] Waiting for all workers to complete');
       await Promise.all(this.activeWorkers);
-      this.logger.debug('✅ All workers completed');
+      this.logger.debug('[DEBUG] All workers completed');
 
       const result: BatchAnalysisResult = {
         total: this.totalCount,
         successCount: this.processedCount,
         failureCount: this.failedCount,
+        cancelledCount: this.cancelledCount,
         results: this.analysisResults,
         cancelled: this.isCancelled,
       };
 
-      this.logger.info('✅ Batch analysis completed', {
+      this.logger.info('[INFO] Batch analysis completed', {
         total: result.total,
         success: result.successCount,
         failed: result.failureCount,
-        cancelled: result.cancelled,
+        cancelled: result.cancelledCount,
         duration: `${Date.now() - startTime}ms`,
       });
 
@@ -317,7 +328,7 @@ export class AnalyzeBatchEmails {
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('❌ Batch analysis failed', { error: errorMessage });
+      this.logger.error('[ERROR] Batch analysis failed', { error: errorMessage });
 
       // Notify BEFORE resetState so the listener sees the error end-state
       this.notifyProgress();
@@ -361,6 +372,9 @@ export class AnalyzeBatchEmails {
   /**
    * Cancels the current batch analysis.
    *
+   * Sets the cancel flag, clears the queue and aborts in-flight provider
+   * requests (via the batch AbortController) so no further API cost accrues.
+   *
    * @returns Promise resolving when cancellation is complete
    *
    * @example
@@ -371,22 +385,25 @@ export class AnalyzeBatchEmails {
    */
   async cancel(): Promise<void> {
     if (!this.isProcessing) {
-      this.logger.debug('⏭️  No batch processing to cancel');
+      this.logger.debug('[DEBUG] No batch processing to cancel');
       return;
     }
 
-    this.logger.info('🛑 Cancelling batch analysis');
+    this.logger.info('[INFO] Cancelling batch analysis');
 
     this.isCancelled = true;
     this.isProcessing = false;
+
+    // Abort in-flight provider requests immediately
+    this.abortController?.abort();
     this.notifyProgress();
 
     // Clear remaining items from queue
-    this.logger.debug('➡️  Clearing queue');
+    this.logger.debug('[DEBUG] Clearing queue');
     const clearedCount = await this.queue.clear(false);
-    this.logger.debug('✅ Queue cleared', { clearedCount });
+    this.logger.debug('[DEBUG] Queue cleared', { clearedCount });
 
-    this.logger.info('✅ Batch analysis cancelled', {
+    this.logger.info('[INFO] Batch analysis cancelled', {
       processed: this.processedCount,
       failed: this.failedCount,
       remaining: clearedCount,
@@ -491,21 +508,21 @@ export class AnalyzeBatchEmails {
    * @returns Promise resolving when worker completes
    */
   private async startWorker(delayBetweenAnalyses: number, continueOnError: boolean): Promise<void> {
-    this.logger.debug('👷 Starting worker process', { delayBetweenAnalyses, continueOnError });
+    this.logger.debug('[DEBUG] Starting worker process', { delayBetweenAnalyses, continueOnError });
 
     try {
       while (this.isProcessing && !this.isCancelled) {
         // Dequeue next item
-        this.logger.debug('➡️  Dequeueing next item');
+        this.logger.debug('[DEBUG] Dequeueing next item');
         const item = await this.queue.dequeue<QueueItem>();
 
         if (item === null) {
           // Queue is empty
-          this.logger.debug('⏭️  Queue is empty, worker stopping');
+          this.logger.debug('[DEBUG] Queue is empty, worker stopping');
           break;
         }
 
-        this.logger.debug('✅ Item dequeued', { messageId: item.messageId });
+        this.logger.debug('[DEBUG] Item dequeued', { messageId: item.messageId });
 
         // Process the item, then mark it complete so queue stats stay honest
         try {
@@ -516,18 +533,18 @@ export class AnalyzeBatchEmails {
 
         // Delay between analyses if configured
         if (delayBetweenAnalyses > 0) {
-          this.logger.debug('⏳ Sleeping between analyses', { duration: delayBetweenAnalyses });
+          this.logger.debug('[DEBUG] Sleeping between analyses', { duration: delayBetweenAnalyses });
           await this.sleep(delayBetweenAnalyses);
         }
       }
 
-      this.logger.debug('✅ Worker process completed');
+      this.logger.debug('[DEBUG] Worker process completed');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('❌ Worker process failed', { error: errorMessage });
+      this.logger.error('[ERROR] Worker process failed', { error: errorMessage });
 
       if (!continueOnError) {
-        this.logger.debug('⏹️  Stopping all workers (continueOnError=false)');
+        this.logger.debug('[DEBUG] Stopping all workers (continueOnError=false)');
         this.isProcessing = false;
         this.isCancelled = true;
         this.notifyProgress();
@@ -544,7 +561,7 @@ export class AnalyzeBatchEmails {
   private async processQueueItem(item: QueueItem): Promise<void> {
     const { messageId, providerSettings } = item;
 
-    this.logger.debug('📧 Processing queue item', {
+    this.logger.debug('[DEBUG] Processing queue item', {
       messageId,
       provider: providerSettings.provider,
     });
@@ -553,13 +570,16 @@ export class AnalyzeBatchEmails {
       // Check if email was already analyzed
       const messageIdNum = parseInt(messageId, 10);
       if (await this.emailAnalysisTracker.wasAnalyzed(messageIdNum)) {
-        this.logger.info('⏭️  Skipping already-analyzed email', { messageId });
+        this.logger.info('[INFO] Skipping already-analyzed email', { messageId });
         return;
       }
 
-      // Analyze the email
-      this.logger.debug('➡️  Calling analyzeEmail.execute()');
-      const result = await this.analyzeEmail.execute(messageId, providerSettings);
+      // Analyze the email; the AnalyzeEmail in-flight map closes the TOCTOU
+      // window against concurrent triggers, the signal propagates cancellation.
+      this.logger.debug('[DEBUG] Calling analyzeEmail.execute()');
+      const result = await this.analyzeEmail.execute(messageId, providerSettings, {
+        signal: this.abortController?.signal,
+      });
 
       // Record successful analysis
       this.processedCount++;
@@ -570,7 +590,7 @@ export class AnalyzeBatchEmails {
         tags: result.tags,
       });
 
-      this.logger.debug('✅ Email analyzed successfully', {
+      this.logger.debug('[DEBUG] Email analyzed successfully', {
         messageId,
         tags: result.tags,
         confidence: result.confidence,
@@ -579,20 +599,31 @@ export class AnalyzeBatchEmails {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // Record failed analysis
-      this.failedCount++;
-      this.failedMessageIds.push(messageId);
-      this.analysisResults.push({
-        messageId,
-        success: false,
-        error: errorMessage,
-      });
+      if (isAbortError(error) || this.abortController?.signal.aborted === true) {
+        // Cancelled items are not failures and must not count toward retries.
+        this.cancelledCount++;
+        this.analysisResults.push({
+          messageId,
+          success: false,
+          error: 'Cancelled',
+        });
+        this.logger.debug('[DEBUG] Email analysis cancelled', { messageId });
+      } else {
+        // Record failed analysis
+        this.failedCount++;
+        this.failedMessageIds.push(messageId);
+        this.analysisResults.push({
+          messageId,
+          success: false,
+          error: errorMessage,
+        });
 
-      this.logger.error('❌ Failed to analyze email', {
-        messageId,
-        error: errorMessage,
-        failed: `${this.failedCount}/${this.totalCount}`,
-      });
+        this.logger.error('[ERROR] Failed to analyze email', {
+          messageId,
+          error: errorMessage,
+          failed: `${this.failedCount}/${this.totalCount}`,
+        });
+      }
     } finally {
       this.notifyProgress();
     }
@@ -601,6 +632,9 @@ export class AnalyzeBatchEmails {
   /**
    * Notifies the registered batch progress listener (if any) with a live
    * progress snapshot. Used e.g. by the toolbar badge updater.
+   *
+   * Only counts/status are sent — not the growing ID arrays — to keep the
+   * per-item cost O(1). Use {@link getProgress} to fetch IDs on demand.
    */
   private notifyProgress(): void {
     if (!container.isRegistered('BatchProgressListener')) return;
@@ -617,8 +651,6 @@ export class AnalyzeBatchEmails {
             : 0,
         isRunning: this.isProcessing,
         isCancelled: this.isCancelled,
-        processedMessageIds: [...this.processedMessageIds],
-        failedMessageIds: [...this.failedMessageIds],
       });
     } catch (error) {
       this.logger.warn('Failed to notify batch progress listener', {
@@ -635,11 +667,13 @@ export class AnalyzeBatchEmails {
     this.isCancelled = false;
     this.processedCount = 0;
     this.failedCount = 0;
+    this.cancelledCount = 0;
     this.totalCount = 0;
     this.processedMessageIds = [];
     this.failedMessageIds = [];
     this.analysisResults = [];
     this.activeWorkers = [];
+    this.abortController = null;
   }
 
   /**

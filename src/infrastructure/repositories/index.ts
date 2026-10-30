@@ -14,4 +14,4 @@ export type {
   ICustomTag,
   IModelConcurrencyConfig,
 } from '../interfaces/IConfigRepository';
-export { IndexedDBConfigRepository } from './IndexedDBConfigRepository';
+export { StorageLocalConfigRepository } from './StorageLocalConfigRepository';

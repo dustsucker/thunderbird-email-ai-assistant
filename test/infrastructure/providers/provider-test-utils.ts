@@ -87,19 +87,29 @@ export function createMockFetchResponse(data: unknown, ok = true, status = 200, 
     ok,
     status,
     statusText,
+    headers: { get: vi.fn().mockReturnValue(null) },
     json: vi.fn().mockResolvedValue(data),
     text: vi.fn().mockResolvedValue(JSON.stringify(data)),
   } as unknown as Response;
 }
 
 /**
- * Creates a mock fetch error response
+ * Creates a mock fetch error response.
+ *
+ * Includes a Headers-like `headers.get()` because the transport reads
+ * `Retry-After` on 429 responses.
  */
-export function createMockFetchError(status: number, statusText: string, errorBody?: unknown) {
+export function createMockFetchError(
+  status: number,
+  statusText: string,
+  errorBody?: unknown,
+  retryAfter: string | null = null
+) {
   return {
     ok: false,
     status,
     statusText,
+    headers: { get: vi.fn().mockReturnValue(retryAfter) },
     json: vi.fn().mockResolvedValue(errorBody ?? { error: 'Request failed' }),
     text: vi.fn().mockResolvedValue(JSON.stringify(errorBody ?? { error: 'Request failed' })),
   } as unknown as Response;

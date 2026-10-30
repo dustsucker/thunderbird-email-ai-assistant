@@ -43,7 +43,8 @@ describe('DW-D6: toolbar badge during batch run', () => {
     };
 
     // The REAL ToolbarHandler, registered as the progress listener
-    toolbarHandler = new ToolbarHandler(logger);
+    // (2nd/3rd ctor args are AnalyzeEmail + AppConfigService; unused by badge tests)
+    toolbarHandler = new ToolbarHandler(logger, {} as never, {} as never);
     container.registerInstance('BatchProgressListener', toolbarHandler);
 
     // Real PriorityQueue so dequeue/complete behave honestly

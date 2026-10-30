@@ -37,7 +37,6 @@ This directory contains UI adapters and Thunderbird WebExtension API integration
 | `SettingsForm.ts`      | Provider settings form with validation and persistence     |
 | `TagManagementUI.ts`   | CRUD operations for custom tags with modal dialog          |
 | `BatchAnalysisUI.ts`   | Batch email analysis with progress tracking                |
-| `AnalysisResultsUI.ts` | Displays cached analysis results with confidence badges    |
 | `ManualReviewPanel.ts` | Reviews low-confidence email classifications               |
 | `index.ts`             | Barrel export for options components                       |
 

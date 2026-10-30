@@ -13,7 +13,7 @@ import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
-import { IndexedDBConfigRepository } from '@/infrastructure/repositories/IndexedDBConfigRepository';
+import { StorageLocalConfigRepository } from '@/infrastructure/repositories/StorageLocalConfigRepository';
 
 // ============================================================================
 // Fixtures
@@ -98,21 +98,18 @@ describe('EmailEventListener', () => {
             return result;
           }),
           set: vi.fn(async () => undefined),
+          remove: vi.fn(async (keys: string | string[]) => {
+            for (const key of Array.isArray(keys) ? keys : [keys]) delete storageData[key];
+          }),
           clear: vi.fn(async () => undefined),
         },
       },
     };
 
-    const configRepo = new IndexedDBConfigRepository(logger);
+    const configRepo = new StorageLocalConfigRepository(logger);
     const appConfigService = new AppConfigService(logger, configRepo);
 
-    listener = new EmailEventListener(
-      {} as IMailReader,
-      {} as AnalyzeEmail,
-      analyzeBatch,
-      logger,
-      appConfigService
-    );
+    listener = new EmailEventListener(analyzeBatch, logger, appConfigService);
 
     (globalThis as unknown as Record<string, unknown>).messenger = {
       messages: {
@@ -158,10 +155,8 @@ describe('EmailEventListener', () => {
     it('skips analysis when no provider is configured', async () => {
       // Fresh instance so the AppConfigService cache reads the mutated storage
       storageData.appConfig = { defaultProvider: '' };
-      const configRepo = new IndexedDBConfigRepository(logger);
+      const configRepo = new StorageLocalConfigRepository(logger);
       const fresh = new EmailEventListener(
-        {} as IMailReader,
-        {} as AnalyzeEmail,
         analyzeBatch,
         logger,
         new AppConfigService(logger, configRepo)

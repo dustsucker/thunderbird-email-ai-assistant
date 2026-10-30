@@ -59,25 +59,14 @@ describe('ZaiPaaSProvider', () => {
       expect(provider.validateSettings(validSettings)).toBe(true);
     });
 
-    it('should store custom model when provided', () => {
-      const customModelSettings: BaseProviderSettings = {
+    it('should accept custom model and apiUrl without storing them (settings are per-call)', () => {
+      const customSettings: BaseProviderSettings = {
         apiKey: 'test-api-key-long-enough-123',
         model: 'glm-4-plus',
-      };
-      provider.validateSettings(customModelSettings);
-
-      // Model should be stored internally
-      expect(provider['zaiModel']).toBe('glm-4-plus');
-    });
-
-    it('should store custom API URL when provided', () => {
-      const customUrlSettings: BaseProviderSettings = {
-        apiKey: 'test-api-key-long-enough-123',
         apiUrl: 'https://custom.api.z.ai/v1/chat',
       };
-      provider.validateSettings(customUrlSettings);
-
-      expect(provider['zaiBaseUrl']).toBe('https://custom.api.z.ai/v1/chat');
+      // validateSettings is pure: it only checks the apiKey and retains no state.
+      expect(provider.validateSettings(customSettings)).toBe(true);
     });
 
     it('should return false when apiKey is missing', () => {
@@ -160,6 +149,27 @@ describe('ZaiPaaSProvider', () => {
       expect(body.temperature).toBe(0.3);
       expect(body.max_tokens).toBe(4000);
       expect(body.messages).toBeInstanceOf(Array);
+    });
+
+    it('should use custom model from per-call settings in request body', async () => {
+      const customModelSettings: BaseProviderSettings = {
+        apiKey: 'test-api-key-long-enough-123',
+        model: 'glm-4-plus',
+      };
+
+      const zaiResponse = createZaiResponse(JSON.stringify(validTagResponse));
+      fetchSpy.mockResolvedValue(createMockFetchResponse(zaiResponse));
+
+      await provider.analyze({
+        settings: customModelSettings,
+        structuredData: createMockStructuredData(),
+        customTags: createMockCustomTags(),
+      });
+
+      const fetchCall = fetchSpy.mock.calls[0];
+      const body = JSON.parse(fetchCall[1]?.body as string);
+
+      expect(body.model).toBe('glm-4-plus');
     });
 
     it('should include Authorization header with Bearer token', async () => {

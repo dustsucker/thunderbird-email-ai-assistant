@@ -84,7 +84,6 @@ function createHandler(overrides: { analyzeBatch?: Partial<AnalyzeBatchEmails>; 
   const handler = new MessageHandler(
     {} as AnalyzeEmail,
     analyzeBatch,
-    {} as never,
     logger,
     {} as AppConfigService,
     queue,
@@ -127,6 +126,10 @@ describe('MessageHandler', () => {
           }),
           set: vi.fn(async (items: Record<string, unknown>) => {
             for (const [key, value] of Object.entries(items)) storage.set(key, value);
+          }),
+          remove: vi.fn(async (keys: string | string[]) => {
+            const list = Array.isArray(keys) ? keys : [keys];
+            for (const key of list) storage.delete(key);
           }),
         },
       },
@@ -303,15 +306,19 @@ describe('MessageHandler', () => {
       expect(result).toMatchObject({ success: true, totalEntries: 7, hitRate: 42 });
     });
 
-    it('getAnalysisResults returns success:false (no results store exists)', async () => {
-      const { handler } = createHandler();
+    it('clearQueue cancels the running batch instead of clearing the global queue (#11)', async () => {
+      const cancel = vi.fn().mockResolvedValue(undefined);
+      const { handler, queue } = createHandler({
+        analyzeBatch: { isRunning: vi.fn().mockResolvedValue(true), cancel },
+      });
 
       const result = await (handler as unknown as {
-        handleGetAnalysisResults: () => Promise<{ success: boolean; error?: string }>;
-      }).handleGetAnalysisResults();
+        handleClearQueue: (m: { cancelRunning?: boolean }) => Promise<Record<string, unknown>>;
+      }).handleClearQueue({ cancelRunning: true });
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(queue.clear).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ success: true, clearedTasks: 0 });
     });
 
     it('applyTagManually requires a messageId', async () => {
@@ -332,6 +339,7 @@ describe('MessageHandler', () => {
         flags: [{ tagKey: 'is_bill', confidence: 0.4, threshold: 0.7 }],
         timestamp: 1,
       });
+      storage.set('lowConfidenceIndex', { abc: 1 });
 
       const result = await (handler as unknown as {
         handleApplyTagManually: (m: Record<string, unknown>) => Promise<{ success: boolean }>;
@@ -344,7 +352,12 @@ describe('MessageHandler', () => {
 
       expect(tagManager.addTagToMessage).toHaveBeenCalledWith(123, 'is_bill');
       expect(result.success).toBe(true);
-      expect((storage.get('lowConfidence_abc') as { flags: unknown[] }).flags).toEqual([]);
+      const remove = (globalThis as unknown as {
+        messenger: { storage: { local: { remove: ReturnType<typeof vi.fn> } } };
+      }).messenger.storage.local.remove;
+      expect(remove).toHaveBeenCalledWith(['lowConfidence_abc']);
+      expect(storage.has('lowConfidence_abc')).toBe(false);
+      expect(storage.get('lowConfidenceIndex')).toEqual({});
     });
 
     it('dismissTag removes the stored suggestion', async () => {
@@ -354,13 +367,19 @@ describe('MessageHandler', () => {
         flags: [{ tagKey: 'is_bill', confidence: 0.4, threshold: 0.7 }],
         timestamp: 1,
       });
+      storage.set('lowConfidenceIndex', { abc: 1 });
 
       const result = await (handler as unknown as {
         handleDismissTag: (m: Record<string, unknown>) => Promise<{ success: boolean }>;
       }).handleDismissTag({ action: 'dismissTag', tagKey: 'is_bill' });
 
       expect(result.success).toBe(true);
-      expect((storage.get('lowConfidence_abc') as { flags: unknown[] }).flags).toEqual([]);
+      const remove = (globalThis as unknown as {
+        messenger: { storage: { local: { remove: ReturnType<typeof vi.fn> } } };
+      }).messenger.storage.local.remove;
+      expect(remove).toHaveBeenCalledWith(['lowConfidence_abc']);
+      expect(storage.has('lowConfidence_abc')).toBe(false);
+      expect(storage.get('lowConfidenceIndex')).toEqual({});
     });
 
     it('dismissTag fails honestly when no stored suggestion exists', async () => {
@@ -372,6 +391,31 @@ describe('MessageHandler', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+    });
+  });
+
+  describe('DW19: dispatch table (unknown actions)', () => {
+    it('answers unknown actions synchronously and releases the channel', () => {
+      const { handler } = createHandler();
+      const sendResponse = vi.fn();
+
+      const keepChannelOpen = (handler as unknown as {
+        handleMessage: (m: unknown, s: unknown, send: (r?: unknown) => void) => boolean;
+      }).handleMessage({ action: 'doesNotExist' }, {}, sendResponse);
+
+      expect(keepChannelOpen).toBe(false);
+      expect(sendResponse).toHaveBeenCalledWith({ success: false, error: 'Unknown action' });
+    });
+
+    it('answers known actions asynchronously (channel stays open)', () => {
+      const { handler } = createHandler();
+      const sendResponse = vi.fn();
+
+      const keepChannelOpen = (handler as unknown as {
+        handleMessage: (m: unknown, s: unknown, send: (r?: unknown) => void) => boolean;
+      }).handleMessage({ action: 'getCacheStats' }, {}, sendResponse);
+
+      expect(keepChannelOpen).toBe(true);
     });
   });
 });

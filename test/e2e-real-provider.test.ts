@@ -7,6 +7,7 @@ import type { ILogger } from '../src/infrastructure/interfaces/ILogger';
 import { loadEmailFixture } from './fixtures/fixture-loader';
 import { getTestConfig, TEST_TIMEOUT } from './test-config';
 import { DEFAULT_CUSTOM_TAGS } from '../src/shared/types/ProviderTypes';
+import { maskSensitiveValue } from '../src/shared/utils/loggingUtils';
 import 'reflect-metadata';
 
 function getZaiConfigErrorMessage(): string | undefined {
@@ -68,7 +69,7 @@ describeE2E('E2E Real Provider - ZAI', () => {
     console.log('zaiModel:', config.zaiModel);
     console.log('zaiVariant:', config.zaiVariant);
     console.log('zaiBaseUrl:', config.zaiBaseUrl);
-    console.log('zaiApiKey (first 8 chars):', config.zaiApiKey?.substring(0, 8));
+    console.log('zaiApiKey (masked):', maskSensitiveValue(config.zaiApiKey));
     console.log('=========================');
   });
 

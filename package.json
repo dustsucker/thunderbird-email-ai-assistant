@@ -1,7 +1,7 @@
 {
-  "name": "spam_filter",
-  "version": "1.0.0",
-  "description": "",
+  "name": "thunderbird-email-ai-assistant",
+  "version": "1.0.4",
+  "description": "Thunderbird MailExtension for AI-powered email classification and tagging using multiple LLM providers",
   "main": "index.js",
   "scripts": {
     "test": "vitest run",
@@ -19,7 +19,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@types/html-to-text": "^9.0.4",
     "@types/node": "^20.19.27",

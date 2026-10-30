@@ -77,14 +77,14 @@ describe('GeminiProvider', () => {
       );
     });
 
-    it('should store apiKey after successful validation', () => {
-      provider.validateSettings(validSettings);
-      // The API URL method uses the stored key
-      expect(() => provider['getApiUrl']()).not.toThrow();
+    it('should build the generateContent URL from settings.model (#3/#4)', () => {
+      const url = provider['getApiUrl']({ model: 'gemini-2.0-flash' });
+      expect(url).toContain('/models/gemini-2.0-flash:generateContent');
     });
 
-    it('should throw error when getApiUrl called without apiKey', () => {
-      expect(() => provider['getApiUrl']()).toThrow('Gemini API key is not set');
+    it('should fall back to the default model when settings.model is absent (#4)', () => {
+      const url = provider['getApiUrl']({});
+      expect(url).toContain('/models/gemini-1.5-flash-latest:generateContent');
     });
   });
 
@@ -145,7 +145,7 @@ describe('GeminiProvider', () => {
       expect(body.generationConfig).toEqual({ response_mime_type: 'application/json' });
     });
 
-    it('should include API key in URL query parameter', async () => {
+    it('sends the API key in the x-goog-api-key header, never in the URL query (#2)', async () => {
       const geminiResponse = createGeminiResponse(JSON.stringify(validTagResponse));
       fetchSpy.mockResolvedValue(createMockFetchResponse(geminiResponse));
 
@@ -157,9 +157,11 @@ describe('GeminiProvider', () => {
 
       const fetchCall = fetchSpy.mock.calls[0];
       const url = fetchCall[0] as string;
+      const headers = fetchCall[1]?.headers as Record<string, string>;
 
-      expect(url).toContain('key=');
-      expect(url).toContain(validSettings.apiKey);
+      expect(url).not.toContain('key=');
+      expect(url).not.toContain(validSettings.apiKey);
+      expect(headers['x-goog-api-key']).toBe(validSettings.apiKey);
     });
 
     it('should call Gemini API URL with correct model', async () => {
@@ -180,7 +182,7 @@ describe('GeminiProvider', () => {
       expect(url).toContain(':generateContent');
     });
 
-    it('should not include Authorization header (uses URL key)', async () => {
+    it('does not use an Authorization header (key travels in x-goog-api-key)', async () => {
       const geminiResponse = createGeminiResponse(JSON.stringify(validTagResponse));
       fetchSpy.mockResolvedValue(createMockFetchResponse(geminiResponse));
 
@@ -194,6 +196,7 @@ describe('GeminiProvider', () => {
       const headers = fetchCall[1]?.headers as Record<string, string>;
 
       expect(headers['Authorization']).toBeUndefined();
+      expect(headers['x-goog-api-key']).toBe(validSettings.apiKey);
       expect(headers['Content-Type']).toBe('application/json');
     });
   });
@@ -372,9 +375,11 @@ describe('GeminiProvider', () => {
 
       const fetchCall = fetchSpy.mock.calls[0];
       const url = fetchCall[0] as string;
+      const headers = fetchCall[1]?.headers as Record<string, string>;
 
       expect(url).toContain('generativelanguage.googleapis.com/v1beta/models');
-      expect(url).toContain(`key=${validSettings.apiKey}`);
+      expect(url).not.toContain('key=');
+      expect(headers['x-goog-api-key']).toBe(validSettings.apiKey);
     });
   });
 });

@@ -30,7 +30,7 @@ import { MemoryCache } from '@/infrastructure/cache/MemoryCache';
 import { PriorityQueue } from '@/application/services/PriorityQueue';
 import { ThunderbirdMailReader } from '@/interfaces/adapters/ThunderbirdMailReader';
 import { ThunderbirdTagManager } from '@/interfaces/adapters/ThunderbirdTagManager';
-import { IndexedDBConfigRepository } from '@/infrastructure/repositories/IndexedDBConfigRepository';
+import { StorageLocalConfigRepository } from '@/infrastructure/repositories/StorageLocalConfigRepository';
 import { SystemClock, CryptoRandom } from '@/infrastructure/system';
 
 // ============================================================================
@@ -39,9 +39,10 @@ import { SystemClock, CryptoRandom } from '@/infrastructure/system';
 
 import { EmailContentExtractor } from '@/domain/services/EmailContentExtractor';
 import { TagService } from '@/domain/services/TagService';
-import { AppConfigService } from '@/infrastructure/config/AppConfig';
-import { debugLogBuffer, DebugLogBuffer } from '@/infrastructure/logger/DebugLogBuffer';
+import { debugLogBuffer } from '@/infrastructure/logger/DebugLogBuffer';
+import { ContextMenuHandler } from '@/background/ContextMenuHandler';
 import { ToolbarHandler } from '@/background/ToolbarHandler';
+import { InstallHandler } from '@/background/InstallHandler';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
 import { ProviderFactory } from '@/infrastructure/providers/ProviderFactory';
 
@@ -118,7 +119,7 @@ export function setupDIContainer(): void {
   container.registerSingleton<IQueue>('IQueue', PriorityQueue);
   container.registerSingleton<IMailReader>('IMailReader', ThunderbirdMailReader);
   container.registerSingleton<ITagManager>('ITagManager', ThunderbirdTagManager);
-  container.registerSingleton<IConfigRepository>('IConfigRepository', IndexedDBConfigRepository);
+  container.registerSingleton<IConfigRepository>('IConfigRepository', StorageLocalConfigRepository);
   container.registerSingleton<IClock>('IClock', SystemClock);
   container.registerSingleton<IRandom>('IRandom', CryptoRandom);
 
@@ -135,16 +136,19 @@ export function setupDIContainer(): void {
   container.registerSingleton('ProviderFactory', ProviderFactory);
   container.registerSingleton('TagService', TagService);
   container.registerSingleton(EmailContentExtractor, EmailContentExtractor);
-  container.registerSingleton(AppConfigService, AppConfigService);
+  // AppConfigService self-registers via @singleton() — no explicit registration.
   container.registerSingleton(EmailAnalysisTracker, EmailAnalysisTracker);
 
-  // Debug log buffer: DI resolves to the SAME module singleton ConsoleLogger
-  // and ProviderUtils route through.
-  container.registerInstance(DebugLogBuffer, debugLogBuffer);
+  // Debug log buffer: a single instance shared by ConsoleLogger, ProviderUtils
+  // and MessageHandler. MessageHandler injects it by the 'DebugLogBuffer' token.
   container.registerInstance('DebugLogBuffer', debugLogBuffer);
 
-  // Toolbar badge: AnalyzeBatchEmails notifies this listener on batch progress
+  // Background handlers (registered here, not in background.ts)
+  container.registerSingleton(ContextMenuHandler, ContextMenuHandler);
   container.registerSingleton(ToolbarHandler, ToolbarHandler);
+  container.registerSingleton(InstallHandler, InstallHandler);
+
+  // Toolbar badge: AnalyzeBatchEmails notifies this listener on batch progress
   container.register('BatchProgressListener', {
     useFactory: (c) => c.resolve(ToolbarHandler),
   });

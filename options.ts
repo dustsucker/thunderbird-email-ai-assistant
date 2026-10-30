@@ -96,10 +96,15 @@ interface GeneralSettingsElements {
   ollamaApiUrl: HTMLInputElement | null;
   ollamaModel: HTMLInputElement | null;
   openaiApiKey: HTMLInputElement | null;
+  openaiModel: HTMLInputElement | null;
   geminiApiKey: HTMLInputElement | null;
+  geminiModel: HTMLInputElement | null;
   claudeApiKey: HTMLInputElement | null;
+  claudeModel: HTMLInputElement | null;
   mistralApiKey: HTMLInputElement | null;
+  mistralModel: HTMLInputElement | null;
   deepseekApiKey: HTMLInputElement | null;
+  deepseekModel: HTMLInputElement | null;
   openrouterApiKey: HTMLInputElement | null;
   openrouterModel: HTMLInputElement | null;
   zaiPaasApiKey: HTMLInputElement | null;
@@ -187,10 +192,15 @@ type PartialProviderConfig = {
   ollamaApiUrl?: string;
   ollamaModel?: string;
   openaiApiKey?: string;
+  openaiModel?: string;
   geminiApiKey?: string;
+  geminiModel?: string;
   claudeApiKey?: string;
+  claudeModel?: string;
   mistralApiKey?: string;
+  mistralModel?: string;
   deepseekApiKey?: string;
+  deepseekModel?: string;
   openrouterApiKey?: string;
   openrouterModel?: string;
   zaiPaasApiKey?: string;
@@ -289,23 +299,48 @@ function getPermissionOrigin(provider: Provider, settings: PartialProviderConfig
       }
       throw new Error('Ollama API URL is required for permission request');
     case Provider.OPENAI:
-      return 'https://api.openai.com/';
+      return 'https://api.openai.com/*';
     case Provider.GEMINI:
-      return 'https://generativelanguage.googleapis.com/';
+      return 'https://generativelanguage.googleapis.com/*';
     case Provider.CLAUDE:
-      return 'https://api.anthropic.com/';
+      return 'https://api.anthropic.com/*';
     case Provider.MISTRAL:
-      return 'https://api.mistral.ai/';
+      return 'https://api.mistral.ai/*';
     case Provider.DEEPSEEK:
-      return 'https://api.deepseek.com/';
+      return 'https://api.deepseek.com/*';
     case Provider.OPENROUTER:
-      return 'https://openrouter.ai/';
+      return 'https://openrouter.ai/*';
     case Provider.ZAI_PAAS:
-      return 'https://api.z.ai/';
+      return 'https://api.z.ai/*';
     case Provider.ZAI_CODING:
-      return 'https://api.z.ai/';
+      return 'https://api.z.ai/*';
     default:
       throw new Error(`Unknown provider: ${provider}`);
+  }
+}
+
+/** Hosts declared in manifest.json (host_permissions + optional_host_permissions). */
+const SUPPORTED_PERMISSION_HOSTS = new Set([
+  'api.openai.com',
+  'generativelanguage.googleapis.com',
+  'api.anthropic.com',
+  'api.mistral.ai',
+  'api.deepseek.com',
+  'openrouter.ai',
+  'api.z.ai',
+  'localhost',
+  '127.0.0.1',
+]);
+
+/**
+ * Checks whether the host of a derived permission origin is declared in the
+ * manifest, so we can fail with a clear message instead of a cryptic one.
+ */
+function isHostSupportedForPermissions(originPattern: string): boolean {
+  try {
+    return SUPPORTED_PERMISSION_HOSTS.has(new URL(originPattern).hostname);
+  } catch {
+    return false;
   }
 }
 
@@ -331,10 +366,15 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
   const ollamaApiUrl = getElementById<HTMLInputElement>('ollama-api-url');
   const ollamaModel = getElementById<HTMLInputElement>('ollama-model');
   const openaiApiKey = getElementById<HTMLInputElement>('openai-api-key');
+  const openaiModel = getElementById<HTMLInputElement>('openai-model');
   const geminiApiKey = getElementById<HTMLInputElement>('gemini-api-key');
+  const geminiModel = getElementById<HTMLInputElement>('gemini-model');
   const claudeApiKey = getElementById<HTMLInputElement>('claude-api-key');
+  const claudeModel = getElementById<HTMLInputElement>('claude-model');
   const mistralApiKey = getElementById<HTMLInputElement>('mistral-api-key');
+  const mistralModel = getElementById<HTMLInputElement>('mistral-model');
   const deepseekApiKey = getElementById<HTMLInputElement>('deepseek-api-key');
+  const deepseekModel = getElementById<HTMLInputElement>('deepseek-model');
   const openrouterApiKey = getElementById<HTMLInputElement>('openrouter-api-key');
   const openrouterModel = getElementById<HTMLInputElement>('openrouter-model');
   const zaiPaasApiKey = getElementById<HTMLInputElement>('zaiPaasApiKey');
@@ -359,10 +399,15 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
     ollamaApiUrl,
     ollamaModel,
     openaiApiKey,
+    openaiModel,
     geminiApiKey,
+    geminiModel,
     claudeApiKey,
+    claudeModel,
     mistralApiKey,
+    mistralModel,
     deepseekApiKey,
+    deepseekModel,
     openrouterApiKey,
     openrouterModel,
     zaiPaasApiKey,
@@ -513,7 +558,7 @@ export function initializeTabs(
  * Shows/hides provider-specific settings based on selected provider
  */
 function showRelevantSettings(provider: string): void {
-  logger.info('[DEBUG-options] showRelevantSettings() called', { provider });
+  logger.debug('[DEBUG-options] showRelevantSettings() called', { provider });
 
   document.querySelectorAll<HTMLElement>('.provider-settings').forEach((div) => {
     div.style.display = 'none';
@@ -526,7 +571,7 @@ function showRelevantSettings(provider: string): void {
 
   const settingsToShow = document.getElementById(`${provider}-settings`);
   if (settingsToShow && isProviderSettingsElement(settingsToShow)) {
-    logger.info('[DEBUG-options] Showing settings for provider', { provider });
+    logger.debug('[DEBUG-options] Showing settings for provider', { provider });
     settingsToShow.style.display = 'block';
     settingsToShow
       .querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')
@@ -542,7 +587,7 @@ function showRelevantSettings(provider: string): void {
  * Loads general settings from storage and populates form fields
  */
 async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<void> {
-  logger.info('[DEBUG-options] loadGeneralSettings() called');
+  logger.debug('[DEBUG-options] loadGeneralSettings() called');
 
   try {
     const data = (await messenger.storage.local.get({
@@ -553,7 +598,7 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
     const appConfig = data.appConfig || {};
     const providerSettings = data.providerSettings || {};
 
-    logger.info('[DEBUG-options] Storage loaded', {
+    logger.debug('[DEBUG-options] Storage loaded', {
       appConfig,
       providerSettings,
     });
@@ -572,12 +617,12 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
     if (elements.confidenceValue) {
       elements.confidenceValue.textContent = minConfidenceThreshold.toString();
     }
-    logger.info('[DEBUG-options] Loaded minConfidenceThreshold', {
+    logger.debug('[DEBUG-options] Loaded minConfidenceThreshold', {
       threshold: minConfidenceThreshold,
     });
 
     if (elements.ollamaApiUrl && providerSettings.ollama) {
-      logger.info('[DEBUG-options] Loaded ollama settings', {
+      logger.debug('[DEBUG-options] Loaded ollama settings', {
         apiUrl: providerSettings.ollama.apiUrl,
         model: providerSettings.ollama.model,
       });
@@ -587,37 +632,52 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
       elements.ollamaModel.value = providerSettings.ollama.model || '';
     }
     if (elements.openaiApiKey && providerSettings.openai) {
-      logger.info('[DEBUG-options] Loaded openai settings', {
+      logger.debug('[DEBUG-options] Loaded openai settings', {
         apiKey: providerSettings.openai.apiKey ? '***REDACTED***' : '',
       });
       elements.openaiApiKey.value = providerSettings.openai.apiKey || '';
     }
+    if (elements.openaiModel && providerSettings.openai) {
+      elements.openaiModel.value = providerSettings.openai.model || '';
+    }
     if (elements.geminiApiKey && providerSettings.gemini) {
-      logger.info('[DEBUG-options] Loaded gemini settings', {
+      logger.debug('[DEBUG-options] Loaded gemini settings', {
         apiKey: providerSettings.gemini.apiKey ? '***REDACTED***' : '',
       });
       elements.geminiApiKey.value = providerSettings.gemini.apiKey || '';
     }
+    if (elements.geminiModel && providerSettings.gemini) {
+      elements.geminiModel.value = providerSettings.gemini.model || '';
+    }
     if (elements.claudeApiKey && providerSettings.claude) {
-      logger.info('[DEBUG-options] Loaded claude settings', {
+      logger.debug('[DEBUG-options] Loaded claude settings', {
         apiKey: providerSettings.claude.apiKey ? '***REDACTED***' : '',
       });
       elements.claudeApiKey.value = providerSettings.claude.apiKey || '';
     }
+    if (elements.claudeModel && providerSettings.claude) {
+      elements.claudeModel.value = providerSettings.claude.model || '';
+    }
     if (elements.mistralApiKey && providerSettings.mistral) {
-      logger.info('[DEBUG-options] Loaded mistral settings', {
+      logger.debug('[DEBUG-options] Loaded mistral settings', {
         apiKey: providerSettings.mistral.apiKey ? '***REDACTED***' : '',
       });
       elements.mistralApiKey.value = providerSettings.mistral.apiKey || '';
     }
+    if (elements.mistralModel && providerSettings.mistral) {
+      elements.mistralModel.value = providerSettings.mistral.model || '';
+    }
     if (elements.deepseekApiKey && providerSettings.deepseek) {
-      logger.info('[DEBUG-options] Loaded deepseek settings', {
+      logger.debug('[DEBUG-options] Loaded deepseek settings', {
         apiKey: providerSettings.deepseek.apiKey ? '***REDACTED***' : '',
       });
       elements.deepseekApiKey.value = providerSettings.deepseek.apiKey || '';
     }
+    if (elements.deepseekModel && providerSettings.deepseek) {
+      elements.deepseekModel.value = providerSettings.deepseek.model || '';
+    }
     if (elements.openrouterApiKey && providerSettings.openrouter) {
-      logger.info('[DEBUG-options] Loaded openrouter settings', {
+      logger.debug('[DEBUG-options] Loaded openrouter settings', {
         apiKey: providerSettings.openrouter.apiKey ? '***REDACTED***' : '',
       });
       elements.openrouterApiKey.value = providerSettings.openrouter.apiKey || '';
@@ -626,7 +686,7 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
       elements.openrouterModel.value = providerSettings.openrouter.model || '';
     }
     if (elements.zaiPaasApiKey && providerSettings['zai-paas']) {
-      logger.info('[DEBUG-options] Loaded zai-paas settings', {
+      logger.debug('[DEBUG-options] Loaded zai-paas settings', {
         apiKey: providerSettings['zai-paas'].apiKey ? '***REDACTED***' : '',
         model: providerSettings['zai-paas'].model,
       });
@@ -636,7 +696,7 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
       elements.zaiPaasModel.value = providerSettings['zai-paas'].model || '';
     }
     if (elements.zaiCodingApiKey && providerSettings['zai-coding']) {
-      logger.info('[DEBUG-options] Loaded zai-coding settings', {
+      logger.debug('[DEBUG-options] Loaded zai-coding settings', {
         apiKey: providerSettings['zai-coding'].apiKey ? '***REDACTED***' : '',
         model: providerSettings['zai-coding'].model,
       });
@@ -650,19 +710,19 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
 
     // Populate z.ai models if API key is present
     if (elements.zaiPaasApiKey && elements.zaiPaasApiKey.value) {
-      logger.info('[DEBUG-options] Populating zaiPaas models on load');
+      logger.debug('[DEBUG-options] Populating zaiPaas models on load');
       populateZaiModels('zaiPaas').catch((error) => {
         logger.error('Failed to populate z.ai PaaS models on load', { error });
       });
     }
     if (elements.zaiCodingApiKey && elements.zaiCodingApiKey.value) {
-      logger.info('[DEBUG-options] Populating zaiCoding models on load');
+      logger.debug('[DEBUG-options] Populating zaiCoding models on load');
       populateZaiModels('zaiCoding').catch((error) => {
         logger.error('Failed to populate z.ai Coding models on load', { error });
       });
     }
 
-    logger.info('[DEBUG-options] loadGeneralSettings() completed');
+    logger.debug('[DEBUG-options] loadGeneralSettings() completed');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Error loading general settings', { error: errorMessage });
@@ -676,7 +736,7 @@ function gatherProviderSettings(
   provider: string,
   elements: GeneralSettingsElements
 ): PartialProviderConfig {
-  logger.info('[DEBUG-options] gatherProviderSettings() called', { provider });
+  logger.debug('[DEBUG-options] gatherProviderSettings() called', { provider });
 
   const baseSettings: PartialProviderConfig = { provider: provider as Provider };
 
@@ -690,7 +750,7 @@ function gatherProviderSettings(
         ollamaApiUrl: elements.ollamaApiUrl.value.trim(),
         ollamaModel: elements.ollamaModel.value.trim(),
       };
-      logger.info('[DEBUG-options] Gathered ollama settings', {
+      logger.debug('[DEBUG-options] Gathered ollama settings', {
         apiUrl: ollamaSettings.ollamaApiUrl,
         model: ollamaSettings.ollamaModel,
       });
@@ -704,8 +764,9 @@ function gatherProviderSettings(
       const openaiSettings = {
         ...baseSettings,
         openaiApiKey: elements.openaiApiKey.value.trim(),
+        openaiModel: elements.openaiModel?.value.trim() || '',
       };
-      logger.info('[DEBUG-options] Gathered openai settings', {
+      logger.debug('[DEBUG-options] Gathered openai settings', {
         apiKey: openaiSettings.openaiApiKey ? '***REDACTED***' : '',
       });
       return openaiSettings;
@@ -718,8 +779,9 @@ function gatherProviderSettings(
       const geminiSettings = {
         ...baseSettings,
         geminiApiKey: elements.geminiApiKey.value.trim(),
+        geminiModel: elements.geminiModel?.value.trim() || '',
       };
-      logger.info('[DEBUG-options] Gathered gemini settings', {
+      logger.debug('[DEBUG-options] Gathered gemini settings', {
         apiKey: geminiSettings.geminiApiKey ? '***REDACTED***' : '',
       });
       return geminiSettings;
@@ -732,8 +794,9 @@ function gatherProviderSettings(
       const claudeSettings = {
         ...baseSettings,
         claudeApiKey: elements.claudeApiKey.value.trim(),
+        claudeModel: elements.claudeModel?.value.trim() || '',
       };
-      logger.info('[DEBUG-options] Gathered claude settings', {
+      logger.debug('[DEBUG-options] Gathered claude settings', {
         apiKey: claudeSettings.claudeApiKey ? '***REDACTED***' : '',
       });
       return claudeSettings;
@@ -746,8 +809,9 @@ function gatherProviderSettings(
       const mistralSettings = {
         ...baseSettings,
         mistralApiKey: elements.mistralApiKey.value.trim(),
+        mistralModel: elements.mistralModel?.value.trim() || '',
       };
-      logger.info('[DEBUG-options] Gathered mistral settings', {
+      logger.debug('[DEBUG-options] Gathered mistral settings', {
         apiKey: mistralSettings.mistralApiKey ? '***REDACTED***' : '',
       });
       return mistralSettings;
@@ -760,8 +824,9 @@ function gatherProviderSettings(
       const deepseekSettings = {
         ...baseSettings,
         deepseekApiKey: elements.deepseekApiKey.value.trim(),
+        deepseekModel: elements.deepseekModel?.value.trim() || '',
       };
-      logger.info('[DEBUG-options] Gathered deepseek settings', {
+      logger.debug('[DEBUG-options] Gathered deepseek settings', {
         apiKey: deepseekSettings.deepseekApiKey ? '***REDACTED***' : '',
       });
       return deepseekSettings;
@@ -776,7 +841,7 @@ function gatherProviderSettings(
         openrouterApiKey: elements.openrouterApiKey.value.trim(),
         openrouterModel: elements.openrouterModel?.value.trim() || '',
       };
-      logger.info('[DEBUG-options] Gathered openrouter settings', {
+      logger.debug('[DEBUG-options] Gathered openrouter settings', {
         apiKey: openrouterSettings.openrouterApiKey ? '***REDACTED***' : '',
         model: openrouterSettings.openrouterModel,
       });
@@ -792,7 +857,7 @@ function gatherProviderSettings(
         zaiPaasApiKey: elements.zaiPaasApiKey.value.trim(),
         zaiPaasModel: elements.zaiPaasModel.value,
       };
-      logger.info('[DEBUG-options] Gathered zai-paas settings', {
+      logger.debug('[DEBUG-options] Gathered zai-paas settings', {
         apiKey: zaiPaasSettings.zaiPaasApiKey ? '***REDACTED***' : '',
         model: zaiPaasSettings.zaiPaasModel,
       });
@@ -808,7 +873,7 @@ function gatherProviderSettings(
         zaiCodingApiKey: elements.zaiCodingApiKey.value.trim(),
         zaiCodingModel: elements.zaiCodingModel.value,
       };
-      logger.info('[DEBUG-options] Gathered zai-coding settings', {
+      logger.debug('[DEBUG-options] Gathered zai-coding settings', {
         apiKey: zaiCodingSettings.zaiCodingApiKey ? '***REDACTED***' : '',
         model: zaiCodingSettings.zaiCodingModel,
       });
@@ -828,7 +893,7 @@ async function handleGeneralSettingsSubmit(
 ): Promise<SettingsSaveResult> {
   const provider = elements.providerSelect.value;
 
-  logger.info('[DEBUG-options] handleGeneralSettingsSubmit() called', { provider });
+  logger.debug('[DEBUG-options] handleGeneralSettingsSubmit() called', { provider });
 
   if (!isValidProvider(provider)) {
     logger.warn('[DEBUG-options] Invalid provider selected', { provider });
@@ -839,7 +904,7 @@ async function handleGeneralSettingsSubmit(
   }
 
   const settingsToSave = gatherProviderSettings(provider, elements);
-  logger.info('[DEBUG-options] Gathered settings', { settingsToSave });
+  logger.debug('[DEBUG-options] Gathered settings', { settingsToSave });
 
   let permissionGranted = true;
 
@@ -848,14 +913,29 @@ async function handleGeneralSettingsSubmit(
     const hasSettings = Object.values(settingsToSave).some((val) => val && val !== '');
 
     if (hasSettings) {
+      // N5: fail with a clear message when the derived host is not declared in
+      // the manifest (e.g. Ollama on a LAN address), instead of letting the
+      // permissions.request rejection surface as a cryptic generic error.
+      if (!isHostSupportedForPermissions(permissionOrigin)) {
+        logger.warn('[DEBUG-options] Unsupported permission host', {
+          origin: permissionOrigin,
+        });
+        return {
+          success: false,
+          message:
+            'Host wird nicht unterstützt. Unterstützt werden: localhost/127.0.0.1 (Ollama) ' +
+            'sowie die konfigurierten Cloud-Provider-Ursprünge.',
+        };
+      }
+
       try {
-        logger.info('[DEBUG-options] Requesting permission for origin', {
+        logger.debug('[DEBUG-options] Requesting permission for origin', {
           origin: permissionOrigin,
         });
         permissionGranted = await messenger.permissions.request({
           origins: [permissionOrigin],
         });
-        logger.info('[DEBUG-options] Permission result', {
+        logger.debug('[DEBUG-options] Permission result', {
           granted: permissionGranted,
           origin: permissionOrigin,
         });
@@ -868,7 +948,7 @@ async function handleGeneralSettingsSubmit(
         };
       }
     } else {
-      logger.info('[DEBUG-options] No settings to save, skipping permission request');
+      logger.debug('[DEBUG-options] No settings to save, skipping permission request');
     }
 
     if (permissionGranted) {
@@ -894,7 +974,7 @@ async function handleGeneralSettingsSubmit(
         const threshold = parseInt(elements.minConfidenceThreshold.value, 10);
         if (!isNaN(threshold) && threshold >= 0 && threshold <= 100) {
           existingAppConfig.minConfidenceThreshold = threshold;
-          logger.info('[DEBUG-options] Saving minConfidenceThreshold', {
+          logger.debug('[DEBUG-options] Saving minConfidenceThreshold', {
             threshold,
           });
         } else {
@@ -907,7 +987,7 @@ async function handleGeneralSettingsSubmit(
         existingAppConfig.minConfidenceThreshold = DEFAULTS.minConfidenceThreshold;
       }
 
-      logger.info('[DEBUG-options] Saving to storage', {
+      logger.debug('[DEBUG-options] Saving to storage', {
         appConfig: existingAppConfig,
         providerSettings,
       });
@@ -917,7 +997,7 @@ async function handleGeneralSettingsSubmit(
         providerSettings,
       });
 
-      logger.info('[DEBUG-options] Settings saved successfully');
+      logger.debug('[DEBUG-options] Settings saved successfully');
 
       return {
         success: true,
@@ -941,7 +1021,7 @@ async function handleGeneralSettingsSubmit(
 }
 
 function convertToProviderSettings(settings: PartialProviderConfig) {
-  logger.info('[DEBUG-options] convertToProviderSettings() called', {
+  logger.debug('[DEBUG-options] convertToProviderSettings() called', {
     provider: settings.provider,
     input: settings,
   });
@@ -955,15 +1035,15 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
         model: settings.ollamaModel || '',
         apiUrl: settings.ollamaApiUrl || '',
       };
-      logger.info('[DEBUG-options] Converted ollama settings', { result });
+      logger.debug('[DEBUG-options] Converted ollama settings', { result });
       return result;
 
     case Provider.OPENAI:
       result = {
         apiKey: settings.openaiApiKey || '',
-        model: 'gpt-4o-mini',
+        model: settings.openaiModel || '',
       };
-      logger.info('[DEBUG-options] Converted openai settings', {
+      logger.debug('[DEBUG-options] Converted openai settings', {
         apiKey: result.apiKey ? '***REDACTED***' : '',
         model: result.model,
       });
@@ -972,9 +1052,9 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
     case Provider.GEMINI:
       result = {
         apiKey: settings.geminiApiKey || '',
-        model: 'gemini-2.0-flash-exp',
+        model: settings.geminiModel || '',
       };
-      logger.info('[DEBUG-options] Converted gemini settings', {
+      logger.debug('[DEBUG-options] Converted gemini settings', {
         apiKey: result.apiKey ? '***REDACTED***' : '',
         model: result.model,
       });
@@ -983,9 +1063,9 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
     case Provider.CLAUDE:
       result = {
         apiKey: settings.claudeApiKey || '',
-        model: 'claude-3-5-sonnet-20241022',
+        model: settings.claudeModel || '',
       };
-      logger.info('[DEBUG-options] Converted claude settings', {
+      logger.debug('[DEBUG-options] Converted claude settings', {
         apiKey: result.apiKey ? '***REDACTED***' : '',
         model: result.model,
       });
@@ -994,9 +1074,9 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
     case Provider.MISTRAL:
       result = {
         apiKey: settings.mistralApiKey || '',
-        model: 'mistral-large-latest',
+        model: settings.mistralModel || '',
       };
-      logger.info('[DEBUG-options] Converted mistral settings', {
+      logger.debug('[DEBUG-options] Converted mistral settings', {
         apiKey: result.apiKey ? '***REDACTED***' : '',
         model: result.model,
       });
@@ -1005,9 +1085,9 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
     case Provider.DEEPSEEK:
       result = {
         apiKey: settings.deepseekApiKey || '',
-        model: 'deepseek-chat',
+        model: settings.deepseekModel || '',
       };
-      logger.info('[DEBUG-options] Converted deepseek settings', {
+      logger.debug('[DEBUG-options] Converted deepseek settings', {
         apiKey: result.apiKey ? '***REDACTED***' : '',
         model: result.model,
       });
@@ -1016,9 +1096,9 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
     case Provider.OPENROUTER:
       result = {
         apiKey: settings.openrouterApiKey || '',
-        model: settings.openrouterModel || 'openai/gpt-4o-mini',
+        model: settings.openrouterModel || '',
       };
-      logger.info('[DEBUG-options] Converted openrouter settings', {
+      logger.debug('[DEBUG-options] Converted openrouter settings', {
         apiKey: result.apiKey ? '***REDACTED***' : '',
         model: result.model,
       });
@@ -1027,10 +1107,10 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
     case Provider.ZAI_PAAS:
       result = {
         apiKey: settings.zaiPaasApiKey || '',
-        model: settings.zaiPaasModel || 'glm-4.5',
+        model: settings.zaiPaasModel || '',
         apiUrl: 'https://api.z.ai/api/paas/v4/chat/completions',
       };
-      logger.info('[DEBUG-options] Converted zai-paas settings', {
+      logger.debug('[DEBUG-options] Converted zai-paas settings', {
         apiKey: result.apiKey ? '***REDACTED***' : '',
         model: result.model,
         apiUrl: result.apiUrl,
@@ -1040,10 +1120,10 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
     case Provider.ZAI_CODING:
       result = {
         apiKey: settings.zaiCodingApiKey || '',
-        model: settings.zaiCodingModel || 'glm-4.7',
+        model: settings.zaiCodingModel || '',
         apiUrl: 'https://api.z.ai/api/coding/paas/v4/chat/completions',
       };
-      logger.info('[DEBUG-options] Converted zai-coding settings', {
+      logger.debug('[DEBUG-options] Converted zai-coding settings', {
         apiKey: result.apiKey ? '***REDACTED***' : '',
         model: result.model,
         apiUrl: result.apiUrl,
@@ -1791,32 +1871,6 @@ function initializeOptionsPage(): void {
           const errorMessage = error instanceof Error ? error.message : String(error);
           logger.error('Failed to save custom tags', { error: errorMessage });
           setStatusMessage(customTagsStatusMessage as HTMLSpanElement, `Fehler: ${errorMessage}`);
-        }
-      });
-    }
-
-    // Save analysis results button handler (acts as refresh)
-    const saveAnalysisResultsBtn = document.getElementById('save-analysis-results-btn');
-    const analysisResultsStatusMessage = document.getElementById('analysis-results-status-message');
-    if (saveAnalysisResultsBtn && analysisResultsStatusMessage) {
-      saveAnalysisResultsBtn.addEventListener('click', async () => {
-        try {
-          // Trigger refresh of analysis results
-          const refreshBtn = document.getElementById('refresh-results-btn') as HTMLButtonElement;
-          if (refreshBtn) {
-            refreshBtn.click();
-          }
-          setStatusMessage(
-            analysisResultsStatusMessage as HTMLSpanElement,
-            'Analyseergebnisse aktualisiert!'
-          );
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          logger.error('Failed to save analysis results', { error: errorMessage });
-          setStatusMessage(
-            analysisResultsStatusMessage as HTMLSpanElement,
-            `Fehler: ${errorMessage}`
-          );
         }
       });
     }

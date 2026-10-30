@@ -71,7 +71,7 @@ export interface FetchOptions extends Omit<RequestInit, 'headers'> {
 // DEFAULT CONFIGURATION
 // ============================================================================
 
-const DEFAULT_TIMEOUT = 300000 as const;
+const DEFAULT_TIMEOUT = 120000 as const;
 const DEFAULT_RETRY_CONFIG = {
   maxRetries: 3,
   baseDelay: 1000,
@@ -130,17 +130,43 @@ async function fetchWithTimeout(
  */
 export interface HttpError extends Error {
   status: number;
+  /** Server-provided delay before retrying (from Retry-After), in milliseconds */
+  retryAfterMs?: number;
+}
+
+/**
+ * Parses a Retry-After header value into milliseconds.
+ * Supports both delta-seconds and HTTP-date formats.
+ * @param value - Raw Retry-After header value
+ * @returns Delay in milliseconds, or undefined if absent/unparseable
+ */
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined;
+
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return seconds * 1000;
+  }
+
+  const date = Date.parse(value);
+  if (Number.isFinite(date)) {
+    return Math.max(0, date - Date.now());
+  }
+
+  return undefined;
 }
 
 /**
  * Creates an HTTP error carrying the numeric status code
  * @param status - HTTP status code
  * @param statusText - HTTP status text
+ * @param retryAfterMs - Optional server-provided retry delay in milliseconds
  * @returns Error with numeric `.status` property
  */
-function createHttpError(status: number, statusText: string): HttpError {
+function createHttpError(status: number, statusText: string, retryAfterMs?: number): HttpError {
   const error: HttpError = Object.assign(new Error(`API request failed: ${status} ${statusText}`), {
     status,
+    retryAfterMs,
   });
   return error;
 }
@@ -395,8 +421,11 @@ export abstract class BaseProvider {
             statusText: res.statusText,
             error: errorText,
           });
-          // Attach numeric status so retryWithBackoff can retry 429/5xx
-          throw createHttpError(res.status, res.statusText);
+          // Attach numeric status so retryWithBackoff can retry 429/5xx.
+          // Honour Retry-After on 429 to avoid hammering the provider.
+          const retryAfterMs =
+            res.status === 429 ? parseRetryAfter(res.headers.get('Retry-After')) : undefined;
+          throw createHttpError(res.status, res.statusText, retryAfterMs);
         }
 
         return res;

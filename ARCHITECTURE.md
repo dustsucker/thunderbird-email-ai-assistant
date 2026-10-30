@@ -179,7 +179,7 @@ src/
 │   │   ├── ProviderUtils.ts
 │   │   └── Validator.ts
 │   └── repositories/     # Repository Implementations
-│       └── IndexedDBConfigRepository.ts
+│       └── StorageLocalConfigRepository.ts
 │
 ├── interfaces/           # Interface Layer (Adapters)
 │   ├── adapters/         # External Adapters
@@ -240,7 +240,7 @@ src/
 - **cache/**: Cache implementations (MemoryCache)
 - **logger/**: Logger implementations (ConsoleLogger, LegacyLogger)
 - **persistence/**: Database/file storage implementations
-- **repositories/**: Repository pattern implementations (IndexedDBConfigRepository)
+- **repositories/**: Repository pattern implementations (StorageLocalConfigRepository)
 - **interfaces/**: Core system interfaces (IProvider, ICache, ILogger, IQueue, IConfigRepository, IMailReader, ITagManager)
 
 **Dependencies**: Domain layer, Application interfaces, External libraries
@@ -571,7 +571,7 @@ Repository for persisting configuration data using IndexedDB.
 
 ```typescript
 @injectable()
-class IndexedDBConfigRepository implements IConfigRepository {
+class StorageLocalConfigRepository implements IConfigRepository {
   private db: IDBDatabase | null = null;
   private readonly DB_NAME = 'EmailAssistantConfig';
   private readonly STORE_NAME = 'config';
@@ -874,13 +874,13 @@ Test configuration repository with IndexedDB:
 
 ```typescript
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { IndexedDBConfigRepository } from '../infrastructure/repositories';
+import { StorageLocalConfigRepository } from '../infrastructure/repositories';
 
 describe('ConfigRepository', () => {
-  let repo: IndexedDBConfigRepository;
+  let repo: StorageLocalConfigRepository;
 
   beforeEach(async () => {
-    repo = new IndexedDBConfigRepository(logger);
+    repo = new StorageLocalConfigRepository(logger);
     await repo.initialize();
   });
 

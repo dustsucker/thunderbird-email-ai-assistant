@@ -80,16 +80,16 @@ export class DeepseekProvider extends BaseProvider {
   }
 
   protected buildRequestBody(
-    _settings: BaseProviderSettings,
-    _prompt: string,
+    settings: BaseProviderSettings,
+    prompt: string,
     _structuredData: StructuredEmailData,
     _customTags: CustomTags
   ): Record<string, unknown> {
     return {
-      model: DEEPSEEK_MODEL,
+      model: settings.model || DEEPSEEK_MODEL,
       messages: [
         { role: 'system', content: ANALYSIS_SYSTEM_PROMPT },
-        { role: 'user', content: _prompt },
+        { role: 'user', content: prompt },
       ],
       stream: false,
     };

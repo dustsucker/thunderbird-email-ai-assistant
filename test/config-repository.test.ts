@@ -1,10 +1,10 @@
 /**
- * Unit tests for IndexedDBConfigRepository.
+ * Unit tests for StorageLocalConfigRepository.
  */
 
 import 'reflect-metadata';
 import { describe, it, expect, vi, beforeEach, afterEach, expectTypeOf } from 'vitest';
-import { IndexedDBConfigRepository } from '../src/infrastructure/repositories/IndexedDBConfigRepository';
+import { StorageLocalConfigRepository } from '../src/infrastructure/repositories/StorageLocalConfigRepository';
 import type { ILogger } from '../src/infrastructure/interfaces/ILogger';
 import type {
   IProviderSettings,
@@ -51,6 +51,12 @@ function createMockBrowserStorage() {
       }
     }),
 
+    remove: vi.fn(async (keys: string | string[]) => {
+      for (const key of Array.isArray(keys) ? keys : [keys]) {
+        storage.delete(key);
+      }
+    }),
+
     clear: vi.fn(async () => {
       storage.clear();
     }),
@@ -67,6 +73,7 @@ function mockGlobalBrowserStorage() {
       local: {
         get: mockStorage.get,
         set: mockStorage.set,
+        remove: mockStorage.remove,
         clear: mockStorage.clear,
       },
     },
@@ -132,15 +139,15 @@ const sampleAppConfig: IAppConfig = {
 
 // === Test Suite ===
 
-describe('IndexedDBConfigRepository', () => {
-  let repository: IndexedDBConfigRepository;
+describe('StorageLocalConfigRepository', () => {
+  let repository: StorageLocalConfigRepository;
   let mockLogger: ILogger;
   let mockStorage: ReturnType<typeof createMockBrowserStorage>;
 
   beforeEach(() => {
     mockLogger = createMockLogger();
     mockStorage = mockGlobalBrowserStorage();
-    repository = new IndexedDBConfigRepository(mockLogger);
+    repository = new StorageLocalConfigRepository(mockLogger);
   });
 
   afterEach(() => {
@@ -214,6 +221,26 @@ describe('IndexedDBConfigRepository', () => {
 
       expect(retrieved).toEqual(updatedSettings);
       expect(retrieved).not.toEqual(sampleProviderSettings);
+    });
+
+    it('serializes concurrent writes so none are lost (#22)', async () => {
+      // Force read interleaving: without the write queue both writers read the
+      // empty store before either persists, and one update is lost.
+      const realGet = (
+        mockStorage.get as ReturnType<typeof vi.fn>
+      ).getMockImplementation() as ((keys: unknown) => Promise<unknown>) | undefined;
+      (mockStorage.get as ReturnType<typeof vi.fn>).mockImplementation(async (keys: unknown) => {
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        return realGet?.(keys);
+      });
+
+      await Promise.all([
+        repository.setProviderSettings('openai', sampleProviderSettings),
+        repository.setProviderSettings('ollama', { apiKey: 'k', model: 'm' }),
+      ]);
+
+      const all = await repository.getAllProviderSettings();
+      expect(Object.keys(all).sort()).toEqual(['ollama', 'openai']);
     });
   });
 
@@ -335,6 +362,15 @@ describe('IndexedDBConfigRepository', () => {
       expect(tags).toEqual([]);
       await expect(repository.getAppConfig()).rejects.toThrow();
       expect(mockLogger.info).toHaveBeenCalledWith('Cleared all configuration data');
+
+      // SECURITY (#13): only the repository-owned keys are removed; the whole
+      // storage.local (which holds API keys + processed_-trackers) is never wiped.
+      expect(mockStorage.remove).toHaveBeenCalledWith([
+        'providerSettings',
+        'customTags',
+        'appConfig',
+      ]);
+      expect(mockStorage.clear).not.toHaveBeenCalled();
     });
   });
 
@@ -422,7 +458,7 @@ describe('IndexedDBConfigRepository', () => {
     it('should throw error when browser API is not available', () => {
       delete (globalThis as unknown as Record<string, unknown>).browser;
 
-      expect(() => new IndexedDBConfigRepository(mockLogger)).toThrow(
+      expect(() => new StorageLocalConfigRepository(mockLogger)).toThrow(
         'browser.storage API not available'
       );
     });

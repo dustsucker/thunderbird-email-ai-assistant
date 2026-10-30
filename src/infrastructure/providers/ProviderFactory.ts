@@ -72,19 +72,12 @@ export const ProviderTokens = {
 } as const;
 
 /**
- * Provider ID to token mapping
+ * Derives the DI registration token for a provider id.
+ * Single source of truth: the id itself.
  */
-const PROVIDER_ID_TO_TOKEN: ReadonlyMap<string, InjectionToken<unknown>> = new Map([
-  ['openai', ProviderTokens.OPENAI_PROVIDER],
-  ['claude', ProviderTokens.CLAUDE_PROVIDER],
-  ['gemini', ProviderTokens.GEMINI_PROVIDER],
-  ['mistral', ProviderTokens.MISTRAL_PROVIDER],
-  ['ollama', ProviderTokens.OLLAMA_PROVIDER],
-  ['deepseek', ProviderTokens.DEEPSEEK_PROVIDER],
-  ['openrouter', ProviderTokens.OPENROUTER_PROVIDER],
-  ['zai-paas', ProviderTokens.ZAI_PAAS_PROVIDER],
-  ['zai-coding', ProviderTokens.ZAI_CODING_PROVIDER],
-] as const);
+function providerToken(providerId: string): InjectionToken<unknown> {
+  return `provider:${providerId}` as InjectionToken<unknown>;
+}
 
 // ============================================================================
 // TYPE GUARDS
@@ -137,9 +130,9 @@ export class ProviderFactory {
   // ========================================================================
 
   private readonly logger: ILogger;
-  private readonly registeredProviders = new Map<string, InjectionToken<unknown>>();
+  /** Providers registered at runtime via registerProvider() */
+  private readonly customProviders = new Map<string, IProvider>();
   private readonly adapterCache = new Map<string, IProvider>();
-  private initialized = false;
 
   // ========================================================================
   // CONSTRUCTOR
@@ -155,31 +148,13 @@ export class ProviderFactory {
   // ========================================================================
 
   /**
-   * Initializes the ProviderFactory and registers provider tokens.
+   * Initializes the ProviderFactory.
    *
-   * This method is called by the constructor. Providers are statically
-   * imported, so registration is purely bookkeeping.
-   *
-   * @remarks
-   * This method is idempotent - calling it multiple times has no effect.
+   * Providers are statically imported into PROVIDER_REGISTRY, so no runtime
+   * registration is required — this only emits the startup log.
    */
   private initialize(): void {
-    if (this.initialized) {
-      this.logger.debug('ProviderFactory already initialized');
-      return;
-    }
-
     this.logger.info('Initializing ProviderFactory');
-
-    // Register provider IDs
-    for (const providerId of PROVIDER_ID_TO_TOKEN.keys()) {
-      const token = PROVIDER_ID_TO_TOKEN.get(providerId);
-      if (token) {
-        this.registeredProviders.set(providerId, token);
-      }
-    }
-
-    this.initialized = true;
     this.logger.info('ProviderFactory initialized successfully', {
       availableProviders: this.getAvailableProviders(),
     });
@@ -249,8 +224,15 @@ export class ProviderFactory {
       return cachedAdapter;
     }
 
+    // Serve custom providers directly from the runtime registry
+    const customProvider = this.customProviders.get(providerId);
+    if (customProvider) {
+      this.logger.debug('Provider adapter served from custom registry', { providerId });
+      return customProvider;
+    }
+
     // Validate provider ID
-    if (!this.registeredProviders.has(providerId)) {
+    if (!PROVIDER_REGISTRY.has(providerId)) {
       const available = this.getAvailableProviders();
       this.logger.error('Provider not found', {
         providerId,
@@ -322,20 +304,21 @@ export class ProviderFactory {
 
     this.logger.info('Registering custom provider', { providerId });
 
-    const token = `provider:${providerId}` as InjectionToken<unknown>;
+    const token = providerToken(providerId);
 
     // If provider already implements IProvider, register it directly
     if (isIProvider(provider)) {
       container.registerInstance(token, provider);
+      this.customProviders.set(providerId, provider);
       this.logger.debug('Registered provider as IProvider implementation', { providerId });
     } else {
       // Otherwise, wrap it in a BaseProviderAdapter
       const adapter = new BaseProviderAdapter(providerId, provider as never, this.logger);
       container.registerInstance(token, adapter);
+      this.customProviders.set(providerId, adapter);
       this.logger.debug('Registered provider with BaseProviderAdapter', { providerId });
     }
 
-    this.registeredProviders.set(providerId, token);
     this.logger.info('Custom provider registered', { providerId });
   }
 
@@ -355,7 +338,7 @@ export class ProviderFactory {
    * ```
    */
   public getAvailableProviders(): string[] {
-    return Array.from(this.registeredProviders.keys()).sort();
+    return Array.from(new Set([...PROVIDER_REGISTRY.keys(), ...this.customProviders.keys()])).sort();
   }
 
   /**
@@ -372,7 +355,7 @@ export class ProviderFactory {
    * ```
    */
   public hasProvider(providerId: string): boolean {
-    return this.registeredProviders.has(providerId);
+    return PROVIDER_REGISTRY.has(providerId) || this.customProviders.has(providerId);
   }
 
   // ========================================================================
@@ -392,20 +375,15 @@ export class ProviderFactory {
   }
 
   /**
-   * Clears all registrations from the DI container.
+   * Clears the provider adapter cache.
    *
-   * This method is primarily useful for testing and should not be called
-   * in production code.
+   * Does NOT touch the global DI container — providers are statically
+   * registered and the container is owned by the application bootstrap.
    *
-   * @remarks
-   * After calling this method, the factory needs to be re-initialized.
+   * This method is primarily useful for testing.
    */
   public reset(): void {
     this.logger.warn('Resetting ProviderFactory');
-    container.clearInstances();
-    container.reset();
-    this.registeredProviders.clear();
     this.adapterCache.clear();
-    this.initialized = false;
   }
 }
