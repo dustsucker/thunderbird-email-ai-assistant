@@ -31,14 +31,9 @@ This directory contains UI adapters and Thunderbird WebExtension API integration
 
 ### options/
 
-| File                   | Description                                                |
-| ---------------------- | ---------------------------------------------------------- |
-| `OptionsScript.ts`     | Main entry point - DI container setup and UI orchestration |
-| `SettingsForm.ts`      | Provider settings form with validation and persistence     |
-| `TagManagementUI.ts`   | CRUD operations for custom tags with modal dialog          |
-| `BatchAnalysisUI.ts`   | Batch email analysis with progress tracking                |
-| `ManualReviewPanel.ts` | Reviews low-confidence email classifications               |
-| `index.ts`             | Barrel export for options components                       |
+| File          | Description                                                                                              |
+| ------------- | -------------------------------------------------------------------------------------------------------- |
+| `DebugTab.ts` | Debug tab for the options page (the only shipped component here; see root `options.html`/`options.ts`/`options.css`) |
 
 ### shared/components/
 
@@ -117,7 +112,7 @@ private handleMessage(message: unknown, sender: unknown, sendResponse: Function)
 
 ```typescript
 @injectable()
-export class SettingsForm {
+export class SomeUiComponent {
   private elements: DOMElements | null = null;
 
   render(): void {
@@ -157,7 +152,7 @@ export class ThunderbirdNewAdapter implements INewAdapter {
 }
 ```
 
-3. Register in DI container (`OptionsScript.ts` or background script)
+3. Register in DI container (background script or options entry `options.ts`)
 4. Export from `adapters/index.ts`
 
 ### Adding a New UI Component
@@ -185,8 +180,7 @@ export class NewComponent {
 ```
 
 2. Register in DI container: `container.registerSingleton('NewComponent', NewComponent);`
-3. Export from `options/index.ts`
-4. Initialize in `OptionsScript.initialize()`
+3. Export from `options/index.ts` if a barrel exists, or import directly from root `options.ts`
 
 ### Adding a Runtime Message Handler
 
