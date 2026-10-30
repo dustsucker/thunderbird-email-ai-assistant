@@ -669,6 +669,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         }),
         addTagToMessage: vi.fn().mockResolvedValue(undefined),
         removeTagFromMessage: vi.fn().mockResolvedValue(undefined),
+        getTagsOnMessage: vi.fn().mockResolvedValue([]),
         setTagsOnMessage: vi.fn().mockResolvedValue(undefined),
         clearTagsFromMessage: vi.fn().mockResolvedValue(undefined),
         addTagToMessages: vi.fn().mockResolvedValue(undefined),
@@ -1150,6 +1151,7 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
         }),
         addTagToMessage: vi.fn().mockResolvedValue(undefined),
         removeTagFromMessage: vi.fn().mockResolvedValue(undefined),
+        getTagsOnMessage: vi.fn().mockResolvedValue([]),
         setTagsOnMessage: vi
           .fn()
           .mockImplementation(async (messageId: number, tagKeys: string[]) => {
@@ -1595,6 +1597,27 @@ describe('Tag Mapping Fix - Dynamic Tag Key Mapping', () => {
       expect(mockMessenger.messages.update).toHaveBeenCalledWith(123, {
         tags: ['$label1', '_ma_is_advertise'],
       });
+    });
+  });
+
+  describe('getTagsOnMessage() - real tag reads (Issue #32)', () => {
+    it('should return unprefixed AI tag keys and exclude non-AI tags', async () => {
+      mockMessenger.messages.get = vi
+        .fn()
+        .mockResolvedValue({ id: 123, tags: ['$label1', '_ma_is_scam', '_ma_tagged'] });
+
+      const tags = await tagManager.getTagsOnMessage(123);
+
+      expect(mockMessenger.messages.get).toHaveBeenCalledWith(123);
+      expect(tags).toEqual(['is_scam', 'tagged']);
+    });
+
+    it('should return an empty array for a message without tags', async () => {
+      mockMessenger.messages.get = vi.fn().mockResolvedValue({ id: 123, tags: [] });
+
+      const tags = await tagManager.getTagsOnMessage(123);
+
+      expect(tags).toEqual([]);
     });
   });
 });

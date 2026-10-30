@@ -65,6 +65,7 @@ describe('UndoTagChanges', () => {
       deleteTag: vi.fn(),
       addTagToMessage: vi.fn(),
       removeTagFromMessage: vi.fn(),
+      getTagsOnMessage: vi.fn().mockResolvedValue([]),
       setTagsOnMessage: vi.fn(),
       clearTagsFromMessage: vi.fn(),
       tagExists: vi.fn(),

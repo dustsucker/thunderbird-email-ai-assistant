@@ -472,26 +472,17 @@ export class ApplyTagsToEmail {
   }
 
   /**
-   * Gets current tags on a message.
+   * Gets the AI tag keys currently on a message.
    *
-   * Note: This is a simplified implementation. In a real implementation,
-   * you would retrieve the current tags from Thunderbird via IMailReader
-   * or a dedicated method in ITagManager.
+   * Delegates to ITagManager.getTagsOnMessage(), which reads the real tag
+   * list from Thunderbird and returns external (unprefixed) AI tag keys.
    *
    * @param messageId - Message ID
    * @returns Array of tag keys currently on the message
    */
   private async getCurrentTags(messageId: number): Promise<string[]> {
-    // Simplified implementation - in real code, you would:
-    // 1. Call messenger.messages.get(messageId) to get message object
-    // 2. Extract tags from message.tags property
-    // 3. Return tag keys
-
     this.logger.debug('🔍 Getting current tags for message', { messageId });
-
-    // Placeholder implementation
-    // This should be replaced with actual Thunderbird API call
-    return [];
+    return this.tagManager.getTagsOnMessage(messageId);
   }
 
   /**

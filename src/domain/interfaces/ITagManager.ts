@@ -99,6 +99,17 @@ export interface ITagManager {
   ensureTagExists(key: string, name: string, color?: string): Promise<ThunderbirdTag>;
 
   /**
+   * Gets the AI-namespace tag keys currently set on a message.
+   *
+   * Returns external (unprefixed) tag keys, e.g. 'is_scam' instead of
+   * '_ma_is_scam'. Non-AI Thunderbird tags (e.g. '$label1') are not included.
+   *
+   * @param messageId - Message ID to read tags from
+   * @returns Promise resolving to array of AI tag keys on the message
+   */
+  getTagsOnMessage(messageId: number): Promise<string[]>;
+
+  /**
    * Sets tags on a message, replacing any existing tags.
    *
    * @param messageId - Message ID to tag
