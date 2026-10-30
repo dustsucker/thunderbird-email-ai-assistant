@@ -416,7 +416,9 @@ export abstract class BaseProvider {
 
         if (!isOkResponse(res)) {
           const errorText = await res.text().catch(() => 'Could not read error response');
-          this.logError('API request failed', {
+          // debug: per-attempt detail — the single error log lives in the
+          // handling layer (AnalyzeEmail catch) to avoid error-chain spam (#5)
+          this.logDebug('API request failed', {
             status: res.status,
             statusText: res.statusText,
             error: errorText,
@@ -433,7 +435,8 @@ export abstract class BaseProvider {
 
       return response;
     } catch (error) {
-      this.logError('Request execution failed', {
+      // debug: pass-through — single error log lives in the handling layer (#5)
+      this.logDebug('Request execution failed', {
         error: error instanceof Error ? error.message : String(error),
         url: apiUrl,
       });
@@ -493,7 +496,8 @@ export abstract class BaseProvider {
 
       return validatedResponse;
     } catch (error) {
-      this.logError('Email analysis failed', {
+      // debug: pass-through — single error log lives in the handling layer (#5)
+      this.logDebug('Email analysis failed', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });

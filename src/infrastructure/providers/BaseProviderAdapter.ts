@@ -208,7 +208,8 @@ export class BaseProviderAdapter<T extends BaseProvider> implements IProvider {
 
       return response;
     } catch (error) {
-      this.logger.error('Email analysis failed', {
+      // debug: pass-through — single error log lives in the handling layer (#5)
+      this.logger.debug('Email analysis failed', {
         providerId: this.providerId,
         error: error instanceof Error ? error.message : String(error),
       });

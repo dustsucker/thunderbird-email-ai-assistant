@@ -4,7 +4,7 @@
  * - `configure({ level })` gates levels below the configured minimum
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ConsoleLogger } from '../../../src/infrastructure/logger/ConsoleLogger';
 import { debugLogBuffer } from '../../../src/infrastructure/logger/DebugLogBuffer';
 

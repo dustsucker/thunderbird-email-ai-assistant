@@ -335,7 +335,13 @@ export class AnalyzeEmail {
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('[ERROR] Email analysis failed', { messageId, error: errorMessage });
+      // Single error log for the whole analysis chain (#5): provider + message
+      // context lives here, lower layers log pass-through details at debug.
+      this.logger.error('[ERROR] Email analysis failed', {
+        messageId,
+        providerId,
+        error: errorMessage,
+      });
 
       throw new Error(`Failed to analyze email ${messageId}: ${errorMessage}`);
     }
