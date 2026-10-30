@@ -21,6 +21,8 @@ type DebugLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface QueueStatsResponse {
   success: boolean;
+  /** Optionaler Zähler des Backends (#8-UI); fehlt das Feld, bleibt die Kachel verborgen. */
+  cacheErrors?: number;
   queue: {
     size: number;
     waiting: number;
@@ -62,6 +64,12 @@ interface CancelBatchResponse {
 /** Filter value: 'all' or a minimum level (entries at or above are shown). */
 type LevelFilter = 'all' | DebugLogLevel;
 
+/** Storage shape of the appConfig entry written by the logging settings (#3-UI). */
+interface LoggingSettings {
+  enableLogging?: boolean;
+  logLevel?: string;
+}
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -75,6 +83,11 @@ const LEVEL_ORDER: Record<DebugLogLevel, number> = {
   warn: 2,
   error: 3,
 };
+
+/** Type guard for stored/select log-level values. */
+function isDebugLogLevel(value: unknown): value is DebugLogLevel {
+  return value === 'debug' || value === 'info' || value === 'warn' || value === 'error';
+}
 
 const BATCH_STATUS_LABELS: Record<BatchStatus, string> = {
   idle: 'Inaktiv',
@@ -159,6 +172,8 @@ export class DebugTab {
 
     const cancelBtn = document.getElementById('debug-cancel-batch-btn');
     cancelBtn?.addEventListener('click', () => this.cancelBatch());
+
+    this.initLoggingSettings();
 
     // Stop polling when the options page is closed
     window.addEventListener('beforeunload', () => this.onTabVisibilityChanged(false));
@@ -280,6 +295,16 @@ export class DebugTab {
     this.setText('debug-stat-waiting', String(queue.waiting));
     this.setText('debug-stat-processing', String(queue.processing));
     this.setText('debug-stat-avg-wait', `${Math.round(queue.avgWaitTime)} ms`);
+
+    // Cache-Fehler (#8-UI): Feld kommt vom Backend, defensively rendern
+    const cacheErrorsWrap = document.getElementById('debug-stat-cache-errors-wrap');
+    if (cacheErrorsWrap) {
+      cacheErrorsWrap.hidden = stats.cacheErrors === undefined;
+    }
+    this.setText(
+      'debug-stat-cache-errors',
+      stats.cacheErrors !== undefined ? String(stats.cacheErrors) : ''
+    );
   }
 
   private setConnectionStatus(text: string): void {
@@ -406,6 +431,88 @@ export class DebugTab {
   }
 
   // ==========================================================================
+  // Private Methods - Logging Settings (#3-UI)
+  // ==========================================================================
+
+  /**
+   * storage.local-Accessor der Options-Seite (`messenger`-Global). Fehlt er
+   * (z.B. in Komponententests), bleiben die Steuerungen unangetastet.
+   */
+  private getLocalStorage(): {
+    get(keys: unknown): Promise<Record<string, unknown>>;
+    set(items: Record<string, unknown>): Promise<void>;
+  } | null {
+    const messenger = (globalThis as { messenger?: { storage?: { local?: unknown } } }).messenger;
+    const local = messenger?.storage?.local;
+    if (
+      local &&
+      typeof (local as { get?: unknown }).get === 'function' &&
+      typeof (local as { set?: unknown }).set === 'function'
+    ) {
+      return local as { get(keys: unknown): Promise<Record<string, unknown>>; set(items: Record<string, unknown>): Promise<void> };
+    }
+    return null;
+  }
+
+  /** Lädt die gespeicherten Protokollierungs-Einstellungen in die Steuerungen. */
+  private initLoggingSettings(): void {
+    const checkbox = document.getElementById('debug-enable-logging') as HTMLInputElement | null;
+    const levelSelect = document.getElementById('debug-log-level') as HTMLSelectElement | null;
+    if (!checkbox || !levelSelect) {
+      return;
+    }
+
+    const storage = this.getLocalStorage();
+    if (!storage) {
+      return;
+    }
+
+    storage
+      .get({ appConfig: {} })
+      .then((data) => {
+        const appConfig = ((data.appConfig ?? {}) as LoggingSettings);
+        if (typeof appConfig.enableLogging === 'boolean') {
+          checkbox.checked = appConfig.enableLogging;
+        }
+        if (isDebugLogLevel(appConfig.logLevel)) {
+          levelSelect.value = appConfig.logLevel;
+        }
+      })
+      .catch((error: unknown) => {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.logger.error('Failed to load logging settings', { error: errorMessage });
+      });
+
+    const persist = (): void => {
+      void this.persistLoggingSettings(checkbox.checked, levelSelect.value);
+    };
+    checkbox.addEventListener('change', persist);
+    levelSelect.addEventListener('change', persist);
+  }
+
+  /** Schreibt Protokollierungs-Einstellungen in den bestehenden appConfig-Key. */
+  private async persistLoggingSettings(enableLogging: boolean, logLevel: string): Promise<void> {
+    const storage = this.getLocalStorage();
+    if (!storage) {
+      return;
+    }
+
+    try {
+      const data = await storage.get({ appConfig: {} });
+      const appConfig: Record<string, unknown> = {
+        ...((data.appConfig as Record<string, unknown> | undefined) ?? {}),
+        enableLogging,
+        logLevel,
+      };
+      await storage.set({ appConfig });
+      this.logger.debug('Logging settings saved', { enableLogging, logLevel });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to save logging settings', { error: errorMessage });
+    }
+  }
+
+  // ==========================================================================
   // Private Methods - Utilities
   // ==========================================================================
 
@@ -436,10 +543,10 @@ export class DebugTab {
             }
           });
         } else {
-          reject(new Error('Browser runtime not available'));
+          reject(new Error('Browser-Laufzeitumgebung nicht verfügbar'));
         }
       } else {
-        reject(new Error('Browser runtime not available'));
+        reject(new Error('Browser-Laufzeitumgebung nicht verfügbar'));
       }
     });
   }
