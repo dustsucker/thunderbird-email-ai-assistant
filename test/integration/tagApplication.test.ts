@@ -256,7 +256,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       expect(result.confidence).toBe(0.85);
 
       // Verify: Success logged
-      expect(logger.info).toHaveBeenCalledWith(
+      expect(logger.debug).toHaveBeenCalledWith(
         expect.stringContaining('Tags applied successfully'),
         expect.objectContaining({
           messageId: '123',
@@ -442,7 +442,7 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       expect(result.tags).toEqual(['is_business', 'is_urgent', 'is_personal']);
 
       // Verify: Log shows 2 applied, 1 skipped
-      expect(logger.info).toHaveBeenCalledWith(
+      expect(logger.debug).toHaveBeenCalledWith(
         expect.stringContaining('Tags applied successfully'),
         expect.objectContaining({
           applied: 2,

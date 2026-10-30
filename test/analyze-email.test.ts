@@ -158,7 +158,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
     it('should log "Starting email analysis" with correct context', async () => {
       await analyzeEmail.execute('123', mockProviderSettings);
 
-      expect(logger.info).toHaveBeenCalledWith('[INFO] Starting email analysis', {
+      expect(logger.debug).toHaveBeenCalledWith('[DEBUG] Starting email analysis', {
         messageId: '123',
         providerId: mockProviderSettings.provider,
         config: { forceReanalyze: false, applyTags: true },
@@ -174,22 +174,22 @@ describe('AnalyzeEmail - Logging Tests', () => {
 
       await analyzeEmail.execute('123', settingsWithId);
 
-      expect(logger.info).toHaveBeenCalledWith('[INFO] Starting email analysis', {
+      expect(logger.debug).toHaveBeenCalledWith('[DEBUG] Starting email analysis', {
         messageId: '123',
         providerId: 'custom-provider-id',
         config: { forceReanalyze: false, applyTags: true },
       });
     });
 
-    it('should log start message as first info call', async () => {
+    it('should log start message as first execution-phase debug call', async () => {
       await analyzeEmail.execute('456', mockProviderSettings);
 
-      const infoCall = logger.info as ReturnType<typeof vi.fn>;
-      expect(infoCall).toHaveBeenNthCalledWith(1, '[INFO] Starting email analysis', {
-        messageId: '456',
-        providerId: mockProviderSettings.provider,
-        config: { forceReanalyze: false, applyTags: true },
-      });
+      const debugMessages = (logger.debug as ReturnType<typeof vi.fn>).mock.calls.map(
+        (call) => call[0]
+      );
+      // Skip constructor init logs from AnalyzeEmail and its sub-use-cases
+      const firstExecutionLog = debugMessages.find((msg) => !msg.includes('initialized'));
+      expect(firstExecutionLog).toBe('[DEBUG] Starting email analysis');
     });
   });
 

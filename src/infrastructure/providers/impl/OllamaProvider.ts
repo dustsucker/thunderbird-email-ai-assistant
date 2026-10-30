@@ -85,7 +85,8 @@ export class OllamaProvider extends BaseProvider {
     const rawText = response.response;
     const validatedResponse = this.validateResponse(rawText);
 
-    this.logger.info('Ollama analysis completed successfully', {
+    // debug: per-analysis completion — the single info log lives in AnalyzeEmail (#6)
+    this.logger.debug('Ollama analysis completed successfully', {
       tags: validatedResponse.tags,
       confidence: validatedResponse.confidence,
     });

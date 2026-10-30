@@ -154,7 +154,8 @@ export class ApplyTagsToEmail {
       await this.applyTagsToMessage(messageIdNum, ensuredTags, replaceTags);
       this.logger.debug('✅ Tags applied to message');
 
-      this.logger.info('✅ Tags applied successfully', {
+      // debug: per-analysis success — the single info log lives in AnalyzeEmail (#6)
+      this.logger.debug('✅ Tags applied successfully', {
         messageId,
         appliedTags: ensuredTags,
         createdTags,

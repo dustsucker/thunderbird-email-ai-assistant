@@ -208,7 +208,8 @@ export class ApplyTagsWithConfidenceUseCase {
       await this.tagManager.setTagsOnMessage(messageIdNum, tagsToApply);
 
       if (tagsToApply.length > 0) {
-        this.logger.info('✅ Tags applied successfully', {
+        // debug: per-analysis success — the single info log lives in AnalyzeEmail (#6)
+        this.logger.debug('✅ Tags applied successfully', {
           messageId,
           applied: tagsToApply.length,
           total: tagKeys.length,

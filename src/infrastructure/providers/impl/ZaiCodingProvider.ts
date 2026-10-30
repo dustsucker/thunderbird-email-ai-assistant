@@ -132,7 +132,8 @@ export class ZaiCodingProvider extends BaseProvider {
       throw new Error('Invalid response format: parsed response is not an object');
     }
 
-    this.logger.info('Z.ai Coding analysis completed successfully', {
+    // debug: per-analysis completion — the single info log lives in AnalyzeEmail (#6)
+    this.logger.debug('Z.ai Coding analysis completed successfully', {
       model: response.model,
       usage: response.usage,
     });

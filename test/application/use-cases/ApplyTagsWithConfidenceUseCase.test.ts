@@ -369,7 +369,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
     it('should log when tags are applied successfully', async () => {
       await useCase.execute('123', ['business'], 0.85);
 
-      expect(mockLogger.info).toHaveBeenCalledWith('✅ Tags applied successfully', {
+      expect(mockLogger.debug).toHaveBeenCalledWith('✅ Tags applied successfully', {
         messageId: '123',
         applied: 1,
         total: 1,

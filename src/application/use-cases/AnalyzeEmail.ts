@@ -200,7 +200,8 @@ export class AnalyzeEmail {
     } = config;
 
     const providerId = (providerSettings.provider as string) ?? 'unknown';
-    this.logger.info('[INFO] Starting email analysis', {
+    // debug: per-analysis start — the single info log is the completion log (#6)
+    this.logger.debug('[DEBUG] Starting email analysis', {
       messageId,
       providerId,
       config: { forceReanalyze, applyTags },
@@ -247,7 +248,9 @@ export class AnalyzeEmail {
         this.logger.debug('[DEBUG] Step 5: Checking cache');
         const cachedResult = await this.cacheAnalysis.get(cacheKey);
         if (cachedResult) {
-          this.logger.info('[INFO] Cache HIT', { cacheKey });
+          // debug: cache internals — 'Analysis completed from cache' is the
+          // one info for the cache-hit path (#6)
+          this.logger.debug('[DEBUG] Cache HIT', { cacheKey });
           await this.handleCachedResult(
             messageId,
             messageIdNum,

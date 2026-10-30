@@ -458,7 +458,8 @@ export abstract class BaseProvider {
     const { settings, structuredData, customTags, signal } = input;
 
     try {
-      this.logInfo('Starting email analysis', {
+      // debug: per-analysis start — the single info log is the completion log (#6)
+      this.logDebug('Starting email analysis', {
         hasBody: !!structuredData.body,
         attachmentCount: structuredData.attachments.length,
         tagCount: customTags.length,
@@ -489,7 +490,8 @@ export abstract class BaseProvider {
 
       const validatedResponse = this.validateResponse(parsedResponse);
 
-      this.logInfo('Email analysis completed', {
+      // debug: per-analysis completion — the single info log lives in AnalyzeEmail (#6)
+      this.logDebug('Email analysis completed', {
         tagCount: validatedResponse.tags.length,
         confidence: validatedResponse.confidence,
       });

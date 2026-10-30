@@ -200,7 +200,8 @@ export class BaseProviderAdapter<T extends BaseProvider> implements IProvider {
       // Convert legacy TagResponse to ITagResponse
       const response: ITagResponse = this.convertTagResponse(legacyResponse);
 
-      this.logger.info('Email analysis completed', {
+      // debug: per-analysis completion — the single info log lives in AnalyzeEmail (#6)
+      this.logger.debug('Email analysis completed', {
         providerId: this.providerId,
         tagCount: response.tags.length,
         confidence: response.confidence,
