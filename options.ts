@@ -102,6 +102,9 @@ interface GeneralSettingsElements {
   deepseekApiKey: HTMLInputElement | null;
   openrouterApiKey: HTMLInputElement | null;
   openrouterModel: HTMLInputElement | null;
+  openrouterDecisionsApiKey: HTMLInputElement | null;
+  openrouterDecisionsModel: HTMLInputElement | null;
+  openrouterDecisionsThreshold: HTMLInputElement | null;
   zaiPaasApiKey: HTMLInputElement | null;
   zaiPaasModel: HTMLInputElement | null;
   zaiCodingApiKey: HTMLInputElement | null;
@@ -193,6 +196,9 @@ type PartialProviderConfig = {
   deepseekApiKey?: string;
   openrouterApiKey?: string;
   openrouterModel?: string;
+  openrouterDecisionsApiKey?: string;
+  openrouterDecisionsModel?: string;
+  openrouterDecisionsThreshold?: number;
   zaiPaasApiKey?: string;
   zaiPaasModel?: string;
   zaiCodingApiKey?: string;
@@ -300,6 +306,8 @@ function getPermissionOrigin(provider: Provider, settings: PartialProviderConfig
       return 'https://api.deepseek.com/';
     case Provider.OPENROUTER:
       return 'https://openrouter.ai/';
+    case Provider.OPENROUTER_DECISIONS:
+      return 'https://openrouter.ai/';
     case Provider.ZAI_PAAS:
       return 'https://api.z.ai/';
     case Provider.ZAI_CODING:
@@ -337,6 +345,11 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
   const deepseekApiKey = getElementById<HTMLInputElement>('deepseek-api-key');
   const openrouterApiKey = getElementById<HTMLInputElement>('openrouter-api-key');
   const openrouterModel = getElementById<HTMLInputElement>('openrouter-model');
+  const openrouterDecisionsApiKey = getElementById<HTMLInputElement>('openrouter-decisions-api-key');
+  const openrouterDecisionsModel = getElementById<HTMLInputElement>('openrouter-decisions-model');
+  const openrouterDecisionsThreshold = getElementById<HTMLInputElement>(
+    'openrouter-decisions-threshold'
+  );
   const zaiPaasApiKey = getElementById<HTMLInputElement>('zaiPaasApiKey');
   const zaiPaasModel = getElementById<HTMLInputElement>('zaiPaasModel');
   const zaiCodingApiKey = getElementById<HTMLInputElement>('zaiCodingApiKey');
@@ -365,6 +378,9 @@ function getGeneralSettingsElements(): GeneralSettingsElements {
     deepseekApiKey,
     openrouterApiKey,
     openrouterModel,
+    openrouterDecisionsApiKey,
+    openrouterDecisionsModel,
+    openrouterDecisionsThreshold,
     zaiPaasApiKey,
     zaiPaasModel,
     zaiCodingApiKey,
@@ -625,6 +641,26 @@ async function loadGeneralSettings(elements: GeneralSettingsElements): Promise<v
     if (elements.openrouterModel && providerSettings.openrouter) {
       elements.openrouterModel.value = providerSettings.openrouter.model || '';
     }
+    if (elements.openrouterDecisionsApiKey && providerSettings['openrouter-decisions']) {
+      logger.info('[DEBUG-options] Loaded openrouter-decisions settings', {
+        apiKey: providerSettings['openrouter-decisions'].apiKey ? '***REDACTED***' : '',
+      });
+      elements.openrouterDecisionsApiKey.value =
+        providerSettings['openrouter-decisions'].apiKey || '';
+    }
+    if (elements.openrouterDecisionsModel && providerSettings['openrouter-decisions']) {
+      elements.openrouterDecisionsModel.value =
+        providerSettings['openrouter-decisions'].model || '';
+    }
+    if (elements.openrouterDecisionsThreshold && providerSettings['openrouter-decisions']) {
+      const storedDecisions = providerSettings['openrouter-decisions'] as {
+        additionalConfig?: Record<string, unknown>;
+      };
+      const tagThreshold = storedDecisions.additionalConfig?.tagThreshold;
+      if (typeof tagThreshold === 'number') {
+        elements.openrouterDecisionsThreshold.value = tagThreshold.toString();
+      }
+    }
     if (elements.zaiPaasApiKey && providerSettings['zai-paas']) {
       logger.info('[DEBUG-options] Loaded zai-paas settings', {
         apiKey: providerSettings['zai-paas'].apiKey ? '***REDACTED***' : '',
@@ -781,6 +817,28 @@ function gatherProviderSettings(
         model: openrouterSettings.openrouterModel,
       });
       return openrouterSettings;
+    }
+
+    case Provider.OPENROUTER_DECISIONS: {
+      if (!elements.openrouterDecisionsApiKey) {
+        throw new Error('OpenRouter Decisions settings element not found');
+      }
+      const rawThreshold = Number(elements.openrouterDecisionsThreshold?.value);
+      const decisionsSettings = {
+        ...baseSettings,
+        openrouterDecisionsApiKey: elements.openrouterDecisionsApiKey.value.trim(),
+        openrouterDecisionsModel: elements.openrouterDecisionsModel?.value.trim() || '',
+        openrouterDecisionsThreshold:
+          Number.isFinite(rawThreshold) && rawThreshold >= 0 && rawThreshold <= 1
+            ? rawThreshold
+            : 0.6,
+      };
+      logger.info('[DEBUG-options] Gathered openrouter-decisions settings', {
+        apiKey: decisionsSettings.openrouterDecisionsApiKey ? '***REDACTED***' : '',
+        model: decisionsSettings.openrouterDecisionsModel,
+        tagThreshold: decisionsSettings.openrouterDecisionsThreshold,
+      });
+      return decisionsSettings;
     }
 
     case Provider.ZAI_PAAS: {
@@ -946,7 +1004,12 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
     input: settings,
   });
 
-  let result: { apiKey: string; model: string; apiUrl?: string };
+  let result: {
+    apiKey: string;
+    model: string;
+    apiUrl?: string;
+    additionalConfig?: Record<string, unknown>;
+  };
 
   switch (settings.provider) {
     case Provider.OLLAMA:
@@ -1021,6 +1084,20 @@ function convertToProviderSettings(settings: PartialProviderConfig) {
       logger.info('[DEBUG-options] Converted openrouter settings', {
         apiKey: result.apiKey ? '***REDACTED***' : '',
         model: result.model,
+      });
+      return result;
+
+    case Provider.OPENROUTER_DECISIONS:
+      result = {
+        apiKey: settings.openrouterDecisionsApiKey || '',
+        model: settings.openrouterDecisionsModel || 'typesafe/jev-1.14',
+        apiUrl: 'https://openrouter.ai/api/alpha/decisions',
+        additionalConfig: { tagThreshold: settings.openrouterDecisionsThreshold ?? 0.6 },
+      };
+      logger.info('[DEBUG-options] Converted openrouter-decisions settings', {
+        apiKey: result.apiKey ? '***REDACTED***' : '',
+        model: result.model,
+        additionalConfig: result.additionalConfig,
       });
       return result;
 

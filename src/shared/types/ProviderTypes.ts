@@ -56,6 +56,7 @@ export enum Provider {
   MISTRAL = 'mistral',
   DEEPSEEK = 'deepseek',
   OPENROUTER = 'openrouter',
+  OPENROUTER_DECISIONS = 'openrouter-decisions',
   ZAI_PAAS = 'zai-paas',
   ZAI_CODING = 'zai-coding',
 }

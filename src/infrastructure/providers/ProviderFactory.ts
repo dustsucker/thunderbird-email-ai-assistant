@@ -20,6 +20,7 @@ import { MistralProvider } from './impl/MistralProvider';
 import { OllamaProvider } from './impl/OllamaProvider';
 import { DeepseekProvider } from './impl/DeepseekProvider';
 import { OpenRouterProvider } from './impl/OpenRouterProvider';
+import { OpenRouterDecisionsProvider } from './impl/OpenRouterDecisionsProvider';
 import { ZaiPaaSProvider } from './impl/ZaiPaaSProvider';
 import { ZaiCodingProvider } from './impl/ZaiCodingProvider';
 import 'reflect-metadata';
@@ -46,6 +47,7 @@ const PROVIDER_REGISTRY: ReadonlyMap<string, ProviderConstructor> = new Map<stri
   ['ollama', OllamaProvider as ProviderConstructor],
   ['deepseek', DeepseekProvider as ProviderConstructor],
   ['openrouter', OpenRouterProvider as ProviderConstructor],
+  ['openrouter-decisions', OpenRouterDecisionsProvider as ProviderConstructor],
   ['zai-paas', ZaiPaaSProvider as ProviderConstructor],
   ['zai-coding', ZaiCodingProvider as ProviderConstructor],
 ]);
@@ -67,6 +69,7 @@ export const ProviderTokens = {
   OLLAMA_PROVIDER: 'provider:ollama' as InjectionToken<unknown>,
   DEEPSEEK_PROVIDER: 'provider:deepseek' as InjectionToken<unknown>,
   OPENROUTER_PROVIDER: 'provider:openrouter' as InjectionToken<unknown>,
+  OPENROUTER_DECISIONS_PROVIDER: 'provider:openrouter-decisions' as InjectionToken<unknown>,
   ZAI_PAAS_PROVIDER: 'provider:zai-paas' as InjectionToken<unknown>,
   ZAI_CODING_PROVIDER: 'provider:zai-coding' as InjectionToken<unknown>,
 } as const;
@@ -82,6 +85,7 @@ const PROVIDER_ID_TO_TOKEN: ReadonlyMap<string, InjectionToken<unknown>> = new M
   ['ollama', ProviderTokens.OLLAMA_PROVIDER],
   ['deepseek', ProviderTokens.DEEPSEEK_PROVIDER],
   ['openrouter', ProviderTokens.OPENROUTER_PROVIDER],
+  ['openrouter-decisions', ProviderTokens.OPENROUTER_DECISIONS_PROVIDER],
   ['zai-paas', ProviderTokens.ZAI_PAAS_PROVIDER],
   ['zai-coding', ProviderTokens.ZAI_CODING_PROVIDER],
 ] as const);

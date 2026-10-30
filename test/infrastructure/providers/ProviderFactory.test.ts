@@ -44,6 +44,7 @@ describe('ProviderFactory', () => {
       expect(providers).toContain('ollama');
       expect(providers).toContain('deepseek');
       expect(providers).toContain('openrouter');
+      expect(providers).toContain('openrouter-decisions');
       expect(providers).toContain('zai-paas');
       expect(providers).toContain('zai-coding');
     });
@@ -166,7 +167,7 @@ describe('ProviderFactory', () => {
     it('should return all provider IDs', () => {
       const providers = factory.getAvailableProviders();
 
-      expect(providers.length).toBe(9);
+      expect(providers.length).toBe(10);
       expect(providers).toEqual(
         expect.arrayContaining([
           'openai',
@@ -176,6 +177,7 @@ describe('ProviderFactory', () => {
           'ollama',
           'deepseek',
           'openrouter',
+          'openrouter-decisions',
           'zai-paas',
           'zai-coding',
         ])
