@@ -30,6 +30,7 @@ const SENSITIVE_FIELDS = new Set([
   'deepseekapikey',
   'zaipaasapikey',
   'zaicodingapikey',
+  'openrouterapikey',
   // header / misc secret carriers
   'apikeyheader',
   'authtoken',
