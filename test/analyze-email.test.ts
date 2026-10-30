@@ -159,6 +159,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
       await analyzeEmail.execute('123', mockProviderSettings);
 
       expect(logger.debug).toHaveBeenCalledWith('[DEBUG] Starting email analysis', {
+        runId: expect.any(String),
         messageId: '123',
         providerId: mockProviderSettings.provider,
         config: { forceReanalyze: false, applyTags: true },
@@ -175,6 +176,7 @@ describe('AnalyzeEmail - Logging Tests', () => {
       await analyzeEmail.execute('123', settingsWithId);
 
       expect(logger.debug).toHaveBeenCalledWith('[DEBUG] Starting email analysis', {
+        runId: expect.any(String),
         messageId: '123',
         providerId: 'custom-provider-id',
         config: { forceReanalyze: false, applyTags: true },

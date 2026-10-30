@@ -200,8 +200,12 @@ export class AnalyzeEmail {
     } = config;
 
     const providerId = (providerSettings.provider as string) ?? 'unknown';
+    // Issue #7: one runId per analysis run — correlation key for provider,
+    // adapter and retry logs. Deliberately NOT the email subject (PII, #2).
+    const runId = crypto.randomUUID();
     // debug: per-analysis start — the single info log is the completion log (#6)
     this.logger.debug('[DEBUG] Starting email analysis', {
+      runId,
       messageId,
       providerId,
       config: { forceReanalyze, applyTags },
@@ -250,7 +254,7 @@ export class AnalyzeEmail {
         if (cachedResult) {
           // debug: cache internals — 'Analysis completed from cache' is the
           // one info for the cache-hit path (#6)
-          this.logger.debug('[DEBUG] Cache HIT', { cacheKey });
+          this.logger.debug('[DEBUG] Cache HIT', { runId, cacheKey });
           await this.handleCachedResult(
             messageId,
             messageIdNum,
@@ -258,7 +262,8 @@ export class AnalyzeEmail {
             cacheKey,
             providerSettings,
             startTime,
-            applyTags
+            applyTags,
+            runId
           );
           return cachedResult;
         }
@@ -278,7 +283,8 @@ export class AnalyzeEmail {
         providerSettings,
         tagsToUse,
         provider,
-        signal
+        signal,
+        runId
       );
       this.logger.debug('[DEBUG] Step 7 complete', {
         tagsFound: analysisResult.tags.length,
@@ -322,7 +328,9 @@ export class AnalyzeEmail {
       }
 
       this.logger.info('[INFO] Email analysis completed successfully', {
+        runId,
         messageId,
+        providerId,
         tags: analysisResult.tags,
         confidence: analysisResult.confidence,
         duration: `${Date.now() - startTime}ms`,
@@ -333,14 +341,15 @@ export class AnalyzeEmail {
       // Cancellation is not a failure: preserve the AbortError so the batch
       // layer can mark the item as cancelled instead of failed/retried.
       if (isAbortError(error)) {
-        this.logger.debug('[DEBUG] Email analysis cancelled', { messageId });
+        this.logger.debug('[DEBUG] Email analysis cancelled', { runId, messageId });
         throw error;
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);
       // Single error log for the whole analysis chain (#5): provider + message
-      // context lives here, lower layers log pass-through details at debug.
+      // + runId context lives here, lower layers log pass-through details at debug.
       this.logger.error('[ERROR] Email analysis failed', {
+        runId,
         messageId,
         providerId,
         error: errorMessage,
@@ -360,7 +369,8 @@ export class AnalyzeEmail {
     cacheKey: string,
     providerSettings: IProviderSettings,
     startTime: number,
-    applyTags: boolean
+    applyTags: boolean,
+    runId?: string
   ): Promise<void> {
     if (applyTags) {
       this.logger.debug('[DEBUG] Applying cached tags');
@@ -379,6 +389,7 @@ export class AnalyzeEmail {
     }
 
     this.logger.info('[INFO] Analysis completed from cache', {
+      runId,
       duration: `${Date.now() - startTime}ms`,
       tagsFound: cachedResult.tags.length,
     });
@@ -441,9 +452,11 @@ export class AnalyzeEmail {
     providerSettings: IProviderSettings,
     customTags: Array<{ key: string; name: string; description: string }>,
     provider: Awaited<ReturnType<typeof this.getProvider>>,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    runId?: string
   ): Promise<ITagResponse> {
     this.logger.debug('[DEBUG] Starting provider analysis', {
+      runId,
       providerId: provider.providerId,
       tagCount: customTags.length,
     });
@@ -458,6 +471,7 @@ export class AnalyzeEmail {
       data: structuredData,
       tags: customTags,
       signal,
+      runId,
     };
 
     return provider.analyze(analysisInput);

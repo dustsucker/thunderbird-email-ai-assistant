@@ -574,9 +574,31 @@ function hasStatus(obj: unknown): obj is { status: number } {
  *   jitter: 0.3
  * })
  */
+/**
+ * Retries an async function with exponential backoff and jitter
+ *
+ * @template T - Return type of the function
+ * @param fn - Async function to retry
+ * @param options - Retry configuration options
+ * @param logContext - Optional context (e.g. runId) merged into retry logs
+ * @returns Promise resolving to the function result
+ * @throws The last error if all retries are exhausted
+ *
+ * @example
+ * await retryWithBackoff(() => fetch('/api/data'), { maxRetries: 3 })
+ *
+ * @example
+ * await retryWithBackoff(() => fetchData(), {
+ *   maxRetries: 5,
+ *   baseDelay: 2000,
+ *   factor: 2,
+ *   jitter: 0.3
+ * })
+ */
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  options: RetryConfig = {}
+  options: RetryConfig = {},
+  logContext: LoggerContext = {}
 ): Promise<T> {
   const { maxRetries = 3, baseDelay = 1000, factor = 2, jitter = 0.5 } = options;
 
@@ -610,6 +632,14 @@ export async function retryWithBackoff<T>(
       const effectiveMaxRetries = isTimeout ? Math.min(maxRetries, 1) : maxRetries;
 
       if (attempt >= effectiveMaxRetries || !isTransient) {
+        // Issue #7: one warn when retries are exhausted (or not retryable at all)
+        logger.warn('Request retries exhausted', {
+          attempts: attempt + 1,
+          statusCode: status,
+          timeout: isTimeout,
+          error: isError(error) ? error.message : String(error),
+          ...logContext,
+        });
         throw lastError;
       }
 
@@ -623,6 +653,15 @@ export async function retryWithBackoff<T>(
         const jitterAmount = exponentialDelay * jitter * (Math.random() * 2 - 1);
         delay = exponentialDelay + jitterAmount;
       }
+
+      // Issue #7: one debug per attempt with attempt/delay metadata
+      logger.debug('Retrying request after failure', {
+        attempt: attempt + 1,
+        max: effectiveMaxRetries + 1,
+        statusCode: status,
+        delayMs: Math.round(delay),
+        ...logContext,
+      });
 
       await new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, delay)));
     }

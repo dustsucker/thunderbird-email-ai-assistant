@@ -185,6 +185,7 @@ export class BaseProviderAdapter<T extends BaseProvider> implements IProvider {
    */
   async analyze(input: IAnalyzeInput): Promise<ITagResponse> {
     this.logger.debug('Starting email analysis', {
+      runId: (input as { runId?: string }).runId,
       providerId: this.providerId,
       tagCount: input.tags.length,
       hasBody: !!input.data.body,
@@ -193,6 +194,10 @@ export class BaseProviderAdapter<T extends BaseProvider> implements IProvider {
     try {
       // Convert IAnalyzeInput to LegacyAnalyzeInput
       const legacyInput: LegacyAnalyzeInput = this.convertAnalyzeInput(input);
+      // runId rides as an optional extra field on the analyze input; AnalyzeEmail
+      // threads it for log correlation (issue #7). Not part of IAnalyzeInput.
+      const runId = (input as { runId?: string }).runId;
+      if (runId) legacyInput.runId = runId;
 
       // Delegate to BaseProvider
       const legacyResponse = await this.provider.analyze(legacyInput);
@@ -202,6 +207,7 @@ export class BaseProviderAdapter<T extends BaseProvider> implements IProvider {
 
       // debug: per-analysis completion — the single info log lives in AnalyzeEmail (#6)
       this.logger.debug('Email analysis completed', {
+        runId,
         providerId: this.providerId,
         tagCount: response.tags.length,
         confidence: response.confidence,
@@ -211,6 +217,7 @@ export class BaseProviderAdapter<T extends BaseProvider> implements IProvider {
     } catch (error) {
       // debug: pass-through — single error log lives in the handling layer (#5)
       this.logger.debug('Email analysis failed', {
+        runId: (input as { runId?: string }).runId,
         providerId: this.providerId,
         error: error instanceof Error ? error.message : String(error),
       });
