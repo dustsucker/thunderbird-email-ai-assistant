@@ -455,7 +455,7 @@ export class ContextMenuHandler {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.debug('Failed to analyze single message', {
+      this.logger.error('Failed to analyze single message', {
         messageId,
         error: errorMessage,
         stack: errorStack,

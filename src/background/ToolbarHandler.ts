@@ -220,7 +220,7 @@ export class ToolbarHandler implements BatchProgressListener {
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.debug('Failed to handle toolbar button click', { error: errorMessage });
+      this.logger.error('Failed to handle toolbar button click', { error: errorMessage });
 
       await this.notify('Fehler', mapAnalysisErrorToUserMessage(errorMessage));
     }

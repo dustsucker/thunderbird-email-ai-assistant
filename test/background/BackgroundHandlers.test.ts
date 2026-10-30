@@ -47,6 +47,11 @@ const mockMessenger = {
   messageDisplay: {
     getDisplayedMessages: vi.fn(),
   },
+  storage: {
+    local: {
+      get: vi.fn(),
+    },
+  },
   runtime: {
     onInstalled: {
       addListener: vi.fn(),
@@ -184,8 +189,33 @@ describe('ToolbarHandler', () => {
       );
 
       await expect(clickListener(tab)).resolves.toBeUndefined();
-      // Pass-through log is debug-level; error-level reporting happens in the handling layer
-      expect(mockLogger.debug).toHaveBeenCalled();
+      // The handler is the outermost layer: it logs the failure at error level itself
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+
+    it('should not notify when enableNotifications is false', async () => {
+      mockMessenger.storage.local.get.mockReset().mockResolvedValue({
+        appConfig: { enableNotifications: false },
+      });
+      const clickListener = getClickListener();
+      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce([]);
+
+      await clickListener(tab);
+
+      expect(mockMessenger.storage.local.get).toHaveBeenCalledWith({
+        appConfig: { enableNotifications: true },
+      });
+      expect(mockMessenger.notifications.create).not.toHaveBeenCalled();
+    });
+
+    it('should notify by default when the flag is absent', async () => {
+      mockMessenger.storage.local.get.mockReset().mockResolvedValue({});
+      const clickListener = getClickListener();
+      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce([]);
+
+      await clickListener(tab);
+
+      expect(mockMessenger.notifications.create).toHaveBeenCalledTimes(1);
     });
   });
 });
@@ -315,6 +345,55 @@ describe('ContextMenuHandler', () => {
 
     expect(mockMessenger.messages.continueList).not.toHaveBeenCalled();
     expect(analyzeBatch.execute).toHaveBeenCalledWith(['9'], expect.anything());
+  });
+
+  it('should not notify when enableNotifications is false', async () => {
+    mockMessenger.storage.local.get.mockReset().mockResolvedValue({
+      appConfig: { enableNotifications: false },
+    });
+    const { handler } = createHandlerWithMocks();
+    const clickListener = getMenuClickListener(handler);
+    mockMessenger.messages.list.mockResolvedValueOnce({ id: null, messages: [] });
+
+    await clickListener(
+      {
+        menuItemId: 'batch-analyze-folder',
+        modifiers: [],
+        selectedFolders: [
+          { accountId: 'acc1', id: 'folder-1', path: 'INBOX', name: 'Inbox', type: 'inbox' },
+        ],
+      },
+      { id: 1, type: 'messageDisplay' }
+    );
+
+    expect(mockMessenger.storage.local.get).toHaveBeenCalledWith({
+      appConfig: { enableNotifications: true },
+    });
+    expect(mockMessenger.notifications.create).not.toHaveBeenCalled();
+  });
+
+  it('should notify by default when the flag is absent', async () => {
+    mockMessenger.storage.local.get.mockReset().mockResolvedValue({});
+    const { handler } = createHandlerWithMocks();
+    const clickListener = getMenuClickListener(handler);
+    mockMessenger.messages.list.mockResolvedValueOnce({ id: null, messages: [] });
+
+    await clickListener(
+      {
+        menuItemId: 'batch-analyze-folder',
+        modifiers: [],
+        selectedFolders: [
+          { accountId: 'acc1', id: 'folder-1', path: 'INBOX', name: 'Inbox', type: 'inbox' },
+        ],
+      },
+      { id: 1, type: 'messageDisplay' }
+    );
+
+    // Batch flow notifies twice: 'Batch-Analysis gestartet' + empty-folder notice
+    expect(mockMessenger.notifications.create).toHaveBeenCalledTimes(2);
+    expect(mockMessenger.notifications.create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ title: 'Keine Nachrichten' })
+    );
   });
 
   // ==========================================================================
