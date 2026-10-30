@@ -1,8 +1,6 @@
 // ============================================================================
 // Validation Utilities - Type Guards and Validation Functions
 // ============================================================================
-// Migrated from core/config.ts - Central validation utilities
-// ============================================================================
 
 import type { Tag, CustomTags } from '../types/TagTypes';
 import { Provider } from '../types/ProviderTypes';

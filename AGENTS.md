@@ -56,7 +56,6 @@ thunderbird-email-ai-assistant/
 │   ├── infrastructure/   # External services (providers, storage)
 │   ├── interfaces/       # UI adapters, Thunderbird integration
 │   └── shared/           # Types, utils, constants
-├── core/                 # Legacy standalone module
 ├── test/                 # Test files (vitest)
 ├── background.ts         # Extension background script (entry)
 ├── options.ts            # Options page script (entry)
@@ -70,7 +69,6 @@ thunderbird-email-ai-assistant/
 - [src/infrastructure/AGENTS.md](src/infrastructure/AGENTS.md) - Providers, Interfaces, Repositories
 - [src/interfaces/AGENTS.md](src/interfaces/AGENTS.md) - Adapters, UI Components
 - [src/shared/AGENTS.md](src/shared/AGENTS.md) - Types, Utils, Constants
-- [core/AGENTS.md](core/AGENTS.md) - Legacy module
 - [test/AGENTS.md](test/AGENTS.md) - Testing patterns
 
 ---

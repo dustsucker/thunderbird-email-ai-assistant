@@ -31,7 +31,7 @@ Contains no business logic - only pure utilities and shared definitions.
 ## Rules
 
 1. **No Side Effects** - All utilities must be pure functions
-2. **No Layer Dependencies** - Cannot import from core/, providers/, or infrastructure/
+2. **No Layer Dependencies** - Cannot import from providers/ or infrastructure/
 3. **Importable by All** - Any layer can import from shared/
 4. **Type-First** - Define interfaces before implementations in consuming layers
 5. **Barrel Exports** - Re-export through index files for clean imports

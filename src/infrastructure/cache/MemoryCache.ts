@@ -19,7 +19,7 @@
  *    - When to use: For transient caching needs, rate limiting data,
  *      temporary computations, etc.
  *
- * 2. **AnalysisCache** - core/cache.ts
+ * 2. **AnalysisCache** - src/infrastructure/cache/AnalysisCache.ts
  *    - Storage: IndexedDB (persistent across sessions)
  *    - Purpose: Caching LLM email analysis results with per-tag confidence
  *    - Usage: Direct import of `analysisCache` singleton
@@ -31,9 +31,9 @@
  *
  * **Decision Guide:**
  * - Need DI injection for testability? → Use this MemoryCache via ICache
- * - Need persistence across sessions? → Use AnalysisCache from core/cache.ts
+ * - Need persistence across sessions? → Use AnalysisCache from src/infrastructure/cache/AnalysisCache.ts
  * - Caching generic app data? → Use this MemoryCache via ICache
- * - Caching AI analysis results? → Use AnalysisCache from core/cache.ts
+ * - Caching AI analysis results? → Use AnalysisCache from src/infrastructure/cache/AnalysisCache.ts
  *
  * ============================================================================
  */

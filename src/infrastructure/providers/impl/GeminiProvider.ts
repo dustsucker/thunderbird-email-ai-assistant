@@ -1,8 +1,8 @@
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
-import type { StructuredEmailData } from '../../../../core/analysis';
-import type { CustomTags } from '../../../../core/config';
+import type { StructuredEmailData } from '@/shared/types/EmailPart'
+import type { CustomTags } from '@/shared/types/TagTypes'
 import { validateApiKeyFormat } from '@/shared/utils/loggingUtils';
 
 const GEMINI_MODEL = 'gemini-1.5-flash-latest';

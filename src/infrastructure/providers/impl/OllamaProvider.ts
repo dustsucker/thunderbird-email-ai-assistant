@@ -2,8 +2,8 @@ import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '../../interfaces/ILogger';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
 import { Validator } from '../Validator';
-import type { StructuredEmailData } from '../../../../core/analysis';
-import type { CustomTags } from '../../../../core/config';
+import type { StructuredEmailData } from '@/shared/types/EmailPart'
+import type { CustomTags } from '@/shared/types/TagTypes'
 
 interface OllamaGenerateResponse {
   model: string;

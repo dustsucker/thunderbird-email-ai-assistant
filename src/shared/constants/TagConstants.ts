@@ -1,8 +1,6 @@
 // ============================================================================
 // Tag Constants - Central Tag Configuration
 // ============================================================================
-// Migrated from core/config.ts - Single Source of Truth for tag constants
-// ============================================================================
 
 import type { HardcodedTags, Tag } from '../types/TagTypes';
 

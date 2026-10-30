@@ -1,13 +1,8 @@
 import 'reflect-metadata';
 
-import {
-  DEFAULTS,
-  Provider,
-  ProviderConfig,
-  CustomTags,
-  Tag,
-  isValidProvider,
-} from './core/config';
+import { DEFAULTS, Provider, type ProviderConfig } from '@/shared/types/ProviderTypes';
+import type { CustomTags, Tag } from '@/shared/types/TagTypes';
+import { isValidProvider } from '@/shared/utils/validationUtils';
 import {
   ErrorSeverity,
   ErrorDisplay,

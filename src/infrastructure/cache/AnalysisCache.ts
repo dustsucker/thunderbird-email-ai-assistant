@@ -1,7 +1,6 @@
 // ============================================================================
 // Analysis Cache - IndexedDB-based Persistent Cache
 // ============================================================================
-// Migrated from core/cache.ts
 // IndexedDB cache for LLM analysis results with per-tag confidence scores
 // ============================================================================
 

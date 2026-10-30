@@ -1,7 +1,6 @@
 // ============================================================================
 // Prompt Builder - AI Analysis Prompt Construction
 // ============================================================================
-// Migrated from core/analysis.ts
 // Builds prompts for AI providers with proper tag context
 // ============================================================================
 

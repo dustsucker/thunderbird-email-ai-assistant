@@ -113,4 +113,4 @@ PROVIDER_REGISTRY.set('newprovider', NewProvider);
 | Cache              | Location      | Purpose                                             |
 | ------------------ | ------------- | --------------------------------------------------- |
 | ICache/MemoryCache | This layer    | Transient caching via DI (rate limiting, temp data) |
-| AnalysisCache      | core/cache.ts | Persistent LLM analysis in IndexedDB                |
+| AnalysisCache      | cache/AnalysisCache.ts | Persistent LLM analysis in IndexedDB       |
