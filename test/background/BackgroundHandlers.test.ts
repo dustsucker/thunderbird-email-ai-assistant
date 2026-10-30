@@ -74,7 +74,7 @@ describe('ToolbarHandler', () => {
 
   beforeEach(() => {
     mockLogger = createMockLogger();
-    handler = new ToolbarHandler(mockLogger);
+    handler = new ToolbarHandler(mockLogger, {} as never, {} as never);
     vi.clearAllMocks();
   });
 

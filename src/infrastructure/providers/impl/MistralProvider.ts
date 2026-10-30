@@ -73,16 +73,16 @@ export class MistralProvider extends BaseProvider {
   }
 
   protected buildRequestBody(
-    _settings: BaseProviderSettings,
-    _prompt: string,
+    settings: BaseProviderSettings,
+    prompt: string,
     _structuredData: StructuredEmailData,
     _customTags: CustomTags
   ): Record<string, unknown> {
     return {
-      model: MISTRAL_MODEL,
+      model: settings.model || MISTRAL_MODEL,
       messages: [
         { role: 'system', content: ANALYSIS_SYSTEM_PROMPT },
-        { role: 'user', content: _prompt },
+        { role: 'user', content: prompt },
       ],
       response_format: { type: 'json_object' },
     };

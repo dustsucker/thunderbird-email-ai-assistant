@@ -59,24 +59,14 @@ describe('ZaiCodingProvider', () => {
       expect(provider.validateSettings(validSettings)).toBe(true);
     });
 
-    it('should store custom model when provided', () => {
-      const customModelSettings: BaseProviderSettings = {
+    it('should accept custom model and apiUrl without storing them (settings are per-call)', () => {
+      const customSettings: BaseProviderSettings = {
         apiKey: 'test-api-key-long-enough-123',
         model: 'glm-4.7-custom',
-      };
-      provider.validateSettings(customModelSettings);
-
-      expect(provider['zaiModel']).toBe('glm-4.7-custom');
-    });
-
-    it('should store custom API URL when provided', () => {
-      const customUrlSettings: BaseProviderSettings = {
-        apiKey: 'test-api-key-long-enough-123',
         apiUrl: 'https://custom.api.z.ai/v1/chat',
       };
-      provider.validateSettings(customUrlSettings);
-
-      expect(provider['zaiBaseUrl']).toBe('https://custom.api.z.ai/v1/chat');
+      // validateSettings is pure: it only checks the apiKey and retains no state.
+      expect(provider.validateSettings(customSettings)).toBe(true);
     });
 
     it('should return false when apiKey is missing', () => {
@@ -159,6 +149,27 @@ describe('ZaiCodingProvider', () => {
       expect(body.temperature).toBe(0.3);
       expect(body.max_tokens).toBe(4000);
       expect(body.messages).toBeInstanceOf(Array);
+    });
+
+    it('should use custom model from per-call settings in request body', async () => {
+      const customModelSettings: BaseProviderSettings = {
+        apiKey: 'test-api-key-long-enough-123',
+        model: 'glm-4.7-custom',
+      };
+
+      const zaiResponse = createZaiResponse(JSON.stringify(validTagResponse));
+      fetchSpy.mockResolvedValue(createMockFetchResponse(zaiResponse));
+
+      await provider.analyze({
+        settings: customModelSettings,
+        structuredData: createMockStructuredData(),
+        customTags: createMockCustomTags(),
+      });
+
+      const fetchCall = fetchSpy.mock.calls[0];
+      const body = JSON.parse(fetchCall[1]?.body as string);
+
+      expect(body.model).toBe('glm-4.7-custom');
     });
 
     it('should include Authorization header with Bearer token', async () => {
@@ -351,12 +362,20 @@ describe('ZaiCodingProvider', () => {
       await expect(provider.listModels({})).rejects.toThrow('API key is required to list models');
     });
 
-    it('should return fallback models on fetch error', async () => {
+    it('should throw on fetch error instead of faking a model list', async () => {
       fetchSpy.mockRejectedValue(new Error('Network error'));
 
-      const models = await provider.listModels(validSettings as IRuntimeProviderSettings);
+      await expect(
+        provider.listModels(validSettings as IRuntimeProviderSettings)
+      ).rejects.toThrow('Network error');
+    });
 
-      expect(models).toEqual(['glm-4.7']);
+    it('should throw on a non-ok response', async () => {
+      fetchSpy.mockResolvedValue(createMockFetchError(401, 'Unauthorized'));
+
+      await expect(
+        provider.listModels(validSettings as IRuntimeProviderSettings)
+      ).rejects.toThrow('401');
     });
 
     it('should call correct models endpoint', async () => {

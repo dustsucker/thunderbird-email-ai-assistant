@@ -19,11 +19,11 @@ import type { ICache, ICacheStats } from '@/infrastructure/interfaces/ICache';
 import type { IQueue, IQueueStats } from '@/infrastructure/interfaces/IQueue';
 import type { ITagManager } from '@/domain/interfaces';
 import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
-import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
+import { AnalyzeEmail, LOW_CONFIDENCE_INDEX_KEY } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
-import { ApplyTagsToEmail } from '@/application/use-cases/ApplyTagsToEmail';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
 import type { DebugLogBuffer } from '@/infrastructure/logger/DebugLogBuffer';
+import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsService';
 
 /** Runtime onMessage event registry (not part of the central thunderbird.d.ts). */
 interface RuntimeOnMessageRegistry {
@@ -73,7 +73,6 @@ type RuntimeMessage =
   | ClearQueueMessage
   | ClearCacheMessage
   | GetCacheStatsMessage
-  | GetAnalysisResultsMessage
   | ApplyTagManuallyMessage
   | DismissTagMessage;
 
@@ -127,14 +126,6 @@ interface ClearCacheMessage {
  */
 interface GetCacheStatsMessage {
   action: 'getCacheStats';
-}
-
-/**
- * Get analysis results message.
- */
-interface GetAnalysisResultsMessage {
-  action: 'getAnalysisResults';
-  limit?: number;
 }
 
 /**
@@ -223,166 +214,18 @@ interface HandlerState {
 }
 
 // ============================================================================
-// Type Guards
+// Message Action Helper
 // ============================================================================
 
 /**
- * Type guard for StartBatchAnalysisMessage.
+ * Extracts the `action` discriminator from an arbitrary runtime message.
  */
-function isStartBatchAnalysisMessage(message: unknown): message is StartBatchAnalysisMessage {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'startBatchAnalysis'
-  );
-}
-
-/**
- * Type guard for GetBatchProgressMessage.
- */
-function isGetBatchProgressMessage(message: unknown): message is GetBatchProgressMessage {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'getBatchProgress'
-  );
-}
-
-/**
- * Type guard for CancelBatchAnalysisMessage.
- */
-function isCancelBatchAnalysisMessage(message: unknown): message is CancelBatchAnalysisMessage {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'cancelBatchAnalysis'
-  );
-}
-
-/**
- * Type guard for AnalyzeSingleMessageMessage.
- */
-function isAnalyzeSingleMessageMessage(message: unknown): message is AnalyzeSingleMessageMessage {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'analyzeSingleMessage'
-  );
-}
-
-/**
- * Type guard for ClearQueueMessage.
- */
-function isClearQueueMessage(message: unknown): message is ClearQueueMessage {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'clearQueue'
-  );
-}
-
-/**
- * Type guard for ClearCacheMessage.
- */
-function isClearCacheMessage(message: unknown): message is ClearCacheMessage {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'clearCache'
-  );
-}
-
-/**
- * Type guard for GetCacheStatsMessage.
- */
-function isGetCacheStatsMessage(message: unknown): message is GetCacheStatsMessage {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'getCacheStats'
-  );
-}
-
-/**
- * Type guard for GetAnalysisResults messages
- */
-function isGetAnalysisResultsMessage(message: unknown): message is GetAnalysisResultsMessage {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'getAnalysisResults'
-  );
-}
-
-/**
- * Type guard for getDebugLogs messages.
- */
-function isGetDebugLogsMessage(message: unknown): message is { action: 'getDebugLogs' } {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'getDebugLogs'
-  );
-}
-
-/**
- * Type guard for clearDebugLogs messages.
- */
-function isClearDebugLogsMessage(message: unknown): message is { action: 'clearDebugLogs' } {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'clearDebugLogs'
-  );
-}
-
-/**
- * Type guard for getQueueStats messages.
- */
-function isGetQueueStatsMessage(message: unknown): message is { action: 'getQueueStats' } {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'getQueueStats'
-  );
-}
-
-/**
- * Type guard for ApplyTagManually messages
- */
-function isApplyTagManuallyMessage(message: unknown): message is ApplyTagManuallyMessage {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'applyTagManually' &&
-    'tagKey' in message &&
-    'confidence' in message
-  );
-}
-
-/**
- * Type guard for DismissTag messages
- */
-function isDismissTagMessage(message: unknown): message is DismissTagMessage {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'action' in message &&
-    (message as Record<string, unknown>).action === 'dismissTag' &&
-    'tagKey' in message
-  );
+function getMessageAction(message: unknown): string | undefined {
+  if (typeof message === 'object' && message !== null && 'action' in message) {
+    const action = (message as Record<string, unknown>).action;
+    return typeof action === 'string' ? action : undefined;
+  }
+  return undefined;
 }
 
 // ============================================================================
@@ -415,11 +258,17 @@ export class MessageHandler {
   private readonly analyzeEmail: AnalyzeEmail;
   private readonly analyzeBatch: AnalyzeBatchEmails;
   private readonly logger: ILogger;
-  private readonly appConfigService: AppConfigService;
+  private readonly providerSettingsService: ProviderSettingsService;
   private readonly queue: IQueue;
   private readonly cache: ICache;
   private readonly tagManager: ITagManager;
   private readonly debugLogBuffer: DebugLogBuffer;
+
+  /** Action -> handler dispatch table (replaces 14 copy-paste type guards). */
+  private readonly messageHandlers: Record<
+    string,
+    (message: unknown) => unknown | Promise<unknown>
+  >;
 
   private handlerState: HandlerState = {
     isRegistered: false,
@@ -451,17 +300,16 @@ export class MessageHandler {
    *
    * @param analyzeEmail - Single email analysis use case
    * @param analyzeBatch - Batch email analysis use case
-   * @param _applyTags - Tag application use case (reserved for future use)
    * @param logger - Logger instance for logging operations
    * @param appConfigService - App config service for loading provider settings
    * @param queue - Queue for clearQueue operations
    * @param cache - Cache for clearCache/getCacheStats operations
    * @param tagManager - Tag manager for manual tag application
+   * @param debugLogBuffer - Debug log buffer for debug log operations
    */
   constructor(
     @inject(AnalyzeEmail) analyzeEmail: AnalyzeEmail,
     @inject(AnalyzeBatchEmails) analyzeBatch: AnalyzeBatchEmails,
-    @inject(ApplyTagsToEmail) _applyTags: ApplyTagsToEmail,
     @inject('ILogger') logger: ILogger,
     @inject(AppConfigService) appConfigService: AppConfigService,
     @inject('IQueue') queue: IQueue,
@@ -472,11 +320,27 @@ export class MessageHandler {
     this.analyzeEmail = analyzeEmail;
     this.analyzeBatch = analyzeBatch;
     this.logger = logger;
-    this.appConfigService = appConfigService;
+    this.providerSettingsService = new ProviderSettingsService(appConfigService, logger);
     this.queue = queue;
     this.cache = cache;
     this.tagManager = tagManager;
     this.debugLogBuffer = debugLogBuffer;
+
+    this.messageHandlers = {
+      startBatchAnalysis: (m) => this.handleStartBatchAnalysis(m as StartBatchAnalysisMessage),
+      getBatchProgress: () => this.handleGetBatchProgress(),
+      cancelBatchAnalysis: () => this.handleCancelBatchAnalysis(),
+      analyzeSingleMessage: (m) =>
+        this.handleAnalyzeSingleMessage(m as AnalyzeSingleMessageMessage),
+      clearQueue: (m) => this.handleClearQueue(m as ClearQueueMessage),
+      clearCache: () => this.handleClearCache(),
+      getCacheStats: () => this.handleGetCacheStats(),
+      getDebugLogs: () => this.handleGetDebugLogs(),
+      clearDebugLogs: () => this.handleClearDebugLogs(),
+      getQueueStats: () => this.handleGetQueueStats(),
+      applyTagManually: (m) => this.handleApplyTagManually(m as ApplyTagManuallyMessage),
+      dismissTag: (m) => this.handleDismissTag(m as DismissTagMessage),
+    };
 
     this.logger.debug('MessageHandler service initialized');
   }
@@ -496,7 +360,7 @@ export class MessageHandler {
       return;
     }
 
-    this.logger.info('[DEBUG-MessageHandler] Registering runtime message handlers');
+    this.logger.debug('Registering runtime message handlers');
 
     this.handleMessageHandler = this.handleMessage.bind(this);
 
@@ -586,121 +450,28 @@ export class MessageHandler {
     _sender: unknown,
     sendResponse: (response?: unknown) => void
   ): boolean {
-    this.logger.info('[DEBUG-MessageHandler] handleMessage() CALLED - RECEIVED MESSAGE', {
-      messageType: typeof message,
-      message: JSON.stringify(message),
-      hasAction: typeof message === 'object' && message !== null && 'action' in message,
-      action:
-        typeof message === 'object' && message !== null && 'action' in message
-          ? (message as Record<string, unknown>).action
-          : 'N/A',
-      messagesHandledSoFar: this.handlerState.messagesHandled,
-    });
-
+    const action = getMessageAction(message);
+    this.logger.debug('Runtime message received', { action });
     this.handlerState.messagesHandled++;
 
-    // Handle messages asynchronously
+    const handler = action ? this.messageHandlers[action] : undefined;
+
+    // #19: unknown actions are answered synchronously and release the channel.
+    if (!handler) {
+      this.logger.warn('Unknown runtime message received', { action });
+      sendResponse({ success: false, error: 'Unknown action' });
+      return false;
+    }
+
+    // Known actions answer asynchronously.
     (async () => {
       try {
-        // Route message to appropriate handler
-        if (isStartBatchAnalysisMessage(message)) {
-          this.logger.info('[DEBUG-MessageHandler] Routing to handleStartBatchAnalysis');
-          const result = await this.handleStartBatchAnalysis(message);
-          sendResponse(result);
-          return;
-        }
-
-        if (isGetBatchProgressMessage(message)) {
-          this.logger.info('Routing to handleGetBatchProgress');
-          const result = await this.handleGetBatchProgress();
-          sendResponse(result);
-          return;
-        }
-
-        if (isCancelBatchAnalysisMessage(message)) {
-          this.logger.info('[DEBUG-MessageHandler] Routing to handleCancelBatchAnalysis');
-          const result = await this.handleCancelBatchAnalysis();
-          sendResponse(result);
-          return;
-        }
-
-        if (isAnalyzeSingleMessageMessage(message)) {
-          this.logger.info('[DEBUG-MessageHandler] Routing to handleAnalyzeSingleMessage');
-          const result = await this.handleAnalyzeSingleMessage(message);
-          sendResponse(result);
-          return;
-        }
-
-        if (isClearQueueMessage(message)) {
-          this.logger.info('Routing to handleClearQueue');
-          const result = await this.handleClearQueue(message);
-          sendResponse(result);
-          return;
-        }
-
-        if (isClearCacheMessage(message)) {
-          this.logger.info('[DEBUG-MessageHandler] Routing to handleClearCache');
-          const result = await this.handleClearCache();
-          sendResponse(result);
-          return;
-        }
-
-        if (isGetCacheStatsMessage(message)) {
-          this.logger.info('[DEBUG-MessageHandler] Routing to handleGetCacheStats');
-          const result = await this.handleGetCacheStats();
-          sendResponse(result);
-          return;
-        }
-
-        if (isGetAnalysisResultsMessage(message)) {
-          this.logger.info('[DEBUG-MessageHandler] Routing to handleGetAnalysisResults');
-          const result = await this.handleGetAnalysisResults(message);
-          sendResponse(result);
-          return;
-        }
-
-        if (isGetDebugLogsMessage(message)) {
-          this.logger.info('Routing to handleGetDebugLogs');
-          const result = this.handleGetDebugLogs();
-          sendResponse(result);
-          return;
-        }
-
-        if (isClearDebugLogsMessage(message)) {
-          this.logger.info('Routing to handleClearDebugLogs');
-          const result = this.handleClearDebugLogs();
-          sendResponse(result);
-          return;
-        }
-
-        if (isGetQueueStatsMessage(message)) {
-          this.logger.info('Routing to handleGetQueueStats');
-          const result = await this.handleGetQueueStats();
-          sendResponse(result);
-          return;
-        }
-
-        if (isApplyTagManuallyMessage(message)) {
-          this.logger.info('[DEBUG-MessageHandler] Routing to handleApplyTagManually');
-          const result = await this.handleApplyTagManually(message);
-          sendResponse(result);
-          return;
-        }
-
-        if (isDismissTagMessage(message)) {
-          this.logger.info('[DEBUG-MessageHandler] Routing to handleDismissTag');
-          const result = await this.handleDismissTag(message);
-          sendResponse(result);
-          return;
-        }
-
-        this.logger.warn('[DEBUG-MessageHandler] Unknown runtime message received', { message });
-        sendResponse({ success: false, message: 'Unknown message type' });
+        sendResponse(await handler(message));
       } catch (error) {
         this.handlerState.errorsEncountered++;
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.logger.error('Internal error processing message', {
-          message,
+          action,
           error: errorMessage,
         });
 
@@ -732,13 +503,7 @@ export class MessageHandler {
       }
 
       // Get provider settings
-      this.logger.info('Batch Step 1: Getting provider settings...');
       const providerSettings = await this.getProviderSettings();
-
-      this.logger.info('Batch Step 2: Provider settings retrieved', {
-        provider: providerSettings.provider,
-        hasApiKey: !!providerSettings.apiKey,
-      });
 
       if (!providerSettings.provider) {
         return {
@@ -748,7 +513,7 @@ export class MessageHandler {
       }
 
       // Get messages to analyze
-      const messageIds = await this.getMessagesToAnalyze(message.folderId);
+      const messageIds = await this.providerSettingsService.getMessagesToAnalyze(message.folderId);
 
       if (messageIds.length === 0) {
         return {
@@ -856,7 +621,11 @@ export class MessageHandler {
   private async handleCancelBatchAnalysis(): Promise<{ success: boolean; message: string }> {
     this.logger.info('Handling cancelBatchAnalysis message');
 
-    if (this.batchProgress.status !== 'running') {
+    // O2: the real batch state wins — a batch started from the context menu
+    // never touched this handler's local batchProgress.
+    const batchRunning = await this.analyzeBatch.isRunning();
+
+    if (!batchRunning && this.batchProgress.status !== 'running') {
       return {
         success: false,
         message: 'No batch analysis is currently running.',
@@ -897,18 +666,12 @@ export class MessageHandler {
   private async handleAnalyzeSingleMessage(
     message: AnalyzeSingleMessageMessage
   ): Promise<AnalyzeSingleMessageResult> {
-    this.logger.info('[DEBUG-MessageHandler] handleAnalyzeSingleMessage() ENTERED', {
+    this.logger.debug('handleAnalyzeSingleMessage entered', {
       messageId: message.messageId,
     });
 
     try {
-      this.logger.info('Step 1: Getting provider settings...');
       const providerSettings = await this.getProviderSettings();
-
-      this.logger.info('Step 2: Provider settings retrieved', {
-        provider: providerSettings.provider,
-        hasApiKey: !!providerSettings.apiKey,
-      });
 
       if (!providerSettings.provider) {
         return {
@@ -917,7 +680,6 @@ export class MessageHandler {
         };
       }
 
-      this.logger.info('Step 3: Calling analyzeEmail.execute()...');
       const result = await this.analyzeEmail.execute(message.messageId, providerSettings);
 
       return {
@@ -952,6 +714,30 @@ export class MessageHandler {
     this.logger.info('Handling clearQueue message', { cancelRunning: message.cancelRunning });
 
     try {
+      // #11: If a batch is running, cancel the use case instead of clearing the
+      // global queue singleton underneath it (which left execute() reporting
+      // "completed" without the cancelled flag).
+      const batchRunning = await this.analyzeBatch.isRunning();
+
+      if (batchRunning) {
+        await this.analyzeBatch.cancel();
+        this.batchProgress = {
+          ...this.batchProgress,
+          status: 'cancelled',
+          endTime: Date.now(),
+        };
+
+        const stats: IQueueStats = await this.queue.getStats();
+        return {
+          success: true,
+          clearedTasks: 0,
+          cancelledProviders: [],
+          providers: {
+            queue: { queueLength: stats.waiting, isProcessing: stats.processing > 0 },
+          },
+        };
+      }
+
       const clearedTasks = await this.queue.clear(message.cancelRunning ?? false);
       const stats: IQueueStats = await this.queue.getStats();
 
@@ -1083,36 +869,6 @@ export class MessageHandler {
   }
 
   /**
-   * Handles get analysis results message.
-   *
-   * Analysis results live in the AnalysisCache (IndexedDB), which has no
-   * enumeration API, so there is no store to read results from yet.
-   *
-   * @param _message - Message containing optional limit parameter (currently unused)
-   * @returns Analysis results or an honest failure
-   */
-  private async handleGetAnalysisResults(_message?: unknown): Promise<{
-    success: boolean;
-    results?: Array<{
-      cacheKey: string;
-      timestamp: number;
-      tags: string[];
-      confidence: number;
-      tagConfidence?: Record<string, number>;
-      reasoning: string;
-    }>;
-    error?: string;
-  }> {
-    this.logger.info('Handling getAnalysisResults message');
-
-    // No enumerable analysis results store exists in the DI container yet.
-    return {
-      success: false,
-      error: 'No analysis results store available',
-    };
-  }
-
-  /**
    * Handles apply tag manually message.
    *
    * Applies the tag to the referenced message via ITagManager and removes
@@ -1198,108 +954,78 @@ export class MessageHandler {
   }
 
   /**
-   * Gets provider settings from ConfigRepository.
+   * Gets provider settings via the shared ProviderSettingsService.
    *
    * @returns Provider settings
    */
-  private async getProviderSettings(): Promise<IProviderSettings> {
-    try {
-      this.logger.info('Attempting to get app config...');
-      const appConfig = await this.appConfigService.getAppConfig();
-      const defaultProvider = appConfig.defaultProvider;
-
-      this.logger.info('App config retrieved', { defaultProvider });
-
-      this.logger.info(`Attempting to get provider settings for: ${defaultProvider}`);
-      const providerSettings = await this.appConfigService.getProviderSettings(defaultProvider);
-
-      this.logger.info('Provider settings retrieved', {
-        apiKey: providerSettings.apiKey ? '***' : 'missing',
-      });
-
-      return {
-        provider: defaultProvider,
-        apiKey: providerSettings.apiKey,
-        model: providerSettings.model,
-        apiUrl: providerSettings.apiUrl,
-        additionalConfig: providerSettings.additionalConfig,
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error('Failed to get provider settings', {
-        error: errorMessage,
-        stack: errorStack,
-      });
-      this.logger.error('Returning empty provider settings - THIS WILL CAUSE ANALYSIS TO FAIL');
-      return { provider: '' };
-    }
+  private getProviderSettings(): Promise<IProviderSettings> {
+    return this.providerSettingsService.getProviderSettings();
   }
 
   /**
-   * Removes a tag suggestion from all stored low-confidence flags.
+   * Removes a tag suggestion from the stored low-confidence flags.
    *
    * Low-confidence flags are stored by AnalyzeEmail under `lowConfidence_<cacheKey>`
-   * keys in storage.local.
+   * keys, bounded by the `lowConfidenceIndex` key (cacheKey -> timestamp). The
+   * index is read to resolve the concrete entry keys, so only those entries are
+   * loaded — never a full `storage.local` scan.
    *
    * @param tagKey - Tag key to remove
    * @returns Promise resolving to true if at least one flag was removed
    */
   private async removeLowConfidenceFlag(tagKey: string): Promise<boolean> {
-    const all = await messenger.storage.local.get();
+    const indexResult = await messenger.storage.local.get(LOW_CONFIDENCE_INDEX_KEY);
+    const rawIndex = indexResult[LOW_CONFIDENCE_INDEX_KEY];
+    const index =
+      typeof rawIndex === 'object' && rawIndex !== null
+        ? { ...(rawIndex as Record<string, number>) }
+        : {};
+
+    const keys = Object.keys(index).map((cacheKey) => `lowConfidence_${cacheKey}`);
+    if (keys.length === 0) {
+      return false;
+    }
+
+    const entries = await messenger.storage.local.get(keys);
+    const removalKeys: string[] = [];
     let removed = false;
 
-    for (const [key, value] of Object.entries(all)) {
-      if (!key.startsWith('lowConfidence_')) continue;
-
-      const entry = value as { flags?: Array<{ tagKey: string }> };
+    for (const [key, value] of Object.entries(entries)) {
+      const entry = value as { cacheKey?: string; flags?: Array<{ tagKey: string }> };
       const flags = entry.flags ?? [];
       const remaining = flags.filter((f) => f.tagKey !== tagKey);
 
       if (remaining.length === flags.length) continue;
 
       removed = true;
-      // Keep the entry (possibly with empty flags) — the storage API type
-      // has no remove(), so we overwrite instead of deleting the key.
-      await messenger.storage.local.set({ [key]: { ...entry, flags: remaining } });
+
+      if (remaining.length === 0) {
+        // No suggestions left for this email: delete the entry (N3a:
+        // `storage.local.remove` is the only API that deletes on Gecko) and
+        // drop it from the index.
+        removalKeys.push(key);
+        const cacheKey = entry.cacheKey ?? key.replace(/^lowConfidence_/, '');
+        delete index[cacheKey];
+      } else {
+        await messenger.storage.local.set({ [key]: { ...entry, flags: remaining } });
+      }
+    }
+
+    if (removalKeys.length > 0) {
+      await messenger.storage.local.remove(removalKeys);
+      await messenger.storage.local.set({ [LOW_CONFIDENCE_INDEX_KEY]: index });
     }
 
     return removed;
   }
 
   /**
-   * Gets messages to analyze.
-   *
-   * Iterates ALL pages of the folder listing via continueList until
-   * page.id is null (Thunderbird default page size is 100).
+   * Gets messages to analyze via the shared ProviderSettingsService.
    *
    * @param folderId - Optional folder ID to filter messages
    * @returns Array of message IDs to analyze
    */
-  private async getMessagesToAnalyze(folderId?: string): Promise<string[]> {
-    try {
-      if (typeof messenger === 'undefined' || !messenger.messages) {
-        return [];
-      }
-
-      const messageIds: string[] = [];
-      let page: MessageList | null = await messenger.messages.list(folderId);
-
-      while (page) {
-        for (const message of page.messages) {
-          messageIds.push(String(message.id));
-        }
-
-        page = page.id ? await messenger.messages.continueList(page.id) : null;
-      }
-
-      return messageIds;
-    } catch (error) {
-      this.logger.error('Failed to get messages', {
-        folderId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return [];
-    }
+  private getMessagesToAnalyze(folderId?: string): Promise<string[]> {
+    return this.providerSettingsService.getMessagesToAnalyze(folderId);
   }
 }

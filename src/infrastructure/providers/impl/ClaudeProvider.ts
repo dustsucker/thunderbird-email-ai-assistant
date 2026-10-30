@@ -56,13 +56,13 @@ export class ClaudeProvider extends BaseProvider {
   }
 
   protected buildRequestBody(
-    _settings: BaseProviderSettings,
+    settings: BaseProviderSettings,
     prompt: string,
     _structuredData: StructuredEmailData,
     _customTags: CustomTags
   ): Record<string, unknown> {
     return {
-      model: CLAUDE_MODEL,
+      model: settings.model || CLAUDE_MODEL,
       max_tokens: 4096,
       system: ANALYSIS_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],

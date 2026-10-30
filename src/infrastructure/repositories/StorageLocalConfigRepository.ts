@@ -1,5 +1,5 @@
 /**
- * IndexedDB-based configuration repository.
+ * browser.storage.local-based configuration repository.
  *
  * Implements IConfigRepository using browser.storage.local (Chrome Storage API)
  * which is available in Thunderbird extensions and provides a Promise-based
@@ -27,6 +27,7 @@ interface StorageLocal {
     keys: string | string[] | Record<string, unknown> | null
   ) => Promise<Record<string, unknown>>;
   set: (items: Record<string, unknown>) => Promise<void>;
+  remove: (keys: string | string[]) => Promise<void>;
   clear: () => Promise<void>;
 }
 
@@ -60,6 +61,7 @@ function hasBrowserStorage(obj: unknown): obj is BrowserStorage {
   return (
     typeof local.get === 'function' &&
     typeof local.set === 'function' &&
+    typeof local.remove === 'function' &&
     typeof local.clear === 'function'
   );
 }
@@ -75,14 +77,14 @@ const STORAGE_KEYS = {
 // === Implementation ===
 
 @injectable()
-export class IndexedDBConfigRepository implements IConfigRepository {
-  private readonly storage: {
-    get: (
-      keys: string | string[] | Record<string, unknown> | null
-    ) => Promise<Record<string, unknown>>;
-    set: (items: Record<string, unknown>) => Promise<void>;
-    clear: () => Promise<void>;
-  };
+export class StorageLocalConfigRepository implements IConfigRepository {
+  private readonly storage: StorageLocal;
+
+  /**
+   * Serializes write operations to avoid lost-update races on
+   * read-modify-write sequences (get → mutate → set).
+   */
+  private writeQueue: Promise<void> = Promise.resolve();
 
   constructor(@inject('ILogger') private readonly logger: ILogger) {
     // Use browser.storage.local if available (Thunderbird extension environment)
@@ -97,6 +99,7 @@ export class IndexedDBConfigRepository implements IConfigRepository {
       this.storage = {
         get: browserApi.storage.local.get.bind(browserApi.storage.local),
         set: browserApi.storage.local.set.bind(browserApi.storage.local),
+        remove: browserApi.storage.local.remove.bind(browserApi.storage.local),
         clear: browserApi.storage.local.clear.bind(browserApi.storage.local),
       };
       this.logger.info('Using browser.storage.local for configuration persistence');
@@ -104,14 +107,28 @@ export class IndexedDBConfigRepository implements IConfigRepository {
       this.storage = {
         get: chromeApi.storage.local.get.bind(chromeApi.storage.local),
         set: chromeApi.storage.local.set.bind(chromeApi.storage.local),
+        remove: chromeApi.storage.local.remove.bind(chromeApi.storage.local),
         clear: chromeApi.storage.local.clear.bind(chromeApi.storage.local),
       };
       this.logger.info('Using chrome.storage.local for configuration persistence');
     } else {
       throw new Error(
-        'browser.storage API not available. IndexedDBConfigRepository requires a Thunderbird extension environment.'
+        'browser.storage API not available. StorageLocalConfigRepository requires a Thunderbird extension environment.'
       );
     }
+  }
+
+  /**
+   * Runs a write task after all previously queued writes have settled.
+   * Failures do not break the chain for subsequent callers.
+   */
+  private enqueueWrite<T>(task: () => Promise<T>): Promise<T> {
+    const result = this.writeQueue.then(task, task);
+    this.writeQueue = result.then(
+      () => undefined,
+      () => undefined
+    );
+    return result;
   }
 
   // === Provider Settings ===
@@ -147,13 +164,15 @@ export class IndexedDBConfigRepository implements IConfigRepository {
 
   async setProviderSettings(providerId: string, settings: IProviderSettings): Promise<void> {
     try {
-      const data = await this.storage.get(STORAGE_KEYS.PROVIDER_SETTINGS);
-      const providerSettings =
-        (data[STORAGE_KEYS.PROVIDER_SETTINGS] as Record<string, IProviderSettings>) || {};
+      await this.enqueueWrite(async () => {
+        const data = await this.storage.get(STORAGE_KEYS.PROVIDER_SETTINGS);
+        const providerSettings =
+          (data[STORAGE_KEYS.PROVIDER_SETTINGS] as Record<string, IProviderSettings>) || {};
 
-      providerSettings[providerId] = settings;
+        providerSettings[providerId] = settings;
 
-      await this.storage.set({ [STORAGE_KEYS.PROVIDER_SETTINGS]: providerSettings });
+        await this.storage.set({ [STORAGE_KEYS.PROVIDER_SETTINGS]: providerSettings });
+      });
 
       this.logger.debug(`Saved provider settings for ${providerId}`, {
         providerId,
@@ -274,7 +293,13 @@ export class IndexedDBConfigRepository implements IConfigRepository {
 
   async clearAll(): Promise<void> {
     try {
-      await this.storage.clear();
+      // SECURITY: only remove keys owned by this repository — never wipe the
+      // whole storage.local (that would delete API keys and processed_-trackers).
+      await this.storage.remove([
+        STORAGE_KEYS.PROVIDER_SETTINGS,
+        STORAGE_KEYS.CUSTOM_TAGS,
+        STORAGE_KEYS.APP_CONFIG,
+      ]);
       this.logger.info('Cleared all configuration data');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

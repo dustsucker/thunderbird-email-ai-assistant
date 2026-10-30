@@ -112,11 +112,33 @@ textarea {
 input[type='text']:focus,
 input[type='url']:focus,
 input[type='password']:focus,
+input[type='number']:focus,
 select:focus,
 textarea:focus {
+  /* Ersatz fuer outline: 3px Primary erreicht >= 3:1 gegen Weiss und Grau */
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-light);
+  box-shadow: 0 0 0 3px var(--color-primary);
+}
+
+/* #1: sichtbarer Fokus fuer alles, was nicht Textfeld ist */
+button:focus-visible,
+a:focus-visible,
+input[type='range']:focus-visible,
+input[type='color']:focus-visible,
+[role='tab']:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+input[type='number'] {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--border-radius-sm);
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 14px;
 }
 
 .help-text {
@@ -124,6 +146,17 @@ textarea:focus {
   color: var(--color-gray-600);
   margin-top: var(--spacing-xs);
   line-height: 1.4;
+}
+
+.field-error {
+  font-size: 12px;
+  color: var(--color-danger);
+  margin: 2px 0 0;
+}
+
+input[aria-invalid='true'],
+select[aria-invalid='true'] {
+  border-color: var(--color-danger);
 }
 
 hr {
@@ -319,6 +352,78 @@ button:disabled {
   animation: fadeIn var(--transition-normal);
 }
 
+/*
+ * #4: gemeinsames Zeilenlayout aller 9 Provider-Panels:
+ * Beschriftung + Hilfe links, Control rechts. Eine Regel, keine Panel-Duplikate.
+ */
+.provider-settings .form-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-areas:
+    'label control'
+    'help control'
+    'error control';
+  column-gap: var(--spacing-lg);
+  row-gap: 2px;
+  align-items: start;
+}
+
+.provider-settings .form-group > label {
+  grid-area: label;
+  margin-bottom: 0;
+}
+
+.provider-settings .form-group > input,
+.provider-settings .form-group > select,
+.provider-settings .form-group > textarea,
+.provider-settings .form-group > .key-toggle {
+  grid-area: control;
+}
+
+.provider-settings .form-group > .help-text {
+  grid-area: help;
+  margin-top: 0;
+}
+
+.provider-settings .form-group > .field-error {
+  grid-area: error;
+}
+
+/* Platz fuer den Show/Hide-Toggle im selben Rasterfeld wie das Feld */
+.provider-settings .form-group:has(> .key-toggle) > input {
+  padding-right: 76px;
+}
+
+.key-toggle {
+  justify-self: end;
+  align-self: center;
+  margin-right: 6px;
+  padding: 2px var(--spacing-xs);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.key-toggle:hover {
+  text-decoration: underline;
+}
+
+.connection-result {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.connection-result.is-ok {
+  color: var(--color-success);
+}
+
+.connection-result.is-error {
+  color: var(--color-danger);
+}
+
 .privacy-notice {
   background-color: #fff3cd;
   border-left: 4px solid var(--color-warning);
@@ -427,6 +532,12 @@ button:disabled {
   color: var(--color-success);
 }
 
+.status-message.status-error,
+.status-error {
+  color: var(--color-danger);
+  font-style: normal;
+}
+
 .custom-tags-section {
   max-width: 700px;
 }
@@ -458,6 +569,15 @@ button:disabled {
     font-size: 12px;
     flex: 1;
     text-align: center;
+  }
+
+  .provider-settings .form-group {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'label'
+      'control'
+      'help'
+      'error';
   }
 
   .tab-bar {

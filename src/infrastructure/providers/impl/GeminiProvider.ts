@@ -76,22 +76,19 @@ function isErrorResponse(
 @injectable()
 export class GeminiProvider extends BaseProvider {
   public readonly providerId = 'gemini';
-  private geminiApiKey: string | undefined;
 
   constructor(@inject('ILogger') protected readonly logger: ILogger) {
     super();
     this.logger.debug('GeminiProvider initialized');
   }
 
-  protected getApiUrl(): string {
-    if (!this.geminiApiKey) {
-      throw new Error('Gemini API key is not set');
-    }
-    return `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${this.geminiApiKey}`;
+  protected getApiUrl(settings?: BaseProviderSettings): string {
+    const model = settings?.model || GEMINI_MODEL;
+    return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   }
 
   protected buildRequestBody(
-    _settings: BaseProviderSettings,
+    settings: BaseProviderSettings,
     prompt: string,
     _structuredData: StructuredEmailData,
     _customTags: CustomTags
@@ -141,13 +138,16 @@ export class GeminiProvider extends BaseProvider {
       return false;
     }
 
-    // Store the key for URL generation
-    this.geminiApiKey = settings.apiKey;
     return true;
   }
 
-  protected override getHeaders(_settings: BaseProviderSettings): Record<string, string> {
-    return { 'Content-Type': 'application/json' };
+  protected override getHeaders(settings: BaseProviderSettings): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    // SECURITY: send the key via header, never as a URL query parameter
+    if (settings.apiKey) {
+      headers['x-goog-api-key'] = settings.apiKey;
+    }
+    return headers;
   }
 
   /**
@@ -164,9 +164,9 @@ export class GeminiProvider extends BaseProvider {
         return [];
       }
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-      );
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+        headers: { 'x-goog-api-key': apiKey },
+      });
 
       if (!response.ok) {
         this.logger.error('Gemini listModels: API request failed', { status: response.status });

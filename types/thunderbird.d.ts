@@ -113,6 +113,7 @@ declare const messenger: {
     local: {
       get(keys?: Record<string, unknown> | string[] | string): Promise<Record<string, unknown>>;
       set(items: Record<string, unknown>): Promise<void>;
+      remove(keys: string | string[]): Promise<void>;
     };
   };
   runtime: {

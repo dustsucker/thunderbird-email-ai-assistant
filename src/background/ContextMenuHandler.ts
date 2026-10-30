@@ -13,6 +13,7 @@ import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { UndoTagChanges } from '@/application/use-cases/UndoTagChanges';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
+import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsService';
 
 // ============================================================================
 // Thunderbird API Types (inline declarations)
@@ -80,7 +81,7 @@ export class ContextMenuHandler {
   private readonly analyzeEmail: AnalyzeEmail;
   private readonly analyzeBatch: AnalyzeBatchEmails;
   private readonly undoTagChanges: UndoTagChanges;
-  private readonly appConfigService: AppConfigService;
+  private readonly providerSettingsService: ProviderSettingsService;
   private readonly logger: ILogger;
   private menuClickHandler: ((info: FolderMenuOnClickData, tab: Tab) => Promise<void>) | null =
     null;
@@ -108,7 +109,7 @@ export class ContextMenuHandler {
     this.analyzeEmail = analyzeEmail;
     this.analyzeBatch = analyzeBatch;
     this.undoTagChanges = undoTagChanges;
-    this.appConfigService = appConfigService;
+    this.providerSettingsService = new ProviderSettingsService(appConfigService, logger);
     this.logger = logger;
   }
 
@@ -536,71 +537,21 @@ export class ContextMenuHandler {
   }
 
   /**
-   * Gets provider settings from app config.
+   * Gets provider settings via the shared ProviderSettingsService.
    *
    * @returns Provider settings
    */
-  private async getProviderSettings(): Promise<IProviderSettings> {
-    try {
-      this.logger.info('Attempting to get app config...');
-      const appConfig = await this.appConfigService.getAppConfig();
-      const defaultProvider = appConfig.defaultProvider;
-
-      this.logger.info('App config retrieved', { defaultProvider });
-
-      this.logger.info(`Attempting to get provider settings for: ${defaultProvider}`);
-      const providerSettings = await this.appConfigService.getProviderSettings(defaultProvider);
-
-      this.logger.info('Provider settings retrieved', {
-        apiKey: providerSettings.apiKey ? '***' : 'missing',
-      });
-
-      return {
-        provider: defaultProvider,
-        apiKey: providerSettings.apiKey,
-        model: providerSettings.model,
-        apiUrl: providerSettings.apiUrl,
-        additionalConfig: providerSettings.additionalConfig,
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorStack = error instanceof Error ? error.stack : undefined;
-      this.logger.error('Failed to get provider settings', {
-        error: errorMessage,
-        stack: errorStack,
-      });
-      this.logger.error('Returning empty provider settings - THIS WILL CAUSE ANALYSIS TO FAIL');
-      return { provider: '' };
-    }
+  private getProviderSettings(): Promise<IProviderSettings> {
+    return this.providerSettingsService.getProviderSettings();
   }
 
   /**
-   * Gets messages to analyze from folder.
+   * Gets messages to analyze from a folder via the shared ProviderSettingsService.
    *
    * @param folderId - Folder ID
    * @returns Array of message IDs
    */
-  private async getMessagesToAnalyze(folderId: string): Promise<string[]> {
-    try {
-      const messageIds: string[] = [];
-
-      // Thunderbird paginates message lists (default 100 per page); iterate until exhausted
-      let page = await messenger.messages.list(folderId);
-      for (const message of page.messages) {
-        messageIds.push(String(message.id));
-      }
-      while (page.id) {
-        page = await messenger.messages.continueList(page.id);
-        for (const message of page.messages) {
-          messageIds.push(String(message.id));
-        }
-      }
-
-      return messageIds;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Failed to get messages from folder', { folderId, error: errorMessage });
-      return [];
-    }
+  private getMessagesToAnalyze(folderId: string): Promise<string[]> {
+    return this.providerSettingsService.getMessagesToAnalyze(folderId);
   }
 }

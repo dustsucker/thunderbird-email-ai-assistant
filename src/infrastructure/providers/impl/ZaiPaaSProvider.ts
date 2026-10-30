@@ -79,29 +79,27 @@ const ANALYSIS_SYSTEM_PROMPT_ZAI =
 @injectable()
 export class ZaiPaaSProvider extends BaseProvider {
   public readonly providerId = 'zai-paas';
-  private zaiModel: string = DEFAULT_MODEL;
-  private zaiBaseUrl: string | undefined;
 
   constructor(@inject('ILogger') protected readonly logger: ILogger) {
     super();
     this.logger.debug('ZaiPaaSProvider initialized');
   }
 
-  protected getApiUrl(): string {
-    return this.zaiBaseUrl ?? ZAI_PAAS_API_URL;
+  protected getApiUrl(settings?: BaseProviderSettings): string {
+    return settings?.apiUrl || ZAI_PAAS_API_URL;
   }
 
   protected buildRequestBody(
-    _settings: BaseProviderSettings,
-    _prompt: string,
+    settings: BaseProviderSettings,
+    prompt: string,
     _structuredData: StructuredEmailData,
     _customTags: CustomTags
   ): Record<string, unknown> {
     return {
-      model: this.zaiModel,
+      model: settings.model || DEFAULT_MODEL,
       messages: [
         { role: 'system', content: ANALYSIS_SYSTEM_PROMPT_ZAI },
-        { role: 'user', content: _prompt },
+        { role: 'user', content: prompt },
       ],
       thinking: { type: 'enabled' },
       temperature: 0.3,
@@ -157,14 +155,6 @@ export class ZaiPaaSProvider extends BaseProvider {
       return false;
     }
 
-    // Store additional settings
-    if (settings.model && typeof settings.model === 'string') {
-      this.zaiModel = settings.model;
-    }
-    if (settings.apiUrl && typeof settings.apiUrl === 'string') {
-      this.zaiBaseUrl = settings.apiUrl;
-    }
-
     return true;
   }
 
@@ -216,15 +206,7 @@ export class ZaiPaaSProvider extends BaseProvider {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      const FALLBACK_MODELS = [
-        'glm-4.5',
-        'glm-4.5-air',
-        'glm-4-plus',
-        'glm-4.5-airx',
-        'glm-4.5-flash',
-      ];
-
-      return FALLBACK_MODELS;
+      throw error;
     }
   }
 

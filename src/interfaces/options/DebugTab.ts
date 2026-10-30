@@ -425,7 +425,7 @@ export class DebugTab {
   private sendMessage<T = unknown>(message: unknown): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       if (typeof window !== 'undefined' && 'browser' in window) {
-        const browser = (window as any).browser;
+        const browser = window.browser;
         if (browser?.runtime) {
           browser.runtime.sendMessage(message, (response: unknown) => {
             const lastError = browser.runtime?.lastError;

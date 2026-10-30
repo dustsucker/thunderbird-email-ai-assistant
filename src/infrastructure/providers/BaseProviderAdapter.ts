@@ -268,6 +268,7 @@ export class BaseProviderAdapter<T extends BaseProvider> implements IProvider {
       settings: this.convertSettings(input.settings),
       structuredData,
       customTags,
+      signal: input.signal,
     };
   }
 

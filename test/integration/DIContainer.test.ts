@@ -58,7 +58,7 @@ function mockThunderbirdAPI(): void {
     clear: vi.fn().mockResolvedValue(undefined),
   };
 
-  // Setup browser.storage.local (required by IndexedDBConfigRepository)
+  // Setup browser.storage.local (required by StorageLocalConfigRepository)
   (globalThis as any).browser = {
     storage: {
       local: storageMock,

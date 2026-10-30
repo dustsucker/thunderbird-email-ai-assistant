@@ -118,7 +118,7 @@ export class OllamaProvider extends BaseProvider {
    */
   public async listModels(settings: BaseProviderSettings): Promise<string[]> {
     try {
-      const baseUrl = settings.apiUrl || DEFAULT_OLLAMA_URL.replace('/api/generate', '');
+      const baseUrl = (settings.apiUrl || DEFAULT_OLLAMA_URL).replace(/\/api\/generate$/, '');
       const tagsUrl = `${baseUrl}/api/tags`;
 
       const response = await fetch(tagsUrl, {

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { container } from 'tsyringe';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { EmailAnalysisTracker } from '@/application/services/EmailAnalysisTracker';
@@ -98,7 +99,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       });
 
       expect(logger.info).toHaveBeenCalledWith(
-        '🚀 Starting batch email analysis',
+        '[INFO] Starting batch email analysis',
         expect.objectContaining({
           messageCount: 2,
           provider: 'openai',
@@ -113,7 +114,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       });
 
       expect(logger.info).toHaveBeenCalledWith(
-        '🚀 Starting batch email analysis',
+        '[INFO] Starting batch email analysis',
         expect.objectContaining({
           messageCount: 5,
           provider: 'openai',
@@ -128,7 +129,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       });
 
       expect(logger.info).toHaveBeenCalledWith(
-        '🚀 Starting batch email analysis',
+        '[INFO] Starting batch email analysis',
         expect.objectContaining({
           messageCount: 1,
           config: expect.objectContaining({
@@ -145,7 +146,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
 
       // Check that the config is logged with undefined priority (as passed)
       expect(logger.info).toHaveBeenCalledWith(
-        '🚀 Starting batch email analysis',
+        '[INFO] Starting batch email analysis',
         expect.objectContaining({
           messageCount: 1,
           config: expect.objectContaining({
@@ -156,7 +157,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
 
       // Check that the actual processing uses the default priority
       expect(logger.info).toHaveBeenCalledWith(
-        '✅ Starting batch processing',
+        '[INFO] Starting batch processing',
         expect.objectContaining({
           priority: 1,
         })
@@ -171,7 +172,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       const infoCall = logger.info as ReturnType<typeof vi.fn>;
       expect(infoCall).toHaveBeenNthCalledWith(
         1,
-        '🚀 Starting batch email analysis',
+        '[INFO] Starting batch email analysis',
         expect.any(Object)
       );
     });
@@ -189,7 +190,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       // Check the "Starting batch processing" log (2nd call)
       expect(infoCall).toHaveBeenNthCalledWith(
         2,
-        '✅ Starting batch processing',
+        '[INFO] Starting batch processing',
         expect.objectContaining({
           count: 2,
           priority: 1,
@@ -206,7 +207,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       });
 
       expect(logger.info).toHaveBeenCalledWith(
-        '✅ Starting batch processing',
+        '[INFO] Starting batch processing',
         expect.objectContaining({
           count: 1,
           priority: 3,
@@ -269,7 +270,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
 
       // Should only analyze the non-analyzed email (456)
       expect(analyzeEmail.execute).toHaveBeenCalledTimes(1);
-      expect(analyzeEmail.execute).toHaveBeenCalledWith('456', mockProviderSettings);
+      expect(analyzeEmail.execute).toHaveBeenCalledWith('456', mockProviderSettings, expect.objectContaining({ signal: expect.anything() }));
 
       // Result should show 1 success, 0 failures
       expect(result.successCount).toBe(1);
@@ -293,7 +294,7 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       });
 
       expect(logger.info).toHaveBeenCalledWith(
-        '⏭️  Skipping already-analyzed email',
+        '[INFO] Skipping already-analyzed email',
         { messageId: '123' }
       );
     });
@@ -324,8 +325,8 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
 
       // Should analyze both emails
       expect(analyzeEmail.execute).toHaveBeenCalledTimes(2);
-      expect(analyzeEmail.execute).toHaveBeenCalledWith('123', mockProviderSettings);
-      expect(analyzeEmail.execute).toHaveBeenCalledWith('456', mockProviderSettings);
+      expect(analyzeEmail.execute).toHaveBeenCalledWith('123', mockProviderSettings, expect.objectContaining({ signal: expect.anything() }));
+      expect(analyzeEmail.execute).toHaveBeenCalledWith('456', mockProviderSettings, expect.objectContaining({ signal: expect.anything() }));
 
       // Result should show 2 successes
       expect(result.successCount).toBe(2);
@@ -369,8 +370,8 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
 
       // Should only analyze the non-analyzed emails (123 and 789)
       expect(analyzeEmail.execute).toHaveBeenCalledTimes(2);
-      expect(analyzeEmail.execute).toHaveBeenCalledWith('123', mockProviderSettings);
-      expect(analyzeEmail.execute).toHaveBeenCalledWith('789', mockProviderSettings);
+      expect(analyzeEmail.execute).toHaveBeenCalledWith('123', mockProviderSettings, expect.objectContaining({ signal: expect.anything() }));
+      expect(analyzeEmail.execute).toHaveBeenCalledWith('789', mockProviderSettings, expect.objectContaining({ signal: expect.anything() }));
 
       // Result should show 2 successes (skipped 456)
       expect(result.successCount).toBe(2);
@@ -414,17 +415,77 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
 
       // Should log skip messages for all
       expect(logger.info).toHaveBeenCalledWith(
-        '⏭️  Skipping already-analyzed email',
+        '[INFO] Skipping already-analyzed email',
         { messageId: '123' }
       );
       expect(logger.info).toHaveBeenCalledWith(
-        '⏭️  Skipping already-analyzed email',
+        '[INFO] Skipping already-analyzed email',
         { messageId: '456' }
       );
       expect(logger.info).toHaveBeenCalledWith(
-        '⏭️  Skipping already-analyzed email',
+        '[INFO] Skipping already-analyzed email',
         { messageId: '789' }
       );
+    });
+  });
+
+  describe('#8/#24: cancellation and counts-only progress', () => {
+    it('#8/#24: cancel() aborts in-flight work and counts cancellations separately', async () => {
+      let capturedSignal: AbortSignal | undefined;
+      (analyzeEmail.execute as ReturnType<typeof vi.fn>).mockImplementation(
+        (_id: string, _settings: unknown, config?: { signal?: AbortSignal }) => {
+          capturedSignal = config?.signal;
+          return new Promise((_resolve, reject) => {
+            config?.signal?.addEventListener('abort', () => {
+              reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+            });
+          });
+        }
+      );
+
+      queue.dequeue = vi
+        .fn()
+        .mockResolvedValueOnce({ messageId: '123', providerSettings: mockProviderSettings })
+        .mockResolvedValue(null);
+
+      const executePromise = analyzeBatch.execute(['123'], {
+        providerSettings: mockProviderSettings,
+        concurrency: 1,
+      });
+
+      await vi.waitFor(() => expect(capturedSignal).toBeDefined());
+      await analyzeBatch.cancel();
+      const result = await executePromise;
+
+      expect(capturedSignal?.aborted).toBe(true);
+      expect(result.cancelledCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+      expect(result.cancelled).toBe(true);
+      expect(queue.clear).toHaveBeenCalledWith(false);
+    });
+
+    it('#24: progress notifications carry only counts (no ID arrays)', async () => {
+      container.reset();
+      const listener = { onBatchProgress: vi.fn() };
+      container.registerInstance('BatchProgressListener', listener);
+
+      try {
+        await analyzeBatch.execute(['123', '456'], {
+          providerSettings: mockProviderSettings,
+          concurrency: 1,
+        });
+
+        expect(listener.onBatchProgress).toHaveBeenCalled();
+        const lastProgress = listener.onBatchProgress.mock.calls.at(-1)?.[0] as Record<
+          string,
+          unknown
+        >;
+        expect(lastProgress.total).toBe(2);
+        expect(lastProgress).not.toHaveProperty('processedMessageIds');
+        expect(lastProgress).not.toHaveProperty('failedMessageIds');
+      } finally {
+        container.reset();
+      }
     });
   });
 });

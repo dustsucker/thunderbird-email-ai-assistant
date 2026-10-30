@@ -23,7 +23,7 @@ import type { ICache } from '@/infrastructure/interfaces/ICache';
 // ============================================================================
 
 import { ConsoleLogger } from '@/infrastructure/logger/ConsoleLogger';
-import { IndexedDBConfigRepository } from '@/infrastructure/repositories/IndexedDBConfigRepository';
+import { StorageLocalConfigRepository } from '@/infrastructure/repositories/StorageLocalConfigRepository';
 import { MemoryCache } from '@/infrastructure/cache/MemoryCache';
 import { ThunderbirdTagManager } from '@/interfaces/adapters/ThunderbirdTagManager';
 
@@ -58,7 +58,6 @@ import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { SettingsForm } from './SettingsForm';
 import { TagManagementUI } from './TagManagementUI';
 import { BatchAnalysisUI } from './BatchAnalysisUI';
-import { AnalysisResultsUI } from './AnalysisResultsUI';
 import { ManualReviewPanel } from './ManualReviewPanel';
 import { DebugTab } from './DebugTab';
 
@@ -122,7 +121,6 @@ class OptionsScript {
   private settingsForm: SettingsForm | null = null;
   private tagManagementUI: TagManagementUI | null = null;
   private batchAnalysisUI: BatchAnalysisUI | null = null;
-  private analysisResultsUI: AnalysisResultsUI | null = null;
   private manualReviewPanel: ManualReviewPanel | null = null;
   private debugTab: DebugTab | null = null;
   private logger: ILogger | null = null;
@@ -163,7 +161,6 @@ class OptionsScript {
       this.settingsForm = container.resolve<SettingsForm>(SettingsForm);
       this.tagManagementUI = container.resolve<TagManagementUI>(TagManagementUI);
       this.batchAnalysisUI = container.resolve<BatchAnalysisUI>(BatchAnalysisUI);
-      this.analysisResultsUI = container.resolve<AnalysisResultsUI>(AnalysisResultsUI);
       this.manualReviewPanel = container.resolve<ManualReviewPanel>(ManualReviewPanel);
       this.debugTab = container.resolve<DebugTab>(DebugTab);
 
@@ -172,7 +169,6 @@ class OptionsScript {
       await this.initializeSettingsForm();
       await this.initializeTagManagement();
       await this.initializeBatchAnalysis();
-      await this.initializeAnalysisResults();
       await this.initializeManualReview();
       this.initializeDebugTab();
       await this.initializeCacheManagement();
@@ -204,7 +200,10 @@ class OptionsScript {
     // ------------------------------------------------------------------------
 
     container.registerSingleton<ILogger>('ILogger', ConsoleLogger);
-    container.registerSingleton<IConfigRepository>('IConfigRepository', IndexedDBConfigRepository);
+    container.registerSingleton<IConfigRepository>(
+      'IConfigRepository',
+      StorageLocalConfigRepository
+    );
     container.registerSingleton<ICache>('ICache', MemoryCache);
     container.registerSingleton<ITagManager>('ITagManager', ThunderbirdTagManager);
 
@@ -240,7 +239,6 @@ class OptionsScript {
     container.registerSingleton('SettingsForm', SettingsForm);
     container.registerSingleton('TagManagementUI', TagManagementUI);
     container.registerSingleton('BatchAnalysisUI', BatchAnalysisUI);
-    container.registerSingleton('AnalysisResultsUI', AnalysisResultsUI);
     container.registerSingleton('ManualReviewPanel', ManualReviewPanel);
     container.registerSingleton('DebugTab', DebugTab);
 
@@ -335,38 +333,6 @@ class OptionsScript {
     this.batchAnalysisUI.render();
 
     this.logger?.debug('Batch analysis UI initialized');
-  }
-
-  /**
-   * Initializes analysis results UI.
-   */
-  private async initializeAnalysisResults(): Promise<void> {
-    this.logger?.debug('Initializing analysis results UI');
-
-    if (!this.analysisResultsUI) {
-      throw new Error('Analysis results UI not resolved from DI container');
-    }
-
-    this.analysisResultsUI.render();
-
-    // Setup refresh button
-    const refreshBtn = document.getElementById('refresh-results-btn') as HTMLButtonElement;
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', async () => {
-        try {
-          refreshBtn.disabled = true;
-          refreshBtn.textContent = 'Wird geladen...';
-          await this.analysisResultsUI!.refresh();
-        } catch (error) {
-          this.logger?.error('Failed to refresh analysis results', { error });
-        } finally {
-          refreshBtn.disabled = false;
-          refreshBtn.textContent = 'Aktualisieren';
-        }
-      });
-    }
-
-    this.logger?.debug('Analysis results UI initialized');
   }
 
   /**
@@ -499,7 +465,7 @@ class OptionsScript {
     this.logger?.debug('Setting up runtime message listeners');
 
     if (typeof window !== 'undefined' && 'browser' in window) {
-      const browser = (window as any).browser;
+      const browser = window.browser;
       if (browser?.runtime?.onMessage) {
         browser.runtime.onMessage.addListener(
           (message: unknown, _sender: unknown, sendResponse: (response?: unknown) => void) => {
@@ -549,7 +515,7 @@ class OptionsScript {
   private sendMessage<T = unknown>(message: unknown): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       if (typeof window !== 'undefined' && 'browser' in window) {
-        const browser = (window as any).browser;
+        const browser = window.browser;
         if (browser?.runtime) {
           browser.runtime.sendMessage(message, (response: unknown) => {
             const lastError = browser.runtime?.lastError;

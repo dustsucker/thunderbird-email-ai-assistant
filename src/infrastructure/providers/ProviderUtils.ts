@@ -465,21 +465,19 @@ export function extractJson(text: unknown): string {
       braceCount--;
       if (braceCount === 0 && firstBrace !== -1) {
         const extracted = text.substring(firstBrace, i + 1);
-        logger.info('[LLM-EXTRACT-JSON] Extracted JSON:', {
+        logger.debug('[LLM-EXTRACT-JSON] Extracted JSON', {
           startIdx: firstBrace,
           endIdx: i + 1,
           length: extracted.length,
-          preview: extracted.substring(0, 200),
         });
         return extracted;
       }
     }
   }
 
-  logger.info('[LLM-EXTRACT-JSON] No JSON found in text', {
+  logger.debug('[LLM-EXTRACT-JSON] No JSON found in text', {
     textLength: text.length,
     hasBrace: text.includes('{'),
-    preview: text.substring(0, 200),
   });
   throw new Error('Could not find a valid JSON object in the response.');
 }
@@ -518,6 +516,30 @@ function isTransientError(error: unknown): boolean {
  */
 function isRetryableStatus(status: number): boolean {
   return status >= 500 || status === 408 || status === 429;
+}
+
+/**
+ * Checks if an error is a timeout/abort error.
+ * POST requests that time out are retried at most once to avoid
+ * duplicate side effects on the provider.
+ *
+ * @param error - The error to check
+ * @returns True if the error is a timeout/abort
+ */
+function isTimeoutError(error: unknown): boolean {
+  return isError(error) && error.name === 'AbortError';
+}
+
+/**
+ * Extracts a server-provided Retry-After delay (milliseconds) from an error.
+ *
+ * @param error - The error to inspect
+ * @returns Delay in milliseconds, or undefined if not present
+ */
+function getRetryAfterMs(error: unknown): number | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  const value = (error as { retryAfterMs?: unknown }).retryAfterMs;
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
 /**
@@ -579,16 +601,28 @@ export async function retryWithBackoff<T>(
       const hasErrorStatus =
         isError(error) && typeof (error as unknown as { status?: unknown }).status === 'number';
       const status = hasErrorStatus ? (error as unknown as { status: number }).status : null;
-      const isTransient = isTransientError(error) || (status !== null && isRetryableStatus(status));
+      const isTimeout = isTimeoutError(error);
+      const isTransient =
+        isTransientError(error) || isTimeout || (status !== null && isRetryableStatus(status));
 
-      if (attempt === maxRetries || !isTransient) {
+      // POST requests that time out may have already been processed server-side:
+      // allow at most one retry to avoid duplicate side effects.
+      const effectiveMaxRetries = isTimeout ? Math.min(maxRetries, 1) : maxRetries;
+
+      if (attempt >= effectiveMaxRetries || !isTransient) {
         throw lastError;
       }
 
-      // Calculate delay with exponential backoff and jitter
-      const exponentialDelay = baseDelay * Math.pow(factor, attempt);
-      const jitterAmount = exponentialDelay * jitter * (Math.random() * 2 - 1);
-      const delay = exponentialDelay + jitterAmount;
+      // Honour server-provided Retry-After, otherwise exponential backoff + jitter
+      const retryAfterMs = getRetryAfterMs(error);
+      let delay: number;
+      if (retryAfterMs !== undefined) {
+        delay = retryAfterMs;
+      } else {
+        const exponentialDelay = baseDelay * Math.pow(factor, attempt);
+        const jitterAmount = exponentialDelay * jitter * (Math.random() * 2 - 1);
+        delay = exponentialDelay + jitterAmount;
+      }
 
       await new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, delay)));
     }
@@ -719,13 +753,15 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
  * // Returns { tags: [], confidence: 0.5, reasoning: "" }
  */
 export function validateLLMResponse(response: unknown): TagResponse {
-  // Log raw response for debugging
-  logger.info('[LLM-RAW-RESPONSE] Raw LLM response:', {
+  // Log response metadata only (never raw LLM content / email text)
+  logger.debug('[LLM-RAW-RESPONSE] Raw LLM response:', {
     type: typeof response,
-    preview:
+    length:
       typeof response === 'string'
-        ? response.substring(0, 500)
-        : JSON.stringify(response).substring(0, 500),
+        ? response.length
+        : response !== null && response !== undefined
+          ? JSON.stringify(response).length
+          : 0,
     isNull: response === null,
     isUndefined: response === undefined,
     isEmpty: typeof response === 'string' && response.trim().length === 0,

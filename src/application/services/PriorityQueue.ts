@@ -10,6 +10,12 @@ import type { IQueue, IQueueStats } from '../../infrastructure/interfaces/IQueue
  */
 const DEFAULT_PRIORITY = 1;
 
+/**
+ * Number of samples kept for the rolling average wait time.
+ * Caps memory and prevents stale waits from skewing the average forever.
+ */
+const MAX_WAIT_SAMPLES = 100;
+
 // ============================================================================
 // QUEUE ITEM WRAPPER
 // ============================================================================
@@ -95,8 +101,7 @@ export class PriorityQueue implements IQueue {
       enqueuedAt: Date.now(),
     };
 
-    this.queue.push(queueItem);
-    this.queue.sort((a, b) => b.priority - a.priority);
+    this.insertSorted(queueItem);
   }
 
   /**
@@ -119,6 +124,9 @@ export class PriorityQueue implements IQueue {
     this.processingByItem.set(queueItem.item, queueItem.id);
     const waitTime = Date.now() - queueItem.enqueuedAt;
     this.waitTimes.push(waitTime);
+    if (this.waitTimes.length > MAX_WAIT_SAMPLES) {
+      this.waitTimes.shift();
+    }
 
     return queueItem.item as T;
   }
@@ -202,6 +210,29 @@ export class PriorityQueue implements IQueue {
   // ========================================================================
   // PRIVATE HELPERS
   // ========================================================================
+
+  /**
+   * Inserts an item at its sorted (descending priority) position using binary
+   * search — O(log n) lookup + O(n) splice instead of an O(n log n) re-sort.
+   * Equal priorities keep FIFO order (inserted after existing equals).
+   *
+   * @param queueItem - Wrapped item to insert
+   */
+  private insertSorted(queueItem: QueueItem<unknown>): void {
+    let low = 0;
+    let high = this.queue.length;
+
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (this.queue[mid].priority >= queueItem.priority) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+
+    this.queue.splice(low, 0, queueItem);
+  }
 
   /**
    * Generates a unique identifier for queue items

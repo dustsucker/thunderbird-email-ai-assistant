@@ -8,24 +8,12 @@
  */
 
 import 'reflect-metadata';
-import { container } from 'tsyringe';
 
 // ============================================================================
 // Background Module
 // ============================================================================
 
 import { setupDIContainer, startupLogger, BackgroundScript } from './src/background';
-import { ContextMenuHandler } from './src/background/ContextMenuHandler';
-import { ToolbarHandler } from './src/background/ToolbarHandler';
-import { InstallHandler } from './src/background/InstallHandler';
-
-// ============================================================================
-// Register Handlers in DI Container
-// ============================================================================
-
-container.registerSingleton('ContextMenuHandler', ContextMenuHandler);
-container.registerSingleton('ToolbarHandler', ToolbarHandler);
-container.registerSingleton('InstallHandler', InstallHandler);
 
 // ============================================================================
 // Extension Entry Point

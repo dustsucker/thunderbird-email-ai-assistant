@@ -23,7 +23,7 @@ src/infrastructure/
 │   └── impl/                # OpenAI, Claude, Gemini, Mistral, Ollama, Deepseek, ZaiPaaS, ZaiCoding
 ├── cache/MemoryCache.ts     # In-memory cache with SHA-256 hashing
 ├── logger/ConsoleLogger.ts  # Console-based logger (implements domain ILogger)
-├── repositories/IndexedDBConfigRepository.ts
+├── repositories/StorageLocalConfigRepository.ts
 └── config/AppConfig.ts      # Configuration service with caching
 ```
 
@@ -60,7 +60,7 @@ Bridges legacy `BaseProvider` to new `IProvider` interface for DI compatibility.
 
 ### Repository Pattern (IConfigRepository)
 
-Abstracts configuration persistence via `IndexedDBConfigRepository` using browser.storage.local.
+Abstracts configuration persistence via `StorageLocalConfigRepository` using browser.storage.local.
 
 ### Factory Pattern (ProviderFactory)
 
@@ -104,7 +104,7 @@ PROVIDER_REGISTRY.set('newprovider', NewProvider);
 ```typescript
 'ILogger'           → ConsoleLogger
 'ICache'            → MemoryCache
-'IConfigRepository' → IndexedDBConfigRepository
+'IConfigRepository' → StorageLocalConfigRepository
 'provider:openai'   → BaseProviderAdapter<OpenAIProvider>
 ```
 

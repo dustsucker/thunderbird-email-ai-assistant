@@ -51,9 +51,6 @@ function createZip(version) {
     archive.file(path.join(rootDir, 'background-bundle.js'), { name: 'background-bundle.js' });
     archive.file(path.join(rootDir, 'options-bundle.js'), { name: 'options-bundle.js' });
     archive.file(path.join(rootDir, 'icon.png'), { name: 'icon.png' });
-    archive.file(path.join(rootDir, 'icon-128x128.png'), { name: 'icon-128x128.png' });
-
-    archive.directory(path.join(rootDir, 'doc', 'screenshots'), 'doc/screenshots');
 
     archive.finalize();
   });

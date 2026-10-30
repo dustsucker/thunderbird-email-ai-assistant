@@ -74,22 +74,56 @@ describe('EmailAnalysisTracker', () => {
       expect(await tracker.wasAnalyzed(12345)).toBe(false);
     });
 
-    it('should return true after markAnalyzed (no header mechanism involved)', async () => {
+    it('should return true after markAnalyzed (single processedIds key, no header mechanism)', async () => {
       // DW6: modifyPermanent does not exist — header mechanism must be absent
       expect((mockStorage.storage.local.set as ReturnType<typeof vi.fn>).mock).toBeDefined();
 
       await tracker.markAnalyzed(12345);
 
+      // #10: one consolidated `processedIds` key, not one key per message
       expect(mockStorage.storage.local.set).toHaveBeenCalledWith({
-        processed_12345: 'true',
+        processedIds: [12345],
       });
       expect(await tracker.wasAnalyzed(12345)).toBe(true);
       expect(await tracker.wasAnalyzed(67890)).toBe(false);
+      expect(mockLogger.debug).toHaveBeenCalledWith('[DEBUG] Email marked as analyzed', {
+        messageId: 12345,
+      });
+    });
+
+    it('#10: evicts the oldest tracked id beyond the 5000 LRU cap', () => {
+      const addToSet = (
+        tracker as unknown as { addToSet: (ids: Set<number>, messageId: number) => void }
+      ).addToSet.bind(tracker);
+      const ids = new Set<number>();
+      for (let i = 0; i < 5000; i++) addToSet(ids, i);
+      addToSet(ids, 5000);
+
+      expect(ids.size).toBe(5000);
+      expect(ids.has(0)).toBe(false);
+      expect(ids.has(5000)).toBe(true);
     });
 
     it('should accept legacy boolean true values', async () => {
       mockStorage._map.set('processed_42', true);
       expect(await tracker.wasAnalyzed(42)).toBe(true);
+    });
+
+    it('migrates legacy processed_* keys into processedIds and removes them (#10)', async () => {
+      mockStorage._map.set('processed_1', 'true');
+      mockStorage._map.set('processed_2', 'true');
+
+      // First read triggers migration
+      expect(await tracker.wasAnalyzed(1)).toBe(true);
+      expect(await tracker.wasAnalyzed(2)).toBe(true);
+
+      expect(mockStorage._map.get('processedIds')).toEqual([1, 2]);
+      // Legacy keys were removed (mock has no remove() → null-valued set)
+      expect(mockStorage._map.get('processed_1')).toBeNull();
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        '[INFO] Migrated legacy analysis tracking keys',
+        expect.objectContaining({ count: 2 })
+      );
     });
   });
 

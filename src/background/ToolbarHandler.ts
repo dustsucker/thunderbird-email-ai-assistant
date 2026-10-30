@@ -9,6 +9,9 @@
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
 import type { BatchProgress, BatchProgressListener } from '@/application/use-cases/AnalyzeBatchEmails';
+import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
+import { AppConfigService } from '@/infrastructure/config/AppConfig';
+import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsService';
 
 // ============================================================================
 // Thunderbird API Types (inline declarations)
@@ -45,6 +48,8 @@ export class ToolbarHandler implements BatchProgressListener {
   // ==========================================================================
 
   private readonly logger: ILogger;
+  private readonly analyzeEmail: AnalyzeEmail;
+  private readonly providerSettingsService: ProviderSettingsService;
 
   // ==========================================================================
   // Constructor
@@ -54,9 +59,17 @@ export class ToolbarHandler implements BatchProgressListener {
    * Creates a new ToolbarHandler instance.
    *
    * @param logger - Logger instance for logging operations
+   * @param analyzeEmail - Single email analysis use case
+   * @param appConfigService - App config service for resolving provider settings
    */
-  constructor(@inject('ILogger') logger: ILogger) {
+  constructor(
+    @inject('ILogger') logger: ILogger,
+    @inject(AnalyzeEmail) analyzeEmail: AnalyzeEmail,
+    @inject(AppConfigService) appConfigService: AppConfigService
+  ) {
     this.logger = logger;
+    this.analyzeEmail = analyzeEmail;
+    this.providerSettingsService = new ProviderSettingsService(appConfigService, logger);
   }
 
   // ==========================================================================
@@ -158,9 +171,34 @@ export class ToolbarHandler implements BatchProgressListener {
         title: 'Analyse gestartet',
         message: `Analyse für Nachricht ${messageId} gestartet`,
       });
+
+      const providerSettings = await this.providerSettingsService.getProviderSettings();
+
+      if (!providerSettings.provider) {
+        await messenger.notifications.create({
+          type: 'basic',
+          iconUrl: 'icon.png',
+          title: 'Fehler',
+          message: 'Kein Provider konfiguriert. Bitte überprüfen Sie Ihre Einstellungen.',
+        });
+        return;
+      }
+
+      const result = await this.analyzeEmail.execute(String(messageId), providerSettings);
+      this.logger.info('Single message analysis completed successfully', {
+        messageId,
+        tags: result.tags,
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to handle toolbar button click', { error: errorMessage });
+
+      await messenger.notifications.create({
+        type: 'basic',
+        iconUrl: 'icon.png',
+        title: 'Fehler',
+        message: `Analyse fehlgeschlagen: ${errorMessage}`,
+      });
     }
   }
 }

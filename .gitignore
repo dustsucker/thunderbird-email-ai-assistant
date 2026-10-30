@@ -2,7 +2,6 @@
 # Node.js
 node_modules/
 npm-debug.log
-package-lock.json
 
 # Build artifacts
 dist/
@@ -10,9 +9,12 @@ web-ext-artifacts/
 *-bundle.js
 *.bundle.js
 test-output.log
+*.zip
+email-assistant-*.zip
 
 # Local configuration
 .idea/
+.vscode/
 *.suo
 *.ntvs*
 *.njsproj
