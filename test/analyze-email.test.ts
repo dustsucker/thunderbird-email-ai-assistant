@@ -14,6 +14,7 @@ import { ExtractEmailContentUseCase } from '@/application/use-cases/ExtractEmail
 import { CacheAnalysisUseCase } from '@/application/use-cases/CacheAnalysisUseCase';
 import { ApplyTagsWithConfidenceUseCase } from '@/application/use-cases/ApplyTagsWithConfidenceUseCase';
 import type { TagHistoryRepository } from '@/infrastructure/storage/TagHistoryRepository';
+import { LLMResponseParseError } from '@/infrastructure/providers/ProviderUtils';
 
 describe('AnalyzeEmail - Logging Tests', () => {
   let logger: ILogger;
@@ -432,6 +433,52 @@ describe('AnalyzeEmail - Logging Tests', () => {
       } finally {
         delete (globalThis as unknown as Record<string, unknown>).messenger;
       }
+    });
+  });
+
+  describe('issue #28: LLM parse errors are failures, not fake successes', () => {
+    const parseError = new LLMResponseParseError('LLM response is not valid JSON (bad token)');
+
+    function failingProvider(): IProvider {
+      const provider = (providerFactory.getProvider as unknown as () => IProvider)();
+      (provider.analyze as ReturnType<typeof vi.fn>).mockRejectedValue(parseError);
+      return provider;
+    }
+
+    it('fails the analysis without wiping tags, caching garbage, or marking analyzed', async () => {
+      failingProvider();
+
+      await expect(analyzeEmail.execute('123', mockProviderSettings)).rejects.toThrow(
+        /Failed to analyze email 123/
+      );
+
+      // Existing AI tags are preserved: the apply path (which would call
+      // setTagsOnMessage and clear tags) never runs on a failed analysis.
+      expect(tagManager.setTagsOnMessage).not.toHaveBeenCalled();
+      // Garbage result is not cached for 24h.
+      expect(cache.set).not.toHaveBeenCalled();
+      // Re-analysis is not blocked.
+      expect(analysisTracker.markAnalyzed).not.toHaveBeenCalled();
+      // The provider was actually asked (failure happened at parse time).
+      const provider = (providerFactory.getProvider as unknown as () => IProvider)();
+      expect(provider.analyze).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs the failure via ILogger and reports it to the caller', async () => {
+      failingProvider();
+
+      await expect(analyzeEmail.execute('123', mockProviderSettings)).rejects.toThrow(
+        'LLM response is not valid JSON (bad token)'
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(
+        '[ERROR] Email analysis failed',
+        expect.objectContaining({
+          messageId: '123',
+          providerId: 'openai',
+          error: 'LLM response is not valid JSON (bad token)',
+        })
+      );
     });
   });
 });

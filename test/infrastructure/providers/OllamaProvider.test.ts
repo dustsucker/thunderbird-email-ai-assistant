@@ -13,6 +13,7 @@ import {
   validTagResponse,
 } from './provider-test-utils';
 import type { BaseProviderSettings } from '../../../src/infrastructure/providers/BaseProvider';
+import { LLMResponseParseError } from '../../../src/infrastructure/providers/ProviderUtils';
 
 describe('OllamaProvider', () => {
   let provider: OllamaProvider;
@@ -378,7 +379,7 @@ describe('OllamaProvider', () => {
       ).rejects.toThrow('Invalid response structure from Ollama API');
     });
 
-    it('should handle invalid JSON in response', async () => {
+    it('should reject on invalid JSON in response (issue #28: no fake-success fallback)', async () => {
       const ollamaResponse = {
         model: 'gemma3:27b',
         response: 'not valid json {{{',
@@ -387,15 +388,15 @@ describe('OllamaProvider', () => {
 
       fetchSpy.mockResolvedValue(createMockFetchResponse(ollamaResponse));
 
-      // Should still work but return fallback values
-      const result = await provider.analyze({
-        settings: validSettings,
-        structuredData: createMockStructuredData(),
-        customTags: createMockCustomTags(),
-      });
-
-      // Provider utils should return fallback values for invalid JSON
-      expect(result).toBeDefined();
+      // Issue #28: invalid JSON must fail the analysis, not fabricate an
+      // empty-tag success that wipes existing AI tags and gets cached.
+      await expect(
+        provider.analyze({
+          settings: validSettings,
+          structuredData: createMockStructuredData(),
+          customTags: createMockCustomTags(),
+        })
+      ).rejects.toThrow(LLMResponseParseError);
     });
   });
 

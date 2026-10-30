@@ -148,6 +148,19 @@ export interface TagResponse {
 }
 
 /**
+ * Error thrown when an LLM response cannot be parsed or violates the Tag
+ * schema. Issue #28: validateLLMResponse used to fabricate a fake success
+ * ({ tags: [], confidence: 0.5 }) instead — which wiped existing AI tags
+ * and got cached for 24h as if the mail had been analyzed.
+ */
+export class LLMResponseParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'LLMResponseParseError';
+  }
+}
+
+/**
  * Validated unknown data
  */
 export type Validated<T> = T;
@@ -717,12 +730,11 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
  * // Returns { tags: ["work", "urgent"], confidence: 0.8, reasoning: "" }
  *
  * @example
- * validateLLMResponse('Some text {"tags": ["personal"]} more text')
- * // Returns { tags: ["personal"], confidence: 0.5, reasoning: "" }
+ * validateLLMResponse('```json\n{"tags": ["personal"], "confidence": 0.9}\n```')
+ * // Returns { tags: ["personal"], confidence: 0.9, reasoning: "" }
  *
- * @example
- * validateLLMResponse('invalid json')
- * // Returns { tags: [], confidence: 0.5, reasoning: "" }
+ * @throws {LLMResponseParseError} If the response is not parseable JSON or
+ * violates the Tag schema (issue #28: no fake-success fallback).
  */
 export function validateLLMResponse(response: unknown): TagResponse {
   // Log response metadata only (never raw LLM content / email text)
@@ -772,12 +784,8 @@ export function validateLLMResponse(response: unknown): TagResponse {
           error: errorMessage,
           responseLength: response.length,
         });
-        // Return fallback response
-        return {
-          tags: [],
-          confidence: 0.5,
-          reasoning: '',
-        };
+        // Issue #28: a parse failure must not become a fake success
+        throw new LLMResponseParseError(`LLM response is not valid JSON (${errorMessage})`);
       }
     }
   } else if (isJsonObject(response)) {
@@ -790,21 +798,51 @@ export function validateLLMResponse(response: unknown): TagResponse {
       confidenceValue: parsed.confidence,
     });
   } else {
+    // Issue #28: null/arrays/primitives are schema drift, not "no tags found"
     logError('Invalid response type', { type: typeof response });
-    return {
-      tags: [],
-      confidence: 0.5,
-      reasoning: '',
-    };
+    throw new LLMResponseParseError(
+      `LLM response has invalid type: expected JSON object, got ${typeof response}`
+    );
+  }
+
+  // Issue #28: schema drift must fail loudly — fabricated defaults produced a
+  // fake success that wiped existing AI tags and got cached for 24h.
+  if (!Array.isArray(parsed.tags) || parsed.tags.some((t) => typeof t !== 'string')) {
+    // Metadata only — never raw LLM response content (#2)
+    logError('Invalid tags field in LLM response', {
+      receivedType: typeof parsed.tags,
+      isArray: Array.isArray(parsed.tags),
+    });
+    throw new LLMResponseParseError(
+      'LLM response has invalid "tags" field: expected an array of strings'
+    );
   }
 
   // Normalize percent-scale confidence (e.g., 85) to 0-1 range before validation
-  const rawConfidence = parsed.confidence;
-  if (typeof rawConfidence === 'number' && rawConfidence > 1 && rawConfidence <= 100) {
-    parsed.confidence = rawConfidence / 100;
+  let confidence: unknown = parsed.confidence;
+  if (typeof confidence === 'string') {
+    const converted = Number(confidence);
+    if (!Number.isNaN(converted)) confidence = converted;
   }
+  if (typeof confidence === 'number' && confidence > 1 && confidence <= 100) {
+    confidence = confidence / 100;
+  }
+  if (
+    typeof confidence !== 'number' ||
+    !Number.isFinite(confidence) ||
+    confidence < 0 ||
+    confidence > 1
+  ) {
+    logError('Invalid confidence field in LLM response', {
+      receivedType: typeof parsed.confidence,
+    });
+    throw new LLMResponseParseError(
+      'LLM response has invalid "confidence" field: expected a number in [0, 1]'
+    );
+  }
+  parsed.confidence = confidence;
 
-  // Validate each field against schema
+  // Validate each field against schema (tags/confidence pre-validated above)
   const validated = {} as TagResponse;
   for (const [fieldName, schema] of Object.entries(TAG_RESPONSE_SCHEMA)) {
     validated[fieldName as keyof TagResponse] = validateValue(

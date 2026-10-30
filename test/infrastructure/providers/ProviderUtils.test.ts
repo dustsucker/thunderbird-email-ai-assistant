@@ -6,7 +6,12 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { retryWithBackoff, validateLLMResponse, extractJson } from '../../../src/infrastructure/providers/ProviderUtils';
+import {
+  retryWithBackoff,
+  validateLLMResponse,
+  extractJson,
+  LLMResponseParseError,
+} from '../../../src/infrastructure/providers/ProviderUtils';
 import { sharedLogger } from '../../../src/infrastructure/logger/ConsoleLogger';
 import {
   BaseProvider,
@@ -210,6 +215,72 @@ describe('ProviderUtils fixes', () => {
       expect(warns[0][1]).toMatchObject({ attempts: fastRetry.maxRetries + 1, statusCode: 500 });
       // retries were attempted (debug logs present), but only one warn
       expect(debugSpy.mock.calls.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ==========================================================================
+  // Issue #28: parse/schema errors fail loudly
+  // ==========================================================================
+
+  // Realistic provider wiring — raw LLM content string → validateResponse
+  class ContentParsingProvider extends BaseProvider {
+    protected getApiUrl(): string {
+      return 'https://api.test.com/v1/chat';
+    }
+    protected buildRequestBody(): RequestBody {
+      return { prompt: 'test' };
+    }
+    protected parseResponse(response: unknown): TagResponse {
+      return this.validateResponse((response as { content?: unknown }).content);
+    }
+    public validateSettings(): boolean {
+      return true;
+    }
+  }
+
+  describe('issue #28: parse/schema errors fail loudly', () => {
+    it.each([
+      ['garbage string', 'This is prose, not JSON'],
+      ['null', null],
+      ['top-level array', []],
+      ['top-level number', 42],
+      ['truncated JSON string', '{"tags": ["work"], "conf'],
+      ['truncated json fence', '```json\n{"tags": ["work"], "conf'],
+      ['confidence out of range', '{"tags": ["work"], "confidence": 150}'],
+      ['non-numeric confidence', '{"tags": ["work"], "confidence": "high"}'],
+      ['tags with non-string items', '{"tags": [42], "confidence": 0.8}'],
+      ['missing required fields', '{"reasoning": "no tags or confidence"}'],
+    ])('rejects %s with LLMResponseParseError and logs it', (_label, input) => {
+      const errorSpy = vi.spyOn(sharedLogger, 'error').mockImplementation(() => {});
+
+      expect(() => validateLLMResponse(input)).toThrow(LLMResponseParseError);
+      // Failure is logged before throwing (metadata only, no raw content)
+      expect(errorSpy).toHaveBeenCalled();
+    });
+
+    it('still parses well-formed fenced JSON (```json ... ```)', () => {
+      const result = validateLLMResponse('```json\n{"tags": ["work"], "confidence": 0.8}\n```');
+      expect(result).toMatchObject({ tags: ['work'], confidence: 0.8 });
+    });
+
+    it('still parses JSON embedded in prose', () => {
+      const result = validateLLMResponse('Answer: {"tags": ["work"], "confidence": 0.8} done');
+      expect(result).toMatchObject({ tags: ['work'], confidence: 0.8 });
+    });
+
+    it('provider.analyze rejects instead of returning a fake success', async () => {
+      vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValue(createMockFetchResponse({ content: 'garbage prose, no JSON' }));
+
+      const provider = new ContentParsingProvider(5000, fastRetry);
+      await expect(
+        provider.analyze({
+          settings: { model: 'm' },
+          structuredData: { headers: {}, body: 'b', attachments: [] } as StructuredEmailData,
+          customTags: [] as unknown as CustomTags,
+        })
+      ).rejects.toThrow(LLMResponseParseError);
     });
   });
 });
