@@ -7,7 +7,7 @@
 
 import type { CustomTags, Tag } from '@/shared/types/TagTypes';
 import type { StructuredEmailData, PromptBuilderResult } from '@/shared/types/EmailPart';
-import { PROMPT_BASE } from '@/shared/constants/PromptConstants';
+import { PROMPT_BASE, MAX_BODY_CHARS } from '@/shared/constants/PromptConstants';
 import { HARDCODED_TAGS } from '@/shared/constants/TagConstants';
 import { logger } from './ProviderUtils';
 
@@ -62,9 +62,22 @@ IMPORTANT: Return ONLY the JSON object, not the individual tag values!
   // 4. Replace placeholders
   // Replacer functions prevent `$&`, `` $` ``, `$'` etc. in email content
   // from being interpreted as replacement patterns
+  // Issue #30: body is untrusted input — strip ``` so it cannot break out of its
+  // ```text fence, and hard-cap length (cost-DoS guard) at this trust boundary.
+  const safeBody: string = truncateText(
+    structuredData.body.replace(/```/g, ''),
+    MAX_BODY_CHARS
+  );
+  if (safeBody.length !== structuredData.body.length) {
+    logger.warn('[PromptBuilder] Email body sanitized/truncated for prompt', {
+      originalLength: structuredData.body.length,
+      promptBodyLength: safeBody.length,
+      maxBodyChars: MAX_BODY_CHARS,
+    });
+  }
   const finalPrompt: string = `${PROMPT_BASE}\n${instructionsText}`
     .replace('{headers}', () => headersJSON)
-    .replace('{body}', () => structuredData.body)
+    .replace('{body}', () => safeBody)
     .replace('{attachments}', () => attachmentsJSON);
 
   // 5. Debug log
