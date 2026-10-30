@@ -56,6 +56,9 @@ describe('EmailEventListener', () => {
       total: 2,
       successCount: 2,
       failureCount: 0,
+      cancelledCount: 0,
+      skippedCount: 0,
+      unprocessedCount: 0,
       results: [
         { messageId: '123', success: true, tags: ['work'] },
         { messageId: '456', success: true, tags: ['personal'] },

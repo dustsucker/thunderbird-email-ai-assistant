@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { container } from 'tsyringe';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
@@ -412,6 +412,10 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       // Result should show 0 successes
       expect(result.successCount).toBe(0);
       expect(result.total).toBe(3);
+      expect(result.skippedCount).toBe(3);
+      // Healthy re-run over analyzed mail must not be misreported as error (#29)
+      expect(result.status).toBe('success');
+      expect(result.unprocessedCount).toBe(0);
 
       // Should log skip messages for all
       expect(logger.info).toHaveBeenCalledWith(
@@ -486,6 +490,183 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       } finally {
         container.reset();
       }
+    });
+  });
+
+  describe('#29: partial failure accounting', () => {
+    let listener: { onBatchProgress: ReturnType<typeof vi.fn> };
+
+    beforeEach(() => {
+      container.clearInstances();
+      listener = { onBatchProgress: vi.fn() };
+      container.registerInstance('BatchProgressListener', listener);
+    });
+
+    afterEach(() => {
+      container.clearInstances();
+    });
+
+    it('5 emails, provider fails at #2 and #4: no throw, 3 processed, 2 failed, onProgress per email', async () => {
+      queue.dequeue = vi
+        .fn()
+        .mockResolvedValueOnce({ messageId: '101', providerSettings: mockProviderSettings })
+        .mockResolvedValueOnce({ messageId: '102', providerSettings: mockProviderSettings })
+        .mockResolvedValueOnce({ messageId: '103', providerSettings: mockProviderSettings })
+        .mockResolvedValueOnce({ messageId: '104', providerSettings: mockProviderSettings })
+        .mockResolvedValueOnce({ messageId: '105', providerSettings: mockProviderSettings })
+        .mockResolvedValue(null);
+
+      (analyzeEmail.execute as ReturnType<typeof vi.fn>).mockImplementation(
+        (messageId: string) =>
+          messageId === '102' || messageId === '104'
+            ? Promise.reject(new Error(`boom ${messageId}`))
+            : Promise.resolve({ tags: ['work'], confidence: 0.9 })
+      );
+
+      const result = await analyzeBatch.execute(['101', '102', '103', '104', '105'], {
+        providerSettings: mockProviderSettings,
+        concurrency: 1,
+      });
+
+      expect(result.total).toBe(5);
+      expect(result.successCount).toBe(3);
+      expect(result.failureCount).toBe(2);
+      expect(result.failedMessageIds).toEqual(['102', '104']);
+      expect(result.unprocessedCount).toBe(0);
+      expect(result.status).toBe('partial');
+
+      // onProgress fires once per email (5×) plus the init and final notification
+      const percentages = listener.onBatchProgress.mock.calls.map(
+        (call) => (call[0] as { percentage: number }).percentage
+      );
+      expect(percentages).toEqual([0, 20, 40, 60, 80, 100, 100]);
+
+      // Failures are logged via ILogger...
+      expect(logger.error).toHaveBeenCalledWith(
+        '[ERROR] Failed to analyze email',
+        expect.objectContaining({ messageId: '102', error: 'boom 102' })
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        '[ERROR] Failed to analyze email',
+        expect.objectContaining({ messageId: '104', error: 'boom 104' })
+      );
+      // ...and no API key leaks into any log line
+      const logged = JSON.stringify([
+        (logger.debug as ReturnType<typeof vi.fn>).mock.calls,
+        (logger.info as ReturnType<typeof vi.fn>).mock.calls,
+        (logger.warn as ReturnType<typeof vi.fn>).mock.calls,
+        (logger.error as ReturnType<typeof vi.fn>).mock.calls,
+      ]);
+      expect(logged).not.toContain('test-key');
+    });
+
+    it('already-analyzed subset: skipped counts as complete → success, no unprocessed alarm', async () => {
+      queue.dequeue = vi
+        .fn()
+        .mockResolvedValueOnce({ messageId: '501', providerSettings: mockProviderSettings })
+        .mockResolvedValueOnce({ messageId: '502', providerSettings: mockProviderSettings })
+        .mockResolvedValueOnce({ messageId: '503', providerSettings: mockProviderSettings })
+        .mockResolvedValue(null);
+      emailAnalysisTracker.wasAnalyzed = vi
+        .fn()
+        .mockResolvedValueOnce(true) // 501 → skipped
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false);
+
+      const result = await analyzeBatch.execute(['501', '502', '503'], {
+        providerSettings: mockProviderSettings,
+        concurrency: 1,
+      });
+
+      expect(result.skippedCount).toBe(1);
+      expect(result.successCount).toBe(2);
+      expect(result.total).toBe(3);
+      expect(result.unprocessedCount).toBe(0);
+      expect(result.status).toBe('success');
+      expect(result.status).not.toBe('error');
+    });
+
+    it('continueOnError: false → batch throws on queue defect', async () => {
+      queue.dequeue = vi.fn().mockRejectedValue(new Error('queue broken'));
+
+      await expect(
+        analyzeBatch.execute(['201'], {
+          providerSettings: mockProviderSettings,
+          concurrency: 1,
+          continueOnError: false,
+        })
+      ).rejects.toThrow('Batch analysis failed: queue broken');
+
+      expect(logger.error).toHaveBeenCalledWith(
+        '[ERROR] Queue dequeue failed',
+        expect.objectContaining({ error: 'queue broken' })
+      );
+    });
+
+    it('queue defect with default continueOnError → status "error", no success', async () => {
+      queue.dequeue = vi
+        .fn()
+        .mockResolvedValueOnce({ messageId: '301', providerSettings: mockProviderSettings })
+        .mockRejectedValue(new Error('queue broken'));
+
+      const result = await analyzeBatch.execute(['301', '302', '303'], {
+        providerSettings: mockProviderSettings,
+        concurrency: 1,
+      });
+
+      expect(result.total).toBe(3);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+      expect(result.unprocessedCount).toBe(2);
+      expect(result.status).toBe('error');
+      expect(result.status).not.toBe('success');
+      // The queue defect is surfaced in the log
+      expect(logger.error).toHaveBeenCalledWith(
+        '[ERROR] Queue dequeue failed',
+        expect.objectContaining({ error: 'queue broken' })
+      );
+    });
+
+    it('queue.complete() defect: continues by default, throws with continueOnError: false', async () => {
+      queue.dequeue = vi
+        .fn()
+        .mockResolvedValueOnce({ messageId: '401', providerSettings: mockProviderSettings })
+        .mockResolvedValueOnce({ messageId: '402', providerSettings: mockProviderSettings })
+        .mockResolvedValue(null);
+      queue.complete = vi.fn().mockRejectedValue(new Error('complete broken'));
+
+      // Default: item outcomes stay counted, worker keeps draining
+      const result = await analyzeBatch.execute(['401', '402'], {
+        providerSettings: mockProviderSettings,
+        concurrency: 1,
+      });
+      expect(result.successCount).toBe(2);
+      expect(result.status).toBe('success');
+      expect(logger.error).toHaveBeenCalledWith(
+        '[ERROR] Queue complete failed',
+        expect.objectContaining({ messageId: '401', error: 'complete broken' })
+      );
+
+      // continueOnError: false → batch throws instead of reporting success
+      analyzeBatch = new AnalyzeBatchEmails(
+        analyzeEmail,
+        queue,
+        logger,
+        configRepository,
+        emailAnalysisTracker
+      );
+      queue.dequeue = vi
+        .fn()
+        .mockResolvedValueOnce({ messageId: '401', providerSettings: mockProviderSettings })
+        .mockResolvedValueOnce({ messageId: '402', providerSettings: mockProviderSettings })
+        .mockResolvedValue(null);
+      await expect(
+        analyzeBatch.execute(['401', '402'], {
+          providerSettings: mockProviderSettings,
+          concurrency: 1,
+          continueOnError: false,
+        })
+      ).rejects.toThrow('Batch analysis failed: complete broken');
     });
   });
 });

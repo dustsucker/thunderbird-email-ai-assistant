@@ -541,20 +541,33 @@ export class MessageHandler {
           concurrency: 3,
         });
 
+        // #29: a queue defect that stranded mails is an error, not a completion
+        const batchError = result.status === 'error';
         this.batchProgress = {
           ...this.batchProgress,
-          status: 'completed',
-          processed: result.total,
+          status: batchError ? 'error' : 'completed',
+          processed:
+            result.successCount + result.failureCount + result.cancelledCount + result.skippedCount,
           successful: result.successCount,
           failed: result.failureCount,
           endTime: Date.now(),
+          ...(batchError
+            ? {
+                errorMessage: `${result.unprocessedCount} message(s) could not be processed (queue error).`,
+              }
+            : {}),
         };
         this.logger.info('Batch analysis completed', result as unknown as Record<string, unknown>);
 
-        return {
-          success: true,
-          messageCount: messageIds.length,
-        };
+        return batchError
+          ? {
+              success: false,
+              error: `Batch analysis failed: ${result.unprocessedCount} message(s) could not be processed (queue error).`,
+            }
+          : {
+              success: true,
+              messageCount: messageIds.length,
+            };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.batchProgress = {

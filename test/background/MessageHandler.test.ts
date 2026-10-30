@@ -64,7 +64,7 @@ function createHandler(overrides: { analyzeBatch?: Partial<AnalyzeBatchEmails>; 
   } as unknown as ITagManager;
 
   const analyzeBatch = {
-    execute: vi.fn().mockResolvedValue({ total: 0, successCount: 0, failureCount: 0, results: [], cancelled: false }),
+    execute: vi.fn().mockResolvedValue({ total: 0, successCount: 0, failureCount: 0, cancelledCount: 0, skippedCount: 0, unprocessedCount: 0, results: [], cancelled: false, status: 'success' }),
     getProgress: vi.fn().mockResolvedValue({
       total: 0, processed: 0, failed: 0, percentage: 0,
       isRunning: false, isCancelled: false, processedMessageIds: [], failedMessageIds: [],

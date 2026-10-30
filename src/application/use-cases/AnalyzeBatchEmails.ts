@@ -90,6 +90,16 @@ export interface EmailAnalysisResult {
 }
 
 /**
+ * Overall outcome of a batch run (#29).
+ *
+ * - `success`: every mail accounted for, none failed
+ * - `partial`: every mail accounted for, but at least one failed
+ * - `error`: mails remained unprocessed (e.g. a queue defect stopped the
+ *   workers) — must never be reported as success
+ */
+export type BatchAnalysisStatus = 'success' | 'partial' | 'error';
+
+/**
  * Overall batch analysis result.
  */
 export interface BatchAnalysisResult {
@@ -101,10 +111,18 @@ export interface BatchAnalysisResult {
   failureCount: number;
   /** Number of analyses cancelled via abort (not counted as failures) */
   cancelledCount: number;
+  /** Emails skipped because they were already analyzed (count as complete) */
+  skippedCount: number;
+  /** Emails never processed: total - success - failure - cancelled (#29) */
+  unprocessedCount: number;
+  /** Message IDs that failed to analyze */
+  failedMessageIds: string[];
   /** Individual results for each email */
   results: EmailAnalysisResult[];
   /** Whether the batch was cancelled */
   cancelled: boolean;
+  /** Overall outcome; never 'success' while mails remained unprocessed */
+  status: BatchAnalysisStatus;
 }
 
 /**
@@ -174,11 +192,14 @@ export class AnalyzeBatchEmails {
   private processedCount = 0;
   private failedCount = 0;
   private cancelledCount = 0;
+  private skippedCount = 0;
   private totalCount = 0;
   private processedMessageIds: string[] = [];
   private failedMessageIds: string[] = [];
   private analysisResults: EmailAnalysisResult[] = [];
   private activeWorkers: Promise<void>[] = [];
+  /** First queue-level worker error; set when continueOnError=false (#29). */
+  private workerError: unknown = null;
   /** Aborts in-flight provider requests when cancel() is called. */
   private abortController: AbortController | null = null;
 
@@ -274,11 +295,13 @@ export class AnalyzeBatchEmails {
       this.processedCount = 0;
       this.failedCount = 0;
       this.cancelledCount = 0;
+      this.skippedCount = 0;
       this.totalCount = messageIds.length;
       this.processedMessageIds = [];
       this.failedMessageIds = [];
       this.analysisResults = [];
       this.abortController = new AbortController();
+      this.workerError = null;
       this.logger.debug('[DEBUG] Batch state initialized');
       this.notifyProgress();
 
@@ -306,20 +329,41 @@ export class AnalyzeBatchEmails {
       await Promise.all(this.activeWorkers);
       this.logger.debug('[DEBUG] All workers completed');
 
+      // #29: a worker hit a queue defect with continueOnError=false — fail the
+      // batch instead of returning a clean result with unprocessed mails.
+      if (this.workerError !== null) {
+        throw this.workerError;
+      }
+
+      // #29: mails that no worker accounted for (queue defect stopped the
+      // workers) must surface as an error status, never as success.
+      const accounted =
+        this.processedCount + this.failedCount + this.cancelledCount + this.skippedCount;
       const result: BatchAnalysisResult = {
         total: this.totalCount,
         successCount: this.processedCount,
         failureCount: this.failedCount,
         cancelledCount: this.cancelledCount,
+        skippedCount: this.skippedCount,
+        unprocessedCount: this.totalCount - accounted,
+        failedMessageIds: [...this.failedMessageIds],
         results: this.analysisResults,
         cancelled: this.isCancelled,
+        status:
+          !this.isCancelled && accounted < this.totalCount
+            ? 'error'
+            : this.failedCount > 0
+              ? 'partial'
+              : 'success',
       };
 
       this.logger.info('[INFO] Batch analysis completed', {
+        status: result.status,
         total: result.total,
         success: result.successCount,
         failed: result.failureCount,
         cancelled: result.cancelledCount,
+        unprocessed: result.unprocessedCount,
         duration: `${Date.now() - startTime}ms`,
       });
 
@@ -355,7 +399,7 @@ export class AnalyzeBatchEmails {
   async getProgress(): Promise<BatchProgress> {
     const percentage =
       this.totalCount > 0
-        ? Math.round(((this.processedCount + this.failedCount) / this.totalCount) * 100)
+        ? Math.round(((this.processedCount + this.failedCount + this.skippedCount) / this.totalCount) * 100)
         : 0;
 
     return {
@@ -512,6 +556,9 @@ export class AnalyzeBatchEmails {
   /**
    * Starts a worker process for processing queue items.
    *
+   * #29: queue errors (dequeue/complete) are handled per item — they must not
+   * silently kill the worker and strand the remaining mails uncounted.
+   *
    * @param delayBetweenAnalyses - Delay in milliseconds between analyses
    * @param continueOnError - Whether to continue processing on error
    * @returns Promise resolving when worker completes
@@ -519,45 +566,84 @@ export class AnalyzeBatchEmails {
   private async startWorker(delayBetweenAnalyses: number, continueOnError: boolean): Promise<void> {
     this.logger.debug('[DEBUG] Starting worker process', { delayBetweenAnalyses, continueOnError });
 
-    try {
-      while (this.isProcessing && !this.isCancelled) {
-        // Dequeue next item
-        this.logger.debug('[DEBUG] Dequeueing next item');
-        const item = await this.queue.dequeue<QueueItem>();
-
-        if (item === null) {
-          // Queue is empty
-          this.logger.debug('[DEBUG] Queue is empty, worker stopping');
-          break;
+    while (this.isProcessing && !this.isCancelled) {
+      // Dequeue next item
+      this.logger.debug('[DEBUG] Dequeueing next item');
+      let item: QueueItem | null;
+      try {
+        item = await this.queue.dequeue<QueueItem>();
+      } catch (error) {
+        // #29: log the queue defect and stop this worker; with
+        // continueOnError=false the batch fails, otherwise the leftover mails
+        // surface via status 'error' in the result.
+        this.logger.error('[ERROR] Queue dequeue failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        if (!continueOnError) {
+          this.workerError ??= error;
+          this.isProcessing = false;
+          this.isCancelled = true;
+          this.notifyProgress();
         }
-
-        this.logger.debug('[DEBUG] Item dequeued', { messageId: item.messageId });
-
-        // Process the item, then mark it complete so queue stats stay honest
-        try {
-          await this.processQueueItem(item);
-        } finally {
-          await this.queue.complete?.(item);
-        }
-
-        // Delay between analyses if configured
-        if (delayBetweenAnalyses > 0) {
-          this.logger.debug('[DEBUG] Sleeping between analyses', { duration: delayBetweenAnalyses });
-          await this.sleep(delayBetweenAnalyses);
-        }
+        break;
       }
 
-      this.logger.debug('[DEBUG] Worker process completed');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('[ERROR] Worker process failed', { error: errorMessage });
+      if (item === null) {
+        // Queue is empty
+        this.logger.debug('[DEBUG] Queue is empty, worker stopping');
+        break;
+      }
 
+      this.logger.debug('[DEBUG] Item dequeued', { messageId: item.messageId });
+
+      // Process the item, then mark it complete so queue stats stay honest
+      let aborted = false;
+      try {
+        await this.processQueueItem(item);
+      } finally {
+        aborted = await this.markComplete(item, continueOnError);
+      }
+      if (aborted) {
+        return;
+      }
+
+      // Delay between analyses if configured
+      if (delayBetweenAnalyses > 0) {
+        this.logger.debug('[DEBUG] Sleeping between analyses', { duration: delayBetweenAnalyses });
+        await this.sleep(delayBetweenAnalyses);
+      }
+    }
+
+    this.logger.debug('[DEBUG] Worker process completed');
+  }
+
+  /**
+   * Marks a dequeued item as complete in the queue, handling queue defects
+   * (#29): the defect is logged; with continueOnError=false it fails the batch.
+   *
+   * @param item - The previously dequeued item
+   * @param continueOnError - Whether to continue processing on error
+   * @returns True when the worker must stop (continueOnError=false)
+   */
+  private async markComplete(item: QueueItem, continueOnError: boolean): Promise<boolean> {
+    try {
+      await this.queue.complete?.(item);
+      return false;
+    } catch (error) {
+      // The item's outcome was already counted; with continueOnError the
+      // worker keeps draining, otherwise the batch fails.
+      this.logger.error('[ERROR] Queue complete failed', {
+        messageId: item.messageId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       if (!continueOnError) {
-        this.logger.debug('[DEBUG] Stopping all workers (continueOnError=false)');
+        this.workerError ??= error;
         this.isProcessing = false;
         this.isCancelled = true;
         this.notifyProgress();
+        return true;
       }
+      return false;
     }
   }
 
@@ -580,6 +666,9 @@ export class AnalyzeBatchEmails {
       const messageIdNum = parseInt(messageId, 10);
       if (await this.emailAnalysisTracker.wasAnalyzed(messageIdNum)) {
         this.logger.info('[INFO] Skipping already-analyzed email', { messageId });
+        // #29 follow-up: skipped mails are complete and must count toward the
+        // total, otherwise a healthy re-run would be misreported as 'error'.
+        this.skippedCount++;
         return;
       }
 
@@ -656,7 +745,7 @@ export class AnalyzeBatchEmails {
         failed: this.failedCount,
         percentage:
           this.totalCount > 0
-            ? Math.round(((this.processedCount + this.failedCount) / this.totalCount) * 100)
+            ? Math.round(((this.processedCount + this.failedCount + this.skippedCount) / this.totalCount) * 100)
             : 0,
         isRunning: this.isProcessing,
         isCancelled: this.isCancelled,
@@ -677,11 +766,13 @@ export class AnalyzeBatchEmails {
     this.processedCount = 0;
     this.failedCount = 0;
     this.cancelledCount = 0;
+    this.skippedCount = 0;
     this.totalCount = 0;
     this.processedMessageIds = [];
     this.failedMessageIds = [];
     this.analysisResults = [];
     this.activeWorkers = [];
+    this.workerError = null;
     this.abortController = null;
   }
 

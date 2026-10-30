@@ -257,15 +257,19 @@ export class EmailEventListener {
         total: result.total,
         successCount: result.successCount,
         failureCount: result.failureCount,
+        unprocessed: result.unprocessedCount,
+        status: result.status,
       });
 
       // Update listener state
-      this.listenerState.messagesProcessed += result.total;
+      this.listenerState.messagesProcessed +=
+        result.successCount + result.failureCount + result.skippedCount;
 
-      // If there were failures, log warnings
-      if (result.failureCount > 0) {
+      // If there were failures or unprocessed mails, log warnings
+      if (result.failureCount > 0 || result.unprocessedCount > 0) {
         this.logger.warn('Some new mail messages failed to process', {
           failed: result.failureCount,
+          unprocessed: result.unprocessedCount,
           failedIds: result.results.filter((r) => !r.success).map((r) => r.messageId),
         });
       }

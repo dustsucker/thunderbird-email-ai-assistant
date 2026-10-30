@@ -22,6 +22,7 @@ export type {
   BatchAnalysisConfig,
   EmailAnalysisResult,
   BatchAnalysisResult,
+  BatchAnalysisStatus,
 } from './AnalyzeBatchEmails';
 
 // New extracted use cases

@@ -375,16 +375,22 @@ export class ContextMenuHandler {
         concurrency: 3,
       });
 
-      this.logger.info('Batch analysis completed successfully', {
+      this.logger.info('Batch analysis completed', {
         total: result.total,
         successful: result.successCount,
         failed: result.failureCount,
+        unprocessed: result.unprocessedCount,
+        status: result.status,
       });
 
-      await this.notify(
-        'Batch-Analysis abgeschlossen',
-        `${result.successCount}/${result.total} Nachrichten erfolgreich analysiert.`
-      );
+      const summary =
+        result.status === 'error'
+          ? `${result.unprocessedCount} von ${result.total} Nachrichten konnten nicht verarbeitet werden (Queue-Fehler).`
+          : result.status === 'partial'
+            ? `${result.successCount}/${result.total} Nachrichten analysiert, ${result.failureCount} fehlgeschlagen.`
+            : `${result.successCount}/${result.total} Nachrichten erfolgreich analysiert.`;
+
+      await this.notify('Batch-Analysis abgeschlossen', summary);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
