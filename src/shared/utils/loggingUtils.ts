@@ -22,6 +22,22 @@ const SENSITIVE_FIELDS = new Set([
   'apikey',
   'api_key',
   'api-key',
+  // compound provider-key field names (storage keys of this codebase)
+  'openaiapikey',
+  'geminiapikey',
+  'claudeapikey',
+  'mistralapikey',
+  'deepseekapikey',
+  'zaipaasapikey',
+  'zaicodingapikey',
+  // header / misc secret carriers
+  'apikeyheader',
+  'authtoken',
+  'auth',
+  'authorization',
+  'cookie',
+  'x-api-key',
+  'x-goog-api-key',
   'token',
   'access_token',
   'refresh_token',
@@ -31,9 +47,10 @@ const SENSITIVE_FIELDS = new Set([
   'client_secret',
   'credential',
   'credentials',
-  'authorization',
   'privatekey',
   'private_key',
+  'sessionkey',
+  // deliberately NOT masked (exact-match keeps them exempt): key, tagkey, cachekey
 ]);
 
 /**

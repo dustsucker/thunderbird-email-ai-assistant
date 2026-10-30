@@ -47,6 +47,31 @@ describe('sanitizeForLogging exact field-name matching', () => {
     expect(result.APIKey).toBe('sk-1234...def');
   });
 
+  it('masks compound provider key names (paladin advisory)', () => {
+    const result = sanitizeForLogging({ openaiApiKey: 'sk-secret' }) as Record<string, unknown>;
+    expect(result.openaiApiKey).toBe('***');
+  });
+
+  it('masks sensitive header names like x-api-key inside nested objects (paladin advisory)', () => {
+    const result = sanitizeForLogging({
+      headers: { 'x-api-key': 'k', 'content-type': 'text/plain' },
+    }) as { headers: Record<string, unknown> };
+
+    expect(result.headers['x-api-key']).toBe('***');
+    expect(result.headers['content-type']).toBe('text/plain');
+  });
+
+  it('keeps tagKey/cacheKey/key unmasked (paladin advisory)', () => {
+    const result = sanitizeForLogging({ tagKey: 'x', cacheKey: 'y', key: 'z' }) as Record<
+      string,
+      unknown
+    >;
+
+    expect(result.tagKey).toBe('x');
+    expect(result.cacheKey).toBe('y');
+    expect(result.key).toBe('z');
+  });
+
   it('masks nested sensitive fields but not nested key-like fields', () => {
     const result = sanitizeForLogging({
       config: { apiKey: 'sk-1234567890abcdef', tagKey: 'work' },
