@@ -369,7 +369,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
     it('should log when tags are applied successfully', async () => {
       await useCase.execute('123', ['business'], 0.85);
 
-      expect(mockLogger.info).toHaveBeenCalledWith('✅ Tags applied successfully', {
+      expect(mockLogger.debug).toHaveBeenCalledWith('✅ Tags applied successfully', {
         messageId: '123',
         applied: 1,
         total: 1,
@@ -390,7 +390,7 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
     it('should log low-confidence flags', async () => {
       await useCase.execute('123', ['business', 'personal'], 0.5);
 
-      expect(mockLogger.info).toHaveBeenCalledWith('📋 Low-confidence flags created', {
+      expect(mockLogger.debug).toHaveBeenCalledWith('📋 Low-confidence flags created', {
         messageId: '123',
         flagCount: 2,
         flags: expect.arrayContaining(['business: 50% < 70%', 'personal: 50% < 70%']),

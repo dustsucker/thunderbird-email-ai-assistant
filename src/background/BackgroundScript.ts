@@ -10,6 +10,9 @@ import { injectable } from 'tsyringe';
 import { container } from 'tsyringe';
 
 import type { ILogger } from '@/infrastructure/interfaces/ILogger';
+import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
+import { ConsoleLogger } from '@/infrastructure/logger/ConsoleLogger';
+import type { DebugLogLevel } from '@/infrastructure/logger/DebugLogBuffer';
 import { TagService } from '@/domain/services/TagService';
 import { EmailEventListener } from '@/interfaces/background/EmailEventListener';
 import { MessageHandler } from '@/interfaces/background/MessageHandler';
@@ -44,6 +47,13 @@ export class BackgroundScript {
   private logger: ILogger | null = null;
   private isInitialized = false;
 
+  /**
+   * Startup logging through the standard logger path (gated + buffered).
+   * Safe before DI resolution: ConsoleLogger instances share module-level
+   * gate state and the debug buffer singleton.
+   */
+  private readonly startupLog = new ConsoleLogger();
+
   // ==========================================================================
   // Constructor
   // ==========================================================================
@@ -61,16 +71,16 @@ export class BackgroundScript {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.warn('[Background Startup] Background script already initialized');
+      this.startupLog.warn('Background script already initialized');
       return;
     }
 
-    console.log('[Background Startup] Initializing background script...');
+    this.startupLog.info('Initializing background script...');
 
     try {
-      // Step 1: Resolve logger
+      // Step 1: Resolve logger and apply the persisted enableLogging switch
       this.logger = container.resolve<ILogger>('ILogger');
-      this.logger.info('Background script initialization started');
+      await this.applyLoggingConfig();
 
       // Step 2: Ensure all custom tags exist
       this.logger?.info('Ensuring all custom tags exist in Thunderbird...');
@@ -102,8 +112,31 @@ export class BackgroundScript {
       this.logger.info('Background script initialization completed successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[Background Startup] Failed to initialize background script', error);
+      this.logger?.error('Failed to initialize background script', {
+        error: errorMessage,
+      });
       throw new Error(`Background script initialization failed: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Applies the persisted logging config to the shared logger gate (issue #3):
+   * `enableLogging` master switch and `logLevel` ('debug'|'info'|'warn'|'error',
+   * fallback 'debug'). No stored config yet → keep defaults (enabled, debug).
+   */
+  private async applyLoggingConfig(): Promise<void> {
+    if (!(this.logger instanceof ConsoleLogger)) return;
+    try {
+      const configRepository = container.resolve<IConfigRepository>('IConfigRepository');
+      const appConfig = await configRepository.getAppConfig();
+      const storedLevel = appConfig.logLevel;
+      const level: DebugLogLevel =
+        storedLevel === 'info' || storedLevel === 'warn' || storedLevel === 'error'
+          ? storedLevel
+          : 'debug';
+      this.logger.configure({ enabled: appConfig.enableLogging, level });
+    } catch {
+      this.logger.configure({ enabled: true, level: 'debug' });
     }
   }
 
@@ -112,11 +145,11 @@ export class BackgroundScript {
    */
   async shutdown(): Promise<void> {
     if (!this.isInitialized) {
-      console.warn('[Background Startup] Background script not initialized, nothing to shutdown');
+      this.startupLog.warn('Background script not initialized, nothing to shutdown');
       return;
     }
 
-    console.log('[Background Startup] Shutting down background script...');
+    this.startupLog.info('Shutting down background script...');
 
     try {
       if (this.eventListener) {
@@ -140,7 +173,7 @@ export class BackgroundScript {
       this.logger?.info('Background script shutdown completed successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[Background Startup] Failed to shutdown background script', error);
+      this.logger?.error('Failed to shutdown background script', { error: errorMessage });
       throw new Error(`Background script shutdown failed: ${errorMessage}`);
     }
   }

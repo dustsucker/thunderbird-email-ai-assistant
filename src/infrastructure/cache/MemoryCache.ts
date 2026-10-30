@@ -40,6 +40,7 @@
 
 import { injectable } from 'tsyringe';
 import type { ICache, ICacheEntry, ICacheStats } from '../interfaces/ICache';
+import { sharedLogger } from '../logger/ConsoleLogger';
 
 // ============================================================================
 // CACHE CONFIGURATION
@@ -109,6 +110,9 @@ export class MemoryCache implements ICache {
   /** Timestamp of last cleanup operation */
   private lastCleanup: number | undefined;
 
+  /** Count of swallowed cache operation errors (exposed via getErrorCount, issue #8) */
+  private errorCount = 0;
+
   /** ========================================================================
    * CONSTRUCTOR
    * ======================================================================== */
@@ -125,6 +129,21 @@ export class MemoryCache implements ICache {
   /** ========================================================================
    * CACHE OPERATIONS
    * ======================================================================== */
+
+  /**
+   * Logs a swallowed cache error at debug level (issue #8: silent catches must
+   * log error.name) and bumps the error counter.
+   */
+  private fail(op: string, error: unknown): void {
+    this.errorCount++;
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    sharedLogger.debug(`MemoryCache ${op} failed`, { errorName });
+  }
+
+  /** Number of swallowed cache operation errors since construction/clear. */
+  getErrorCount(): number {
+    return this.errorCount;
+  }
 
   /**
    * Retrieves a value from cache by key
@@ -157,8 +176,9 @@ export class MemoryCache implements ICache {
 
       this.hitCount++;
       return entry.value as T;
-    } catch {
-      // Return null on any error (graceful degradation)
+    } catch (error) {
+      // Return null on any error (graceful degradation), but log it (#8)
+      this.fail('get', error);
       this.missCount++;
       return null;
     }
@@ -191,8 +211,9 @@ export class MemoryCache implements ICache {
         if (oldestKey === undefined) break;
         this.cache.delete(oldestKey);
       }
-    } catch {
-      // Silently fail (graceful degradation)
+    } catch (error) {
+      // Graceful degradation, but log it (#8)
+      this.fail('set', error);
     }
   }
 
@@ -206,8 +227,9 @@ export class MemoryCache implements ICache {
     try {
       const hashedKey = await hashKey(key);
       this.cache.delete(hashedKey);
-    } catch {
-      // Silently fail (graceful degradation)
+    } catch (error) {
+      // Graceful degradation, but log it (#8)
+      this.fail('delete', error);
     }
   }
 
@@ -220,6 +242,7 @@ export class MemoryCache implements ICache {
     this.cache.clear();
     this.hitCount = 0;
     this.missCount = 0;
+    this.errorCount = 0;
     this.lastCleanup = undefined;
   }
 
@@ -242,7 +265,8 @@ export class MemoryCache implements ICache {
       const now = Date.now();
       const expirationTime = entry.timestamp + (entry.ttl || DEFAULT_TTL);
       return now <= expirationTime;
-    } catch {
+    } catch (error) {
+      this.fail('has', error);
       return false;
     }
   }
@@ -268,7 +292,8 @@ export class MemoryCache implements ICache {
 
       this.lastCleanup = now;
       return cleanedCount;
-    } catch {
+    } catch (error) {
+      this.fail('cleanupExpired', error);
       return 0;
     }
   }

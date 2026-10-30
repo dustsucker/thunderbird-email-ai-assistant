@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { retryWithBackoff, validateLLMResponse, extractJson } from '../../../src/infrastructure/providers/ProviderUtils';
+import { sharedLogger } from '../../../src/infrastructure/logger/ConsoleLogger';
 import {
   BaseProvider,
   type BaseProviderSettings,
@@ -163,6 +164,52 @@ describe('ProviderUtils fixes', () => {
       const text = '{"reasoning": "has } and \\" escaped"}';
       const extracted = extractJson(text);
       expect(JSON.parse(extracted)).toEqual({ reasoning: 'has } and " escaped' });
+    });
+  });
+
+  // ==========================================================================
+
+  describe('issue #7: retry attempt logging', () => {
+    it('logs one debug per retry attempt and one warn on exhaustion', async () => {
+      const debugSpy = vi.spyOn(sharedLogger, 'debug').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(sharedLogger, 'warn').mockImplementation(() => {});
+
+      let calls = 0;
+      const flaky = vi.fn(async () => {
+        calls++;
+        if (calls < 3) {
+          throw Object.assign(new Error('boom'), { status: 500 });
+        }
+        return { ok: true };
+      });
+
+      const result = await retryWithBackoff(flaky, fastRetry, { runId: 'run-42' });
+      expect(result).toEqual({ ok: true });
+
+      // two retries -> two debug logs with attempt metadata + runId context
+      const retryLogs = debugSpy.mock.calls.filter((c) => c[0] === 'Retrying request after failure');
+      expect(retryLogs).toHaveLength(2);
+      expect(retryLogs[0][1]).toMatchObject({ attempt: 1, max: 3, statusCode: 500, runId: 'run-42' });
+
+      // success path -> no exhaustion warn
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('warns once when all retries are exhausted', async () => {
+      const debugSpy = vi.spyOn(sharedLogger, 'debug').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(sharedLogger, 'warn').mockImplementation(() => {});
+
+      const always500 = vi.fn(async () => {
+        throw Object.assign(new Error('boom'), { status: 500 });
+      });
+
+      await expect(retryWithBackoff(always500, fastRetry)).rejects.toThrow('boom');
+
+      const warns = warnSpy.mock.calls.filter((c) => c[0] === 'Request retries exhausted');
+      expect(warns).toHaveLength(1);
+      expect(warns[0][1]).toMatchObject({ attempts: fastRetry.maxRetries + 1, statusCode: 500 });
+      // retries were attempted (debug logs present), but only one warn
+      expect(debugSpy.mock.calls.length).toBeGreaterThan(0);
     });
   });
 });

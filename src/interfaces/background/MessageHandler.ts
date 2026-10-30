@@ -22,6 +22,7 @@ import type { IProviderSettings } from '@/infrastructure/interfaces/IProvider';
 import { AnalyzeEmail, LOW_CONFIDENCE_INDEX_KEY } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
+import { MemoryCache } from '@/infrastructure/cache/MemoryCache';
 import type { DebugLogBuffer } from '@/infrastructure/logger/DebugLogBuffer';
 import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsService';
 
@@ -793,13 +794,17 @@ export class MessageHandler {
     success: true;
     entries: import('@/infrastructure/logger/DebugLogBuffer').DebugLogEntry[];
     droppedCount: number;
+    /** Optional: swallowed cache-operation errors since start (issue #8) */
+    cacheErrors?: number;
   } {
-    this.logger.info('Handling getDebugLogs message');
+    // debug: polling endpoint — info here would spam the log on every UI refresh
+    this.logger.debug('Handling getDebugLogs message');
 
     return {
       success: true,
       entries: this.debugLogBuffer.getEntries(),
       droppedCount: this.debugLogBuffer.getDroppedCount(),
+      cacheErrors: this.getCacheErrorCount(),
     };
   }
 
@@ -828,15 +833,18 @@ export class MessageHandler {
    */
   private async handleGetQueueStats(): Promise<{
     success: true;
+    /** Optional: swallowed cache-operation errors since start (issue #8; key aligned to DebugTab consumer) */
+    cacheErrors?: number;
     queue: IQueueStats;
     batch: Awaited<ReturnType<AnalyzeBatchEmails['getProgress']>>;
   }> {
-    this.logger.info('Handling getQueueStats message');
+    // debug: polling endpoint — info here would spam the log on every UI refresh
+    this.logger.debug('Handling getQueueStats message');
 
     const queue = await this.queue.getStats();
     const batch = await this.analyzeBatch.getProgress();
 
-    return { success: true, queue, batch };
+    return { success: true, cacheErrors: this.getCacheErrorCount(), queue, batch };
   }
 
   /**
@@ -850,6 +858,8 @@ export class MessageHandler {
     success: boolean;
     totalEntries?: number;
     hitRate?: number;
+    /** Optional: swallowed cache-operation errors since start (issue #8) */
+    cacheErrors?: number;
     message?: string;
   }> {
     this.logger.info('Handling getCacheStats message');
@@ -860,12 +870,21 @@ export class MessageHandler {
         success: true,
         totalEntries: stats.totalEntries,
         hitRate: stats.hitRate,
+        cacheErrors: this.getCacheErrorCount(),
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('Failed to get cache stats', { error: errorMessage });
       return { success: false, message: errorMessage };
     }
+  }
+
+  /**
+   * Swallowed cache-operation error count (issue #8). Only the MemoryCache
+   * implementation tracks it; other ICache implementations report 0.
+   */
+  private getCacheErrorCount(): number {
+    return this.cache instanceof MemoryCache ? this.cache.getErrorCount() : 0;
   }
 
   /**

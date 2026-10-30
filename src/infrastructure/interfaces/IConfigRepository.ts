@@ -41,6 +41,8 @@ export interface IAppConfig {
   enableNotifications: boolean;
   /** Enable detailed logging */
   enableLogging: boolean;
+  /** Log level for the background logger gate ('debug'|'info'|'warn'|'error'); optional for backward compatibility */
+  logLevel?: string;
   /** Model-specific concurrency limits */
   modelConcurrencyLimits?: IModelConcurrencyConfig[];
   /** Minimum confidence threshold for tag application (0-100) */

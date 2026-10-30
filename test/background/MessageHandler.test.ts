@@ -202,7 +202,12 @@ describe('MessageHandler', () => {
       (debugLogBuffer.getDroppedCount as ReturnType<typeof vi.fn>).mockReturnValue(7);
 
       const result = await (handler as unknown as {
-        handleGetDebugLogs: () => { success: boolean; entries: unknown[]; droppedCount: number };
+        handleGetDebugLogs: () => {
+          success: boolean;
+          entries: unknown[];
+          droppedCount: number;
+          cacheErrors?: number;
+        };
       }).handleGetDebugLogs();
 
       expect(result).toEqual({
@@ -212,6 +217,8 @@ describe('MessageHandler', () => {
           { ts: 1, level: 'info', msg: 'older' },
         ],
         droppedCount: 7,
+        // optional field added in issue #8 (0 for non-MemoryCache mocks)
+        cacheErrors: 0,
       });
     });
 

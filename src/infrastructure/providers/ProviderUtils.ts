@@ -5,27 +5,14 @@
 
 import type { AppConfig, CustomTags } from '@/shared/types/ProviderTypes';
 import type { RequestBody } from './BaseProvider';
-import { debugLogBuffer } from '../logger/DebugLogBuffer';
 import { Provider } from '@/shared/types/ProviderTypes';
 import { DEFAULT_CUSTOM_TAGS } from '@/shared/types/ProviderTypes';
-import {
-  sanitizeForLogging as sharedSanitizeForLogging,
-  maskSensitiveValue,
-} from '@/shared/utils/loggingUtils';
+import { maskSensitiveValue } from '@/shared/utils/loggingUtils';
+import { sharedLogger } from '../logger/ConsoleLogger';
 
 // ============================================================================
 // TYPE DEFINITIONS AND INTERFACES
 // ============================================================================
-
-/**
- * Log levels for the logger
- */
-export enum LogLevel {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 3,
-}
 
 /**
  * Error severity levels for UI display
@@ -75,11 +62,6 @@ export interface ShowErrorRuntimeMessage {
 export type LoggerContext = Record<string, unknown>;
 
 /**
- * Sanitized log context with stringified values
- */
-type SanitizedContext = Record<string, unknown> | string;
-
-/**
  * Logger interface with typed methods
  */
 export interface Logger {
@@ -87,7 +69,6 @@ export interface Logger {
   info(message: string, context?: LoggerContext): void;
   warn(message: string, context?: LoggerContext): void;
   error(message: string, context?: LoggerContext): void;
-  setLogLevel(level: LogLevel): void;
 }
 
 /**
@@ -219,73 +200,21 @@ export function maskApiKey(key: unknown): string {
 }
 
 // ============================================================================
-// LOGGER IMPLEMENTATION
+// LOGGER
 // ============================================================================
-
-let currentLogLevel: LogLevel = LogLevel.INFO;
-
-/**
- * Sets the current log level
- *
- * @param level - The log level to set
- */
-function setLogLevel(level: LogLevel): void {
-  currentLogLevel = level;
-}
+// Issue #11: no module-level logging implementation here. The exported
+// `logger` delegates to the shared ConsoleLogger instance — one gating config,
+// one sanitization path, one DebugLogBuffer. (ProviderUtils is a plain module
+// without DI, so it cannot resolve 'ILogger' from the container.)
 
 /**
- * Internal logging function
- *
- * @param level - The log level
- * @param message - The log message
- * @param context - Optional context object
- */
-function log(level: LogLevel, message: string, context: LoggerContext = {}): void {
-  if (level >= currentLogLevel) {
-    const timestamp = new Date().toISOString();
-    const levelName = LogLevel[level];
-    // Separate log calls to prevent browser DevTools from showing raw context object
-    console.log(`[${timestamp}] [${levelName}] ${message}`);
-    if (Object.keys(context).length > 0) {
-      console.log('Context:', sanitizeContext(context));
-    }
-    // Route through the SAME DebugLogBuffer instance ConsoleLogger uses
-    const levelNames: Record<LogLevel, 'debug' | 'info' | 'warn' | 'error'> = {
-      [LogLevel.DEBUG]: 'debug',
-      [LogLevel.INFO]: 'info',
-      [LogLevel.WARN]: 'warn',
-      [LogLevel.ERROR]: 'error',
-    };
-    debugLogBuffer.add(
-      levelNames[level],
-      message,
-      Object.keys(context).length > 0 ? JSON.stringify(sanitizeContext(context)) : undefined
-    );
-  }
-}
-
-/**
- * Sanitizes context object by masking sensitive fields recursively
- * Uses the shared loggingUtils for consistent sanitization
- *
- * @param context - The context object to sanitize
- * @param depth - Current recursion depth (prevents infinite recursion)
- * @returns Sanitized context object
- */
-function sanitizeContext(context: LoggerContext, _depth: number = 0): SanitizedContext {
-  // Use the shared sanitization utility
-  return sharedSanitizeForLogging(context) as SanitizedContext;
-}
-
-/**
- * Logger instance with typed methods
+ * Logger instance with typed methods, backed by the shared ConsoleLogger.
  */
 export const logger: Logger = {
-  debug: (msg: string, ctx?: LoggerContext): void => log(LogLevel.DEBUG, msg, ctx),
-  info: (msg: string, ctx?: LoggerContext): void => log(LogLevel.INFO, msg, ctx),
-  warn: (msg: string, ctx?: LoggerContext): void => log(LogLevel.WARN, msg, ctx),
-  error: (msg: string, ctx?: LoggerContext): void => log(LogLevel.ERROR, msg, ctx),
-  setLogLevel,
+  debug: (msg: string, ctx?: LoggerContext): void => sharedLogger.debug(msg, ctx),
+  info: (msg: string, ctx?: LoggerContext): void => sharedLogger.info(msg, ctx),
+  warn: (msg: string, ctx?: LoggerContext): void => sharedLogger.warn(msg, ctx),
+  error: (msg: string, ctx?: LoggerContext): void => sharedLogger.error(msg, ctx),
 };
 
 // ============================================================================
@@ -381,6 +310,32 @@ function determineErrorSeverity(error: unknown, type: ErrorType): ErrorSeverity 
 }
 
 /**
+ * Shows the error as a notification when the runtime-message channel to the
+ * options page is dead (options closed / event page restart), so critical
+ * errors are not silently dropped (issue #18).
+ *
+ * @param errorDisplay - Error information to display
+ */
+async function showNotificationFallback(errorDisplay: ErrorDisplay): Promise<void> {
+  try {
+    if (typeof messenger === 'undefined' || !messenger.notifications) {
+      return;
+    }
+    await messenger.notifications.create({
+      type: 'basic',
+      iconUrl: 'icon.png',
+      title: 'AI Tag Assistant',
+      message: errorDisplay.message,
+    });
+  } catch (error) {
+    // Notifications are best-effort; never let the fallback throw
+    logger.debug('Notification fallback failed', {
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+    });
+  }
+}
+
+/**
  * Sends error display message to UI via runtime API
  * Note: This function works in background script context
  *
@@ -397,15 +352,13 @@ async function sendErrorToUI(errorDisplay: ErrorDisplay): Promise<void> {
 
       // Try to send message to options page
       // @ts-expect-error - browser runtime sendMessage is valid for WebExtensions
-      browser.runtime.sendMessage(message).catch((reason: unknown) => {
-        // Options page might not be open, this is acceptable
-        const errorMsg = reason instanceof Error ? reason.message : String(reason);
-        if (!errorMsg.includes('Receiving end does not exist')) {
-          logger.warn('Failed to send error to UI', { error: errorMsg });
-        }
+      browser.runtime.sendMessage(message).catch((_reason: unknown) => {
+        // Issue #18: channel may be dead (options page closed) — fall back to a
+        // notification instead of dropping the error.
+        void showNotificationFallback(errorDisplay);
       });
     }
-  } catch (error) {
+  } catch {
     // Runtime API not available (not in extension context)
     logger.debug('Runtime API not available for error display');
   }
@@ -560,6 +513,7 @@ function hasStatus(obj: unknown): obj is { status: number } {
  * @template T - Return type of the function
  * @param fn - Async function to retry
  * @param options - Retry configuration options
+ * @param logContext - Optional context (e.g. runId) merged into retry logs
  * @returns Promise resolving to the function result
  * @throws The last error if all retries are exhausted
  *
@@ -576,7 +530,8 @@ function hasStatus(obj: unknown): obj is { status: number } {
  */
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  options: RetryConfig = {}
+  options: RetryConfig = {},
+  logContext: LoggerContext = {}
 ): Promise<T> {
   const { maxRetries = 3, baseDelay = 1000, factor = 2, jitter = 0.5 } = options;
 
@@ -610,6 +565,14 @@ export async function retryWithBackoff<T>(
       const effectiveMaxRetries = isTimeout ? Math.min(maxRetries, 1) : maxRetries;
 
       if (attempt >= effectiveMaxRetries || !isTransient) {
+        // Issue #7: one warn when retries are exhausted (or not retryable at all)
+        logger.warn('Request retries exhausted', {
+          attempts: attempt + 1,
+          statusCode: status,
+          timeout: isTimeout,
+          error: isError(error) ? error.message : String(error),
+          ...logContext,
+        });
         throw lastError;
       }
 
@@ -623,6 +586,15 @@ export async function retryWithBackoff<T>(
         const jitterAmount = exponentialDelay * jitter * (Math.random() * 2 - 1);
         delay = exponentialDelay + jitterAmount;
       }
+
+      // Issue #7: one debug per attempt with attempt/delay metadata
+      logger.debug('Retrying request after failure', {
+        attempt: attempt + 1,
+        max: effectiveMaxRetries + 1,
+        statusCode: status,
+        delayMs: Math.round(delay),
+        ...logContext,
+      });
 
       await new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, delay)));
     }
@@ -795,9 +767,10 @@ export function validateLLMResponse(response: unknown): TagResponse {
         });
       } catch (parseError) {
         const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+        // Issue #2: log length metadata only — never raw LLM response content
         logError('Failed to parse JSON response', {
           error: errorMessage,
-          response: response.substring(0, 200),
+          responseLength: response.length,
         });
         // Return fallback response
         return {
