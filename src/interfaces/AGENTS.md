@@ -180,7 +180,7 @@ export class NewComponent {
 ```
 
 2. Register in DI container: `container.registerSingleton('NewComponent', NewComponent);`
-3. Export from `options/index.ts` if a barrel exists, or import directly from root `options.ts`
+3. Import/register directly from root `options.ts`
 
 ### Adding a Runtime Message Handler
 
