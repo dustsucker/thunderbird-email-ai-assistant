@@ -10,6 +10,8 @@
 
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/domain/interfaces';
+import type { TagApplyHistoryEntry } from '@/shared/types/TagHistory';
+import { TAG_APPLY_HISTORY_STORAGE_KEY } from '@/shared/types/TagHistory';
 
 // ============================================================================
 // Type Definitions (Backend Message Contract)
@@ -173,6 +175,9 @@ export class DebugTab {
     const cancelBtn = document.getElementById('debug-cancel-batch-btn');
     cancelBtn?.addEventListener('click', () => this.cancelBatch());
 
+    const tagHistoryBtn = document.getElementById('tag-history-clear-btn');
+    tagHistoryBtn?.addEventListener('click', () => this.clearTagHistory());
+
     this.initLoggingSettings();
 
     // Stop polling when the options page is closed
@@ -189,6 +194,7 @@ export class DebugTab {
   onTabVisibilityChanged(isVisible: boolean): void {
     if (isVisible) {
       this.startPolling();
+      void this.refreshTagHistory();
     } else {
       this.stopPolling();
     }
@@ -428,6 +434,74 @@ export class DebugTab {
       this.logger.error('Failed to clear debug logs', { error: errorMessage });
     }
     void this.pollTick(); // immediate refresh shows the emptied list
+  }
+
+  // ==========================================================================
+  // Private Methods - Tag History (Debug)
+  // ==========================================================================
+
+  /** Loads the tag-apply history from storage.local and renders it (newest first). */
+  private async refreshTagHistory(): Promise<void> {
+    const list = document.getElementById('tag-history-list');
+    const emptyNote = document.getElementById('tag-history-empty');
+    const storage = this.getLocalStorage();
+    if (!list || !storage) {
+      return;
+    }
+
+    try {
+      const data = await storage.get(TAG_APPLY_HISTORY_STORAGE_KEY);
+      const entries = data[TAG_APPLY_HISTORY_STORAGE_KEY];
+      const history: TagApplyHistoryEntry[] = Array.isArray(entries) ? entries : [];
+
+      list.replaceChildren(...history.map((entry) => this.createTagHistoryRow(entry)));
+      if (emptyNote) {
+        emptyNote.style.display = history.length === 0 ? '' : 'none';
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to load tag apply history', { error: errorMessage });
+    }
+  }
+
+  private createTagHistoryRow(entry: TagApplyHistoryEntry): HTMLDivElement {
+    const row = document.createElement('div');
+    row.className = 'debug-log-row';
+
+    const time = document.createElement('span');
+    time.className = 'debug-log-time';
+    time.textContent = formatTime(entry.timestamp);
+    time.title = new Date(entry.timestamp).toLocaleString();
+
+    const msg = document.createElement('span');
+    msg.className = 'debug-log-msg';
+    msg.textContent = entry.subject?.trim() || `Message-ID ${entry.messageId}`;
+    msg.title = msg.textContent;
+
+    const tags = document.createElement('span');
+    tags.className = 'debug-log-ctx';
+    tags.textContent = entry.tags.length > 0 ? entry.tags.join(', ') : '(keine Tags)';
+    tags.title = tags.textContent;
+
+    const provider = document.createElement('span');
+    provider.className = 'debug-log-ctx';
+    provider.textContent = entry.providerId;
+
+    row.append(time, msg, tags, provider);
+    return row;
+  }
+
+  private async clearTagHistory(): Promise<void> {
+    const storage = this.getLocalStorage();
+    if (storage) {
+      try {
+        await storage.set({ [TAG_APPLY_HISTORY_STORAGE_KEY]: [] });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.logger.error('Failed to clear tag apply history', { error: errorMessage });
+      }
+    }
+    await this.refreshTagHistory();
   }
 
   // ==========================================================================

@@ -263,7 +263,8 @@ export class AnalyzeEmail {
             providerSettings,
             startTime,
             applyTags,
-            runId
+            runId,
+            email.subject
           );
           return cachedResult;
         }
@@ -319,7 +320,9 @@ export class AnalyzeEmail {
           messageId,
           analysisResult.tags,
           analysisResult.confidence,
-          analysisResult.reasoning
+          analysisResult.reasoning,
+          {},
+          { providerId, subject: email.subject }
         );
         lowConfidenceFlags = tagResult.lowConfidenceFlags;
         this.logger.debug('[DEBUG] Step 9 complete', { flags: lowConfidenceFlags.length });
@@ -378,7 +381,8 @@ export class AnalyzeEmail {
     providerSettings: IProviderSettings,
     startTime: number,
     applyTags: boolean,
-    runId?: string
+    runId?: string,
+    subject?: string
   ): Promise<void> {
     if (applyTags) {
       this.logger.debug('[DEBUG] Applying cached tags');
@@ -386,7 +390,12 @@ export class AnalyzeEmail {
         messageId,
         cachedResult.tags,
         cachedResult.confidence,
-        cachedResult.reasoning
+        cachedResult.reasoning,
+        {},
+        {
+          providerId: (providerSettings.provider as string) ?? 'unknown',
+          subject,
+        }
       );
       await this.markAnalyzed(messageIdNum, messageId);
 

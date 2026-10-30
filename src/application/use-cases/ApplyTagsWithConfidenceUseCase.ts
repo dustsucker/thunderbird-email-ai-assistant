@@ -11,6 +11,7 @@ import { injectable, inject } from 'tsyringe';
 import type { ITagManager, ILogger } from '@/domain/interfaces';
 import type { IConfigRepository } from '@/infrastructure/interfaces/IConfigRepository';
 import { TagHistoryRepository } from '@/infrastructure/storage/TagHistoryRepository';
+import { TagApplyHistoryRepository } from '@/infrastructure/storage/TagApplyHistoryRepository';
 import { meetsTagThreshold, getEffectiveThreshold } from '@/shared/utils/confidenceUtils';
 import { HARDCODED_TAG_KEYS } from '@/shared/constants/TagConstants';
 import type { Tag } from '@/shared/types/ProviderTypes';
@@ -58,6 +59,16 @@ export interface ApplyTagsWithConfidenceResult {
 // ============================================================================
 
 /**
+ * Context about the analysis run, used for the debug tag-apply history.
+ */
+export interface ApplyTagsContext {
+  /** ID of the provider whose analysis produced the tags */
+  providerId?: string;
+  /** Message subject, when available at the call site */
+  subject?: string;
+}
+
+/**
  * ApplyTagsWithConfidenceUseCase
  *
  * Applies tags to email messages with confidence threshold filtering.
@@ -80,7 +91,10 @@ export class ApplyTagsWithConfidenceUseCase {
     @inject('ITagManager') private readonly tagManager: ITagManager,
     @inject('IConfigRepository') private readonly configRepository: IConfigRepository,
     private readonly tagHistoryRepository: TagHistoryRepository,
-    @inject('ILogger') private readonly logger: ILogger
+    @inject('ILogger') private readonly logger: ILogger,
+    // Optional: tests construct the use case without a container; recording is skipped then.
+    @inject(TagApplyHistoryRepository)
+    private readonly historyRepository?: TagApplyHistoryRepository
   ) {
     this.logger.debug('✅ ApplyTagsWithConfidenceUseCase initialized');
   }
@@ -100,6 +114,7 @@ export class ApplyTagsWithConfidenceUseCase {
    * @param confidence - Overall confidence score (0-1 range)
    * @param reasoning - AI reasoning for the classification (optional)
    * @param config - Optional configuration
+   * @param context - Optional analysis context for the debug tag-apply history
    * @returns Promise resolving to applied tags and low-confidence flags
    *
    * @throws {Error} If message ID is invalid
@@ -116,7 +131,8 @@ export class ApplyTagsWithConfidenceUseCase {
     tagKeys: string[],
     confidence: number,
     reasoning?: string,
-    config: ApplyTagsWithConfidenceConfig = {}
+    config: ApplyTagsWithConfidenceConfig = {},
+    context?: ApplyTagsContext
   ): Promise<ApplyTagsWithConfidenceResult> {
     const { applyTags = true } = config;
 
@@ -221,6 +237,25 @@ export class ApplyTagsWithConfidenceUseCase {
 
       // Apply tags (even if empty array - to clear any existing tags and for consistency)
       await this.tagManager.setTagsOnMessage(messageIdNum, tagsToApply);
+
+      // Debug tag-apply history: best-effort — a failed record must not break tagging.
+      if (this.historyRepository) {
+        try {
+          await this.historyRepository.record({
+            messageId,
+            subject: context?.subject,
+            tags: tagsToApply,
+            providerId: context?.providerId ?? 'unknown',
+          });
+        } catch (historyError) {
+          const historyErrorMessage =
+            historyError instanceof Error ? historyError.message : String(historyError);
+          this.logger.warn('Failed to record tag apply history', {
+            messageId,
+            error: historyErrorMessage,
+          });
+        }
+      }
 
       if (tagsToApply.length > 0) {
         // debug: per-analysis success — the single info log lives in AnalyzeEmail (#6)

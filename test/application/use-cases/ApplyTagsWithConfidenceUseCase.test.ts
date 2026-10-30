@@ -644,4 +644,84 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
       expect(messageTags).toEqual(['_ma_personal']);
     });
   });
+
+  // ==========================================================================
+  // Tag Apply History (Debug) - best-effort recording after setTagsOnMessage
+  // ==========================================================================
+
+  describe('tag apply history', () => {
+    let mockApplyHistoryRepository: { record: ReturnType<typeof vi.fn> };
+
+    beforeEach(() => {
+      vi.mocked(mockConfigRepository.getAppConfig).mockResolvedValue({
+        defaultProvider: 'openai',
+        minConfidenceThreshold: 70,
+      } as IAppConfig);
+      vi.mocked(mockConfigRepository.getCustomTags).mockResolvedValue(KNOWN_CUSTOM_TAGS);
+      vi.mocked(mockTagManager.setTagsOnMessage).mockResolvedValue();
+
+      mockApplyHistoryRepository = { record: vi.fn().mockResolvedValue(undefined) };
+      useCase = new ApplyTagsWithConfidenceUseCase(
+        mockTagManager,
+        mockConfigRepository,
+        mockHistoryRepository as unknown as TagHistoryRepository,
+        mockLogger,
+        mockApplyHistoryRepository as never
+      );
+    });
+
+    it('should record applied tags with context after applying', async () => {
+      await useCase.execute('123', ['business'], 0.85, undefined, undefined, {
+        providerId: 'openai',
+        subject: 'Invoice',
+      });
+
+      expect(mockApplyHistoryRepository.record).toHaveBeenCalledWith({
+        messageId: '123',
+        subject: 'Invoice',
+        tags: ['business'],
+        providerId: 'openai',
+      });
+    });
+
+    it('should fall back to providerId "unknown" and no subject without context', async () => {
+      await useCase.execute('123', ['business'], 0.85);
+
+      expect(mockApplyHistoryRepository.record).toHaveBeenCalledWith({
+        messageId: '123',
+        subject: undefined,
+        tags: ['business'],
+        providerId: 'unknown',
+      });
+    });
+
+    it('should not block tagging when recording fails', async () => {
+      mockApplyHistoryRepository.record.mockRejectedValue(new Error('Storage full'));
+
+      const result = await useCase.execute('123', ['business'], 0.85, undefined, undefined, {
+        providerId: 'openai',
+      });
+
+      expect(result.appliedTags).toEqual(['business']);
+      expect(mockTagManager.setTagsOnMessage).toHaveBeenCalledWith(123, ['business']);
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'Failed to record tag apply history',
+        expect.objectContaining({ messageId: '123', error: 'Storage full' })
+      );
+    });
+
+    it('should skip recording when no history repository is available', async () => {
+      useCase = new ApplyTagsWithConfidenceUseCase(
+        mockTagManager,
+        mockConfigRepository,
+        mockHistoryRepository as unknown as TagHistoryRepository,
+        mockLogger,
+        mockApplyHistoryRepository as never
+      );
+
+      const result = await useCase.execute('123', ['business'], 0.85);
+
+      expect(result.appliedTags).toEqual(['business']);
+    });
+  });
 });

@@ -6,3 +6,4 @@
 // ============================================================================
 
 export { TagHistoryRepository } from './TagHistoryRepository';
+export { TagApplyHistoryRepository } from './TagApplyHistoryRepository';

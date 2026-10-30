@@ -72,6 +72,7 @@ import { MessageHandler } from '@/interfaces/background/MessageHandler';
 // ============================================================================
 
 import { TagHistoryRepository } from '@/infrastructure/storage/TagHistoryRepository';
+import { TagApplyHistoryRepository } from '@/infrastructure/storage/TagApplyHistoryRepository';
 import { MetricsRepository } from '@/infrastructure/storage/MetricsRepository';
 
 // ============================================================================
@@ -167,6 +168,7 @@ export function setupDIContainer(): void {
   // ------------------------------------------------------------------------
 
   container.registerSingleton(TagHistoryRepository, TagHistoryRepository);
+  container.registerSingleton(TagApplyHistoryRepository, TagApplyHistoryRepository);
   container.registerSingleton(MetricsRepository, MetricsRepository);
 
   startupLogger.info('Storage registered');
