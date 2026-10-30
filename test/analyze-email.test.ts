@@ -77,7 +77,6 @@ describe('AnalyzeEmail - Logging Tests', () => {
       ensureTagExists: vi.fn(),
       getTagsOnMessage: vi.fn().mockResolvedValue([]),
       setTagsOnMessage: vi.fn(),
-      getTagsOnMessage: vi.fn().mockResolvedValue([]),
       addTagToMessage: vi.fn(),
       removeTagFromMessage: vi.fn(),
       clearTagsFromMessage: vi.fn(),

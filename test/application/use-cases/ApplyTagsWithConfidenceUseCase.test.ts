@@ -67,7 +67,6 @@ describe('ApplyTagsWithConfidenceUseCase', () => {
       removeTagFromMessage: vi.fn(),
       getTagsOnMessage: vi.fn().mockResolvedValue([]),
       setTagsOnMessage: vi.fn(),
-      getTagsOnMessage: vi.fn().mockResolvedValue([]),
       clearTagsFromMessage: vi.fn(),
       tagExists: vi.fn(),
       ensureTagExists: vi.fn(),

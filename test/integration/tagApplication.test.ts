@@ -145,7 +145,6 @@ describe('Tag Application Integration Tests - Confidence Thresholds', () => {
       ensureTagExists: vi.fn(),
       getTagsOnMessage: vi.fn().mockResolvedValue([]),
       setTagsOnMessage: vi.fn().mockResolvedValue(undefined),
-      getTagsOnMessage: vi.fn().mockResolvedValue([]),
       addTagToMessage: vi.fn(),
       removeTagFromMessage: vi.fn(),
       clearTagsFromMessage: vi.fn(),
