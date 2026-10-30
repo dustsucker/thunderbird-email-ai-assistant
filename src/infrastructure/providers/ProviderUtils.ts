@@ -5,27 +5,14 @@
 
 import type { AppConfig, CustomTags } from '@/shared/types/ProviderTypes';
 import type { RequestBody } from './BaseProvider';
-import { debugLogBuffer } from '../logger/DebugLogBuffer';
 import { Provider } from '@/shared/types/ProviderTypes';
 import { DEFAULT_CUSTOM_TAGS } from '@/shared/types/ProviderTypes';
-import {
-  sanitizeForLogging as sharedSanitizeForLogging,
-  maskSensitiveValue,
-} from '@/shared/utils/loggingUtils';
+import { maskSensitiveValue } from '@/shared/utils/loggingUtils';
+import { sharedLogger } from '../logger/ConsoleLogger';
 
 // ============================================================================
 // TYPE DEFINITIONS AND INTERFACES
 // ============================================================================
-
-/**
- * Log levels for the logger
- */
-export enum LogLevel {
-  DEBUG = 0,
-  INFO = 1,
-  WARN = 2,
-  ERROR = 3,
-}
 
 /**
  * Error severity levels for UI display
@@ -75,11 +62,6 @@ export interface ShowErrorRuntimeMessage {
 export type LoggerContext = Record<string, unknown>;
 
 /**
- * Sanitized log context with stringified values
- */
-type SanitizedContext = Record<string, unknown> | string;
-
-/**
  * Logger interface with typed methods
  */
 export interface Logger {
@@ -87,7 +69,6 @@ export interface Logger {
   info(message: string, context?: LoggerContext): void;
   warn(message: string, context?: LoggerContext): void;
   error(message: string, context?: LoggerContext): void;
-  setLogLevel(level: LogLevel): void;
 }
 
 /**
@@ -219,73 +200,21 @@ export function maskApiKey(key: unknown): string {
 }
 
 // ============================================================================
-// LOGGER IMPLEMENTATION
+// LOGGER
 // ============================================================================
-
-let currentLogLevel: LogLevel = LogLevel.INFO;
-
-/**
- * Sets the current log level
- *
- * @param level - The log level to set
- */
-function setLogLevel(level: LogLevel): void {
-  currentLogLevel = level;
-}
+// Issue #11: no module-level logging implementation here. The exported
+// `logger` delegates to the shared ConsoleLogger instance — one gating config,
+// one sanitization path, one DebugLogBuffer. (ProviderUtils is a plain module
+// without DI, so it cannot resolve 'ILogger' from the container.)
 
 /**
- * Internal logging function
- *
- * @param level - The log level
- * @param message - The log message
- * @param context - Optional context object
- */
-function log(level: LogLevel, message: string, context: LoggerContext = {}): void {
-  if (level >= currentLogLevel) {
-    const timestamp = new Date().toISOString();
-    const levelName = LogLevel[level];
-    // Separate log calls to prevent browser DevTools from showing raw context object
-    console.log(`[${timestamp}] [${levelName}] ${message}`);
-    if (Object.keys(context).length > 0) {
-      console.log('Context:', sanitizeContext(context));
-    }
-    // Route through the SAME DebugLogBuffer instance ConsoleLogger uses
-    const levelNames: Record<LogLevel, 'debug' | 'info' | 'warn' | 'error'> = {
-      [LogLevel.DEBUG]: 'debug',
-      [LogLevel.INFO]: 'info',
-      [LogLevel.WARN]: 'warn',
-      [LogLevel.ERROR]: 'error',
-    };
-    debugLogBuffer.add(
-      levelNames[level],
-      message,
-      Object.keys(context).length > 0 ? JSON.stringify(sanitizeContext(context)) : undefined
-    );
-  }
-}
-
-/**
- * Sanitizes context object by masking sensitive fields recursively
- * Uses the shared loggingUtils for consistent sanitization
- *
- * @param context - The context object to sanitize
- * @param depth - Current recursion depth (prevents infinite recursion)
- * @returns Sanitized context object
- */
-function sanitizeContext(context: LoggerContext, _depth: number = 0): SanitizedContext {
-  // Use the shared sanitization utility
-  return sharedSanitizeForLogging(context) as SanitizedContext;
-}
-
-/**
- * Logger instance with typed methods
+ * Logger instance with typed methods, backed by the shared ConsoleLogger.
  */
 export const logger: Logger = {
-  debug: (msg: string, ctx?: LoggerContext): void => log(LogLevel.DEBUG, msg, ctx),
-  info: (msg: string, ctx?: LoggerContext): void => log(LogLevel.INFO, msg, ctx),
-  warn: (msg: string, ctx?: LoggerContext): void => log(LogLevel.WARN, msg, ctx),
-  error: (msg: string, ctx?: LoggerContext): void => log(LogLevel.ERROR, msg, ctx),
-  setLogLevel,
+  debug: (msg: string, ctx?: LoggerContext): void => sharedLogger.debug(msg, ctx),
+  info: (msg: string, ctx?: LoggerContext): void => sharedLogger.info(msg, ctx),
+  warn: (msg: string, ctx?: LoggerContext): void => sharedLogger.warn(msg, ctx),
+  error: (msg: string, ctx?: LoggerContext): void => sharedLogger.error(msg, ctx),
 };
 
 // ============================================================================
