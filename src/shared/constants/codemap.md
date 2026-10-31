@@ -1,16 +1,17 @@
 # src/shared/constants/
 
 ## Responsibility
-Immutable configuration values and prompt templates shared across layers: tag-key conventions, system tag definitions, and the AI analysis prompt scaffolding.
+Extension-wide constant definitions.
 
-## Design
-- `TagConstants.ts`: `TAG_KEY_PREFIX` (`'_ma_'`) and `TAG_NAME_PREFIX` (`'A:'`) namespace AI-generated tags inside Thunderbird; `HARDCODED_TAGS` is a `HardcodedTags` record of the four system tags (`is_scam`, `spf_fail`, `dkim_fail`, `tagged`); `HARDCODED_TAG_KEYS` (derived via `Object.keys`) and helper `getHardcodedTagsAsArray()`.
-- `PromptConstants.ts`: `PROMPT_BASE` — the analysis prompt template with `{headers}`, `{body}`, `{attachments}` placeholders plus the "DEFINED TAGS" contract.
-- `ProviderConstants.ts`: system prompts `ANALYSIS_SYSTEM_PROMPT`, `ANALYSIS_SYSTEM_PROMPT_ZAI` (stricter JSON-only wording), `ANALYSIS_SYSTEM_PROMPT_DETAILED` (embeds the JSON schema example). Note: this file is intentionally not re-exported through `index.ts`.
-
-## Flow
-Prompt templates are interpolated by prompt builders (headers/body/attachment data + tag descriptions) before being sent to providers; tag prefixes are applied when mapping AI tag keys to Thunderbird tag keys and back.
+## Files
+- `TagConstants.ts` - Tag configuration: `TAG_KEY_PREFIX = '_ma_'` (reserved namespace
+  for AI tag keys - unprefixed keys belong to the user), `TAG_NAME_PREFIX = 'A:'`,
+  `HARDCODED_TAGS` (is_scam, spf_fail, dkim_fail, tagged), helper
+  `getHardcodedTagsAsArray()`.
+- `PromptConstants.ts` - Analysis prompt building blocks: `PROMPT_BASE` (instruction
+  set), `MAX_BODY_CHARS = 25_000` (body cap sent to providers).
+- `index.ts` - Barrel export.
 
 ## Integration
-- Consumed by: provider implementations in `src/infrastructure` (system prompts), prompt builders, tag managers, and `src/shared/utils/validationUtils` (imports `HARDCODED_TAG_KEYS` for the `isHardcodedTag` guard).
-- Depends on: `../types/TagTypes` (`HardcodedTags`, `Tag`) — the only dependency, type-only.
+- TagConstants: consumed by `ThunderbirdTagManager` and tag use cases.
+- PromptConstants: consumed by `PromptBuilder` (`src/infrastructure/providers/`).

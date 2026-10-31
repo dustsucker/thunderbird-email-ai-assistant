@@ -11,25 +11,31 @@ src/infrastructure/
 ├── interfaces/              # Interface contracts
 │   ├── IProvider.ts         # AI provider for email analysis
 │   ├── ICache.ts            # Generic cache with TTL
-│   ├── ILogger.ts           # DEPRECATED: Alias to @/domain/interfaces/ILogger
 │   ├── IConfigRepository.ts # Configuration persistence
 │   ├── IMailReader.ts       # Email reading/parsing
-│   ├── ITagManager.ts       # DEPRECATED: Alias to @/domain/interfaces/ITagManager
 │   └── IQueue.ts            # Priority queue
-├── providers/               # AI provider implementations
+├── providers/               # AI provider implementations (10)
 │   ├── BaseProvider.ts      # Abstract base with retry/timeout
 │   ├── BaseProviderAdapter.ts # Adapter: BaseProvider → IProvider
-│   ├── ProviderFactory.ts   # Factory with static provider registry & DI
-│   └── impl/                # OpenAI, Claude, Gemini, Mistral, Ollama, Deepseek, ZaiPaaS, ZaiCoding
-├── cache/MemoryCache.ts     # In-memory cache with SHA-256 hashing
-├── logger/ConsoleLogger.ts  # Console-based logger (implements domain ILogger)
-├── repositories/StorageLocalConfigRepository.ts
-└── config/AppConfig.ts      # Configuration service with caching
+│   ├── ProviderFactory.ts   # Factory with static PROVIDER_REGISTRY & DI
+│   ├── PromptBuilder.ts     # Prompt rendering (buildPrompt, truncateText)
+│   ├── ProviderUtils.ts     # Shared helpers, LLMResponseParseError
+│   ├── Validator.ts         # Provider response validation + type guards
+│   └── impl/                # OpenAI, Claude, Gemini, Mistral, Ollama, Deepseek,
+│                            # OpenRouter, OpenRouterDecisions, ZaiPaaS, ZaiCoding
+├── cache/                   # AnalysisCache.ts (persistent IndexedDB),
+│                            # MemoryCache.ts (in-memory, SHA-256 keys)
+├── config/AppConfig.ts      # AppConfigService - configuration service with caching
+├── logger/                  # ConsoleLogger.ts, DebugLogBuffer.ts, LegacyLogger.ts
+├── repositories/            # StorageLocalConfigRepository.ts (+ ConfigNotSetError)
+├── storage/                 # MetricsRepository.ts, TagHistoryRepository.ts,
+│                            # TagApplyHistoryRepository.ts (undo history)
+└── system/                  # SystemClock.ts, CryptoRandom.ts
 ```
 
-> **Note**: `ILogger` and `ITagManager` are now defined in `@/domain/interfaces/`.
-> The files in `src/infrastructure/interfaces/` are deprecated aliases kept for backward compatibility.
-> Always import from `@/domain/interfaces` for new code.
+> **Note**: `ILogger` and `ITagManager` are defined in `@/domain/interfaces/`.
+> Import them from there; `src/infrastructure/interfaces/` holds only
+> infrastructure-level contracts (IProvider, ICache, IConfigRepository, IMailReader, IQueue).
 
 ## Architecture Rules
 
@@ -85,9 +91,9 @@ export class NewProvider extends BaseProvider {
   }
 }
 
-// 2. Register statically in ProviderFactory PROVIDER_REGISTRY
-import { NewProvider } from './impl/NewProvider';
-PROVIDER_REGISTRY.set('newprovider', NewProvider);
+// 2. Add an entry to the PROVIDER_REGISTRY Map literal in ProviderFactory.ts
+//    (a ReadonlyMap - registration happens at module load, .set() does not compile)
+['newprovider', NewProvider as ProviderConstructor],
 ```
 
 ## Interface Implementation Checklist
@@ -101,11 +107,15 @@ PROVIDER_REGISTRY.set('newprovider', NewProvider);
 
 ## DI Tokens
 
+Registrations live in `src/background/DIContainer.ts` (single wiring point):
+
 ```typescript
 'ILogger'           → ConsoleLogger
 'ICache'            → MemoryCache
 'IConfigRepository' → StorageLocalConfigRepository
-'provider:openai'   → BaseProviderAdapter<OpenAIProvider>
+'IClock'            → SystemClock
+'IRandom'           → CryptoRandom
+'provider:openai'   → BaseProviderAdapter<OpenAIProvider>  // ProviderTokens
 ```
 
 ## Dual Cache Architecture
@@ -113,4 +123,4 @@ PROVIDER_REGISTRY.set('newprovider', NewProvider);
 | Cache              | Location      | Purpose                                             |
 | ------------------ | ------------- | --------------------------------------------------- |
 | ICache/MemoryCache | This layer    | Transient caching via DI (rate limiting, temp data) |
-| AnalysisCache      | cache/AnalysisCache.ts | Persistent LLM analysis in IndexedDB       |
+| AnalysisCache      | src/infrastructure/cache/AnalysisCache.ts | Persistent LLM analysis in IndexedDB |

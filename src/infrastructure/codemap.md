@@ -1,21 +1,31 @@
 # src/infrastructure/
 
 ## Responsibility
-Implements the outward-facing adapters of the hexagonal architecture: external LLM services (`providers/`), persistence (`repositories/`, `storage/`, `cache/`), logging (`logger/`), configuration (`config/`), platform primitives (`system/`), and the port interfaces they satisfy (`interfaces/`). This layer implements interfaces owned by domain/application and is injected via TSyringe.
+Implements the domain/application ports against external systems: LLM providers,
+persistent/in-memory caches, storage repositories, logging, configuration, and
+platform services (clock, randomness).
 
 ## Design
-- Ports in `src/infrastructure/interfaces/`: `IProvider`, `ICache`, `IConfigRepository`, `IMailReader`, `IQueue`; `ILogger` and `ITagManager` are deprecated aliases re-exported from `@/domain/interfaces`.
-- `ProviderFactory` (Factory pattern, static `PROVIDER_REGISTRY`) + `BaseProviderAdapter` (Adapter: legacy `BaseProvider` → `IProvider`).
-- Repository pattern: `StorageLocalConfigRepository`, `MetricsRepository`, `TagHistoryRepository`.
-- Template Method base class `BaseProvider`; Strategy per provider in `impl/`.
-- Singleton `AnalysisCache` (IndexedDB) coexists with DI-injectable `MemoryCache` (`ICache`).
+- All external calls are async with wrapped errors (see `ProviderUtils.LLMResponseParseError`,
+  `ConfigNotSetError` in `repositories/StorageLocalConfigRepository.ts`).
+- API keys are masked in logs (`maskApiKey`); log payloads are sanitized
+  (`src/shared/utils/loggingUtils.ts`).
+- Everything ships statically bundled - no dynamic `import()` (async chunks would 404
+  in the packaged xpi).
 
-## Flow
-1. Bootstrap registers adapters: `'ILogger'`→`ConsoleLogger`, `'ICache'`→`MemoryCache`, `'IConfigRepository'`→`StorageLocalConfigRepository`, `'provider:<id>'`→`BaseProviderAdapter`.
-2. Use cases resolve `ProviderFactory`, call `getProvider(providerId)` → cached `IProvider` adapter → HTTP call → `TagResponse`.
-3. Config reads go through `AppConfigService` (5-min in-memory TTL cache) → `StorageLocalConfigRepository` → `browser.storage.local`; writes invalidate cache and are picked up via `browser.storage.onChanged`.
-4. All log output flows through `ConsoleLogger`/`sharedLogger` into `debugLogBuffer` (mirrored to `storage.session`).
+## Layout
+| Directory | Content | Details |
+| --- | --- | --- |
+| `providers/` | BaseProvider, ProviderFactory, PromptBuilder, Validator, 10 impls | [codemap](providers/codemap.md) |
+| `cache/` | AnalysisCache (IndexedDB), MemoryCache (SHA-256) | [codemap](cache/codemap.md) |
+| `config/` | AppConfigService | [codemap](config/codemap.md) |
+| `interfaces/` | IProvider, ICache, IConfigRepository, IMailReader, IQueue | [codemap](interfaces/codemap.md) |
+| `logger/` | ConsoleLogger, DebugLogBuffer, LegacyLogger | [codemap](logger/codemap.md) |
+| `repositories/` | StorageLocalConfigRepository | [codemap](repositories/codemap.md) |
+| `storage/` | MetricsRepository, TagHistoryRepository, TagApplyHistoryRepository | [codemap](storage/codemap.md) |
+| `system/` | SystemClock, CryptoRandom | [codemap](system/codemap.md) |
 
-## Integration
-- Consumed by: application use cases (`AnalyzeEmail`, `ApplyTags`), `background.ts`, `options.ts`.
-- Depends on: `src/domain/interfaces` (`ILogger`, `IClock`, `IRandom`), `src/shared/types`, TSyringe, Thunderbird WebExtension APIs (`browser.storage`, `indexedDB`, Web Crypto).
+## Rules
+1. Implement interfaces from `@/domain/interfaces/` - never depend on concretes.
+2. `@injectable()` + constructor `@inject()`; registration in `src/background/DIContainer.ts`.
+3. Import `ILogger`/`ITagManager` from `@/domain/interfaces`.

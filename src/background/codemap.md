@@ -1,20 +1,28 @@
 # src/background/
 
 ## Responsibility
-Extension background script area: bootstraps the TSyringe container and orchestrates the long-lived event loop of the MailExtension — Thunderbird event listeners, context-menu/toolbar/install handlers, and graceful shutdown.
+Module-level background orchestration: builds the TSyringe container and registers
+Thunderbird event listeners, the runtime message API, and lifecycle handling.
+The root `background.ts` is only a bootstrap that delegates here.
 
 ## Design
-- `index.ts` — module entry point, re-exports all services and handlers
-- `BackgroundScript.ts` — `@injectable()` orchestrator with `initialize()`/`shutdown()` lifecycle and `isInitialized` guard; resolves `ILogger`, applies persisted logging config via `applyLoggingConfig()`, then starts `EmailEventListener` and `MessageHandler` (from `@/interfaces/background`)
-- `DIContainer.ts` — `setupDIContainer()` registers all singletons (`ILogger`→`ConsoleLogger`, `IMailReader`→`ThunderbirdMailReader`, use cases, `ProviderFactory` under string token) plus `startupLogger` for pre-DI logging through the shared `DebugLogBuffer`
-- `ContextMenuHandler.ts`, `ToolbarHandler.ts`, `InstallHandler.ts` — `@injectable()` handlers with `register()`/`unregister()` pairs; handlers call use cases (`AnalyzeEmail`, `AnalyzeBatchEmails`, `UndoTagChanges`) and format user messages via `@/shared/utils/errorMessages`
+- `DIContainer.ts` - Single wiring point: registers infrastructure implementations under
+  interface tokens (`ILogger`, `ICache`, `IQueue`, `IMailReader`, `ITagManager`,
+  `IConfigRepository`, `IClock`, `IRandom`), repositories, use cases, and background
+  handlers; creates the shared `DebugLogBuffer` instance.
+- `BackgroundScript.ts` - Main class: starts/stops handlers, owns graceful cleanup.
+- `ContextMenuHandler.ts` - Context-menu entries for per-mail analysis.
+- `ToolbarHandler.ts` - Toolbar button interactions (single/batch analysis entry).
+- `InstallHandler.ts` - install/update lifecycle: initializes default configuration.
+- `index.ts` - Barrel export.
 
 ## Flow
-1. `background.ts` calls `setupDIContainer()`, then `BackgroundScript.initialize()`.
-2. Logger config applied → `TagService.ensureTagsExist()` → services started → menus, toolbar badge and install handlers registered.
-3. Events (new mail, message action, toolbar click, `messenger.runtime.onInstalled`) trigger use cases; `AnalyzeBatchEmails` reports batch progress to `ToolbarHandler` via the `BatchProgressListener` token.
-4. `messenger.runtime.onSuspend` → `shutdown()` stops services and unregisters handlers.
+1. `background.ts` imports this module; `DIContainer.ts` registers everything.
+2. `BackgroundScript` instantiates handlers (`EmailEventListener`, `MessageHandler`,
+   `ContextMenuHandler`, `ToolbarHandler`, `InstallHandler`) from the container and starts them.
+3. Handlers resolve use cases (`AnalyzeEmail`, `AnalyzeBatchEmails`) via the container.
 
 ## Integration
-- Consumed by: `background.ts` (webpack entry)
-- Depends on: `application/use-cases`, `domain/services/TagService`, `infrastructure/*` (logger, config, cache, providers, storage), `interfaces/adapters`, `interfaces/background` listeners, `messenger` API (`types/thunderbird.d.ts`)
+- Consumes use cases from `src/application/use-cases/`.
+- Only this layer plus `src/interfaces/` may touch the `messenger` API.
+- Tested in `test/integration/DIContainer.test.ts` and `test/background/`.

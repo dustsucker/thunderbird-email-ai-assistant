@@ -13,9 +13,18 @@ serves as the bridge between presentation and domain layers.
 - **AnalyzeEmail.ts** - Orchestrates single email analysis workflow: retrieval, content
   extraction, AI provider analysis, caching, and tag application
 - **AnalyzeBatchEmails.ts** - Batch email analysis with priority queue, progress tracking,
-  cancellation support, and concurrent processing
+  cancellation support, and concurrent processing; reports `BatchAnalysisStatus`
+  (`'success' | 'partial' | 'error'`) so batches with unprocessed mails are not
+  reported as success
 - **ApplyTagsToEmail.ts** - Tag management including validation, creation, and application
   to email messages
+- **ApplyTagsWithConfidenceUseCase.ts** - Applies tags with confidence threshold filtering,
+  honoring per-tag threshold overrides
+- **CacheAnalysisUseCase.ts** - Stores and retrieves analysis results in the cache
+- **ExtractEmailContentUseCase.ts** - Extracts structured email content for AI analysis
+- **RetrieveEmailUseCase.ts** - Retrieves email messages from Thunderbird
+- **TrackAnalysisMetrics.ts** - Records per-analysis metrics (provider, model, duration)
+- **UndoTagChanges.ts** - Restores a previous tag state (undo of AI tag changes)
 - **index.ts** - Barrel export for use cases and interface re-exports
 
 ### Services (`services/`)
@@ -25,11 +34,6 @@ serves as the bridge between presentation and domain layers.
 - **RateLimiterService.ts** - Token bucket rate limiting with per-model concurrency control
 - **PriorityQueue.ts** - Priority-based queue implementation for batch processing
 - **index.ts** - Service exports and interface re-exports
-
-### Supporting Directories
-
-- **dto/** - Data Transfer Objects (currently empty, reserved for future use)
-- **ports/** - Application ports/interfaces (currently empty, uses infrastructure interfaces)
 
 ## Rules
 
@@ -45,10 +49,7 @@ serves as the bridge between presentation and domain layers.
 4. **Single Responsibility**: Each use case handles one user action. Services provide
    reusable cross-cutting functionality.
 
-5. **Event Publishing**: Use EventBus from domain layer for decoupled communication.
-   Publish events like `EmailAnalyzedEvent`, `TagAppliedEvent`, `ProviderErrorEvent`.
-
-6. **Error Handling**: Wrap and re-throw errors with descriptive messages. Log via
+5. **Error Handling**: Wrap and re-throw errors with descriptive messages. Log via
    ILogger before throwing. Non-fatal errors should be logged, not thrown.
 
 ## Patterns

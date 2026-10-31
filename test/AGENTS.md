@@ -6,31 +6,39 @@ Test files for the Thunderbird Email AI Assistant application using Vitest frame
 
 ## Files
 
-### Unit Tests
+### Layout (mirrors src/, plus root-level and e2e tests)
 
-- `analyze-email.test.ts` - AnalyzeEmail use case (logging, analysis tracking)
-- `analyze-batch-emails.test.ts` - Batch email analysis use case
-- `config.test.ts` - Configuration management tests
-- `config-repository.test.ts` - Config repository persistence tests
-- `email-event-listener.test.ts` - Email event handling tests
-- `email-low-confidence.test.ts` - Low confidence handling tests
-- `rate-limiter.test.ts` - Rate limiting logic tests
-- `tag-mapping-fix.test.ts` - Tag mapping edge cases
-- `concurrency-integration.test.ts` - Concurrency control tests
+Root-level tests cover use cases and cross-cutting behavior:
+`analyze-email.test.ts`, `analyze-batch-emails.test.ts`, `config.test.ts`,
+`config-repository.test.ts`, `storage-read-errors.test.ts`,
+`email-event-listener.test.ts`, `email-low-confidence.test.ts`,
+`rate-limiter.test.ts`, `tag-mapping-fix.test.ts`,
+`concurrency-integration.test.ts`, `provider-error-fallback.test.ts`,
+`errorMessages.test.ts`, `loggingUtils.test.ts`, and the `options-*.test.ts`
+suite (page init, connection, provider settings, markup a11y).
 
-### Services & Utilities
+Subtrees:
 
-- `services/EmailAnalysisTracker.test.ts` - Analysis tracking service
-- `shared/utils/confidenceUtils.test.ts` - Confidence calculation utilities
+- `application/use-cases/` - one test per use case (ApplyTagsToEmail,
+  ApplyTagsWithConfidenceUseCase, CacheAnalysisUseCase, ExtractEmailContentUseCase,
+  RetrieveEmailUseCase, TrackAnalysisMetrics, UndoTagChanges)
+- `background/` - BackgroundScript, MessageHandler, BackgroundHandlers, BadgeProgress,
+  HandlerCleanup
+- `domain/` - services (EmailContentExtractor, TagService) and value objects
+  (ApiKey, EmailAddress, TagColor)
+- `infrastructure/` - providers (one test per provider plus BaseProvider,
+  ProviderFactory, PromptBuilder, ProviderUtils, Validator), cache (AnalysisCache,
+  MemoryCache + error paths), logger (ConsoleLogger, DebugLogBuffer), storage
+  (MetricsRepository, TagHistoryRepository, TagApplyHistoryRepository), system
+  (SystemClock, CryptoRandom)
+- `integration/` - DIContainer wiring, tagApplication flow
+- `interfaces/` - components (ConfidenceBadge) and options page (DebugTab,
+  debug-logging-settings, form validation)
+- `services/` - EmailAnalysisTracker, PriorityQueue
+- `shared/` - errors (Errors.test.ts) and utils (confidenceUtils)
 
-### Interface Tests
+### E2E
 
-- `interfaces/components/ConfidenceBadge.test.ts` - UI component tests
-- `interfaces/options/options-form-validation.test.ts` - Options form validation
-
-### Integration Tests
-
-- `integration/tagApplication.test.ts` - Tag application integration
 - `e2e.test.ts` - End-to-end tests with mock provider
 - `e2e-real-provider.test.ts` - E2E tests with real AI provider
 
@@ -39,6 +47,7 @@ Test files for the Thunderbird Email AI Assistant application using Vitest frame
 - `test-setup.ts` - Vitest setup (imports reflect-metadata for tsyringe)
 - `test-helpers.ts` - Helper functions (createTestProvider, runTaggingTest)
 - `test-config.ts` - Test configuration (API keys, timeouts)
+- `helpers/mock-factories.ts` - Shared mock factories
 - `mocks/MockProvider.ts` - Mock AI provider for unit tests
 - `RateLimiter.test-helper.ts` - Shared rate limiter test utilities
 - `fixtures/fixture-loader.ts` - EML file parser and fixture loader

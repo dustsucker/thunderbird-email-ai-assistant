@@ -12,20 +12,28 @@ Contains no business logic - only pure utilities and shared definitions.
 - `EmailPart.ts` - Email content types (EmailPart, Attachment, ParsedEmail, AnalysisData)
 - `ProviderTypes.ts` - AI provider config types (Provider enum, ProviderConfig, AppConfig, DEFAULTS)
 - `TagTypes.ts` - Tag-related types (Tag, ThunderbirdTag, CustomTags)
+- `TagHistory.ts` - Tag history persistence types (TagHistoryItem, TagApplyHistoryEntry)
+- `Metrics.ts` - Analysis metrics types (AnalysisMetrics, AggregatedMetrics)
 
 ### utils/
 
 - `emailPartUtils.ts` - Email part type guards and HTML-to-text conversion
 - `confidenceUtils.ts` - Confidence score calculations (0-1 ↔ 0-100), threshold comparisons
-- `QueueLogger.ts` - Shared queue status logging utility
+- `validationUtils.ts` - Provider/tag/threshold validation helpers
+- `errorMessages.ts` - Maps raw errors to user-facing messages
+- `loggingUtils.ts` - Log sanitization and sensitive-value masking
 
 ### constants/
 
-- `ProviderConstants.ts` - Analysis system prompts for AI providers
+- `TagConstants.ts` - Tag configuration: `TAG_KEY_PREFIX` (`_ma_`), `TAG_NAME_PREFIX`, `HARDCODED_TAGS`
+- `PromptConstants.ts` - Analysis prompt templates for AI providers
 
 ### errors/
 
-- `EmailAnalysisError.ts` - Custom error hierarchy (EmailAnalysisError, ProviderError, etc.)
+- `BaseErrors.ts` - DomainError / ApplicationError / InfrastructureError base classes
+- `AnalysisErrors.ts` - Analysis error hierarchy (EmailAnalysisError, TagApplicationError, ...)
+- `ProviderErrors.ts` - Provider error hierarchy (ProviderRequestError, ProviderRateLimitError, ...)
+- `EmailAnalysisError.ts` - Legacy flat error classes (kept for compatibility)
 - `index.ts` - Barrel export for all errors
 
 ## Rules

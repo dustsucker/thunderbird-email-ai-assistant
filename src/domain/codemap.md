@@ -1,21 +1,29 @@
 # src/domain/
 
 ## Responsibility
-Core business layer of the hexagonal architecture: entities (Email, Tag), value objects (EmailAddress, TagColor, ApiKey, ...), domain events with a publish/subscribe bus (DomainEventBus, EmailReceivedEvent), domain service logic (TagService, EmailContentExtractor), ports (ILogger, ITagManager, IClock, IRandom) and typed validation errors (InvalidEmailAddressError, InvalidApiKeyError).
+Core business layer with zero outward dependencies: entities, value objects, ports
+(interfaces), domain services, and typed domain errors.
 
 ## Design
-- Entity pattern with identity + mutability: `Email` (tags as `Set<string>`, low-confidence flags as `Map`), `Tag` (immutable-update methods `withName`/`withColor`, static factories `fromThunderbirdTag`/`createDefault`).
-- Value Object pattern: immutable, self-validating constructors with static `tryCreate`/`isValid`/`empty` factories.
-- Observer/Mediator: `DomainEventBus` singleton (`getInstance`, `subscribe`, `publish`, `publishAll`); events created via factory functions (`createEmailAnalyzedEvent`, `createTagAppliedEvent`).
-- Dependency Inversion: `src/domain/interfaces/` defines ports implemented by infrastructure (`ConsoleLogger`, `ThunderbirdTagManager`); DI via TSyringe (`@singleton`, `@inject`) in services.
-- Errors as classes extending `Error` with type guards (`isInvalidTagKeyError`).
+- Entity pattern with identity + mutable state: `Email` (tags, low-confidence flags via
+  `flagLowConfidence`), `Tag` (validation, Thunderbird conversion).
+- Value Object pattern: immutable, self-validating constructors (`EmailAddress`,
+  `EmailSubject`, `EmailBody`, `ApiKey`, `TagColor`, `TagKey`).
+- Dependency Inversion: `interfaces/` defines ports implemented by infrastructure
+  (`ILogger`→ConsoleLogger, `ITagManager`→ThunderbirdTagManager, `IClock`→SystemClock,
+  `IRandom`→CryptoRandom).
+- Errors as classes with type guards (`src/domain/errors/`).
 
-## Flow
-1. Thunderbird fires a mail event; the interfaces layer builds `EmailReceivedEvent` and publishes it on `DomainEventBus`.
-2. Application use cases compose an `Email` entity from validated value objects (`EmailAddress`, `EmailSubject`, `EmailBody`).
-3. `EmailContentExtractor.findEmailParts` walks the MIME tree; `buildPrompt` renders the prompt template; `TagService.ensureTagsExist` reconciles tags via `ITagManager`.
-4. Provider results become `EmailAnalyzedEvent`/`TagAppliedEvent`; low-confidence tags are recorded via `Email.flagLowConfidence`.
+## Layout
+| Directory | Content | Details |
+| --- | --- | --- |
+| `entities/` | Email, Tag | [codemap](entities/codemap.md) |
+| `value-objects/` | ApiKey, EmailAddress, EmailBody, EmailSubject, TagColor, TagKey | [codemap](value-objects/codemap.md) |
+| `interfaces/` | ILogger, ITagManager, IClock, IRandom | [codemap](interfaces/codemap.md) |
+| `services/` | TagService, EmailContentExtractor | [codemap](services/codemap.md) |
+| `errors/` | ValueObjectErrors | [codemap](errors/codemap.md) |
 
 ## Integration
-- Consumed by: application use cases (`ExtractEmailContentUseCase`), background wiring (`src/background/BackgroundScript.ts`, `src/background/DIContainer.ts`), `core/tags.ts`, interfaces adapters (`ThunderbirdMailReader`, `MessageHandler`), vitest suites under `test/domain/`.
-- Depends on: `@/shared/types/` (TagTypes, ProviderTypes, EmailPart), TSyringe, and `@/shared/utils/emailPartUtils` (in `EmailContentExtractor`). No infrastructure or Thunderbird API imports.
+- Consumed by application use cases and infrastructure implementations.
+- Domain may import only from `src/domain/` and `src/shared/`.
+- Tested under `test/domain/`.

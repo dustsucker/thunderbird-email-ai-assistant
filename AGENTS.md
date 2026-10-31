@@ -51,13 +51,14 @@ npm run package               # Create .xpi for Thunderbird
 ```
 thunderbird-email-ai-assistant/
 ├── src/
+│   ├── background/       # DI container bootstrap, event/message orchestration
 │   ├── domain/           # Core business logic (no dependencies)
 │   ├── application/      # Use cases and orchestration
-│   ├── infrastructure/   # External services (providers, storage)
+│   ├── infrastructure/   # External services (providers, storage, system)
 │   ├── interfaces/       # UI adapters, Thunderbird integration
 │   └── shared/           # Types, utils, constants
 ├── test/                 # Test files (vitest)
-├── background.ts         # Extension background script (entry)
+├── background.ts         # Bootstrap only - delegates to src/background/
 ├── options.ts            # Options page script (entry)
 └── manifest.json         # Thunderbird extension manifest
 ```
@@ -119,7 +120,7 @@ import { Email } from '@/domain/entities/Email';
 ```typescript
 import { container } from 'tsyringe';
 
-container.register<ILogger>('ILogger', { useClass: ConsoleLogger });
+container.registerSingleton<ILogger>('ILogger', ConsoleLogger);
 container.registerSingleton<ICache>('ICache', MemoryCache);
 ```
 
@@ -140,6 +141,8 @@ export class AnalyzeEmail {
 ```typescript
 const useCase = container.resolve<AnalyzeEmail>(AnalyzeEmail);
 ```
+
+All runtime wiring lives in `src/background/DIContainer.ts`.
 
 ---
 
@@ -202,11 +205,11 @@ try {
 
 ```
 ┌─────────────────────────────────────────┐
-│           Interfaces (Entry)            │  ← background.ts, options.ts
+│           Interfaces (Entry)            │  ← options.ts, src/background/
 ├─────────────────────────────────────────┤
 │          Application (Use Cases)        │  ← AnalyzeEmail, ApplyTags
 ├─────────────────────────────────────────┤
-│            Domain (Business)            │  ← Email, Tag, Events
+│            Domain (Business)            │  ← Email, Tag, Services
 ├─────────────────────────────────────────┤
 │        Infrastructure (External)        │  ← Providers, Cache, DB
 └─────────────────────────────────────────┘
@@ -219,7 +222,7 @@ try {
 
 ## When Adding New Code
 
-1. **New AI provider?** → `src/infrastructure/providers/impl/`, register in `ProviderFactory`
+1. **New AI provider?** → `src/infrastructure/providers/impl/`, add to the `PROVIDER_REGISTRY` Map literal in `ProviderFactory.ts`
 2. **New business rule?** → `src/domain/entities/` or `src/domain/services/`
 3. **New use case?** → `src/application/use-cases/`
 4. **New UI component?** → `src/interfaces/options/` or `src/interfaces/shared/components/`

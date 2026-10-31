@@ -21,6 +21,20 @@ This directory contains UI adapters and Thunderbird WebExtension API integration
 | `ThunderbirdMailReader.ts` | Adapter implementing `IMailReader` for reading emails via messenger API |
 | `index.ts`                 | Barrel export for adapters                                              |
 
+#### Tag-Key Namespace (`_ma_` prefix)
+
+All AI-generated tags live in a reserved Thunderbird tag-key namespace:
+
+- `TAG_KEY_PREFIX = '_ma_'` (defined in `src/shared/constants/TagConstants.ts`) - every AI
+  tag's internal Thunderbird key carries this prefix (e.g. `_ma_is_scam`); display names
+  get `TAG_NAME_PREFIX = 'A:'`.
+- Tag keys **without** the `_ma_` prefix belong to the user (non-AI tags). This namespace
+  is reserved: adapters must never create, modify, or delete unprefixed keys.
+  `ThunderbirdTagManager` writes only prefixed keys and preserves all other tags on a
+  message; `getTagsOnMessage()` returns only `_ma_`-prefixed keys (prefix stripped), so
+  unprefixed keys are treated as non-AI by definition.
+- Unknown tag keys get the prefix applied as fallback (`_ma_unknown_tag`).
+
 ### background/
 
 | File                    | Description                                            |
@@ -133,7 +147,8 @@ export class SomeUiComponent {
 
 ### Adding a New Adapter
 
-1. Create interface in `infrastructure/interfaces/INewAdapter.ts`
+1. Define the port in `src/domain/interfaces/` (like `ITagManager`), or in
+   `src/infrastructure/interfaces/` for infrastructure-level contracts
 2. Create adapter in `interfaces/adapters/ThunderbirdNewAdapter.ts`:
 
 ```typescript

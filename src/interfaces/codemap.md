@@ -1,20 +1,28 @@
 # src/interfaces/
 
 ## Responsibility
-Outermost hexagonal layer: adapts the Thunderbird WebExtension host to the application core and hosts all user-facing UI. It is the only layer permitted to touch the `messenger`/`browser` globals directly.
+Hexagonal entry layer: Thunderbird adapters and UI. The only layer that touches the
+`messenger`/`browser` APIs directly.
 
 ## Design
-- **Adapter pattern**: `adapters/ThunderbirdMailReader` and `adapters/ThunderbirdTagManager` implement `IMailReader` / `ITagManager` from `src/infrastructure/interfaces/`, translating Thunderbird API shapes into domain types.
-- **Observer pattern**: `background/EmailEventListener` subscribes to `messenger.messages.onNewMailReceived`; `background/MessageHandler` subscribes to `browser.runtime.onMessage`.
-- **Dependency Injection**: all services use TSyringe `@injectable()` / `@inject()`; UI components follow a render + polling lifecycle (`options/DebugTab`).
-- Subtrees: `adapters/` (API bridges), `background/` (service-worker services), `options/` (options-page UI), `shared/` (reusable components, styles, `ProviderSettingsService`).
+- Adapters implement domain ports (`ITagManager`, `IMailReader`) and delegate to
+  application use cases.
+- Background handlers register/unregister listeners in `start()`/`stop()` for cleanup.
+- `messenger` types are declared locally (see `types/thunderbird.d.ts`), not imported
+  from external packages.
+- AI tags are namespaced: every AI tag key is prefixed `_ma_` (`TAG_KEY_PREFIX`,
+  `src/shared/constants/TagConstants.ts`); unprefixed keys belong to the user and are
+  never modified (see `adapters/ThunderbirdTagManager.ts`).
 
-## Flow
-1. Thunderbird fires events (`onNewMailReceived`, `runtime.onMessage`) into `background/` services.
-2. `MessageHandler` dispatches by `action` discriminator to use cases (`AnalyzeEmail`, `AnalyzeBatchEmails`).
-3. Use cases call adapters through `IMailReader` / `ITagManager` ports; adapters call `messenger.*`.
-4. UI (`options/`, `shared/components/`) sends runtime messages to the background and renders responses.
+## Layout
+| Directory | Content | Details |
+| --- | --- | --- |
+| `adapters/` | ThunderbirdTagManager, ThunderbirdMailReader | [codemap](adapters/codemap.md) |
+| `background/` | MessageHandler, EmailEventListener | [codemap](background/codemap.md) |
+| `options/` | DebugTab (options-page debug panel) | [codemap](options/codemap.md) |
+| `shared/` | ProviderSettingsService, UI components, styles | [codemap](shared/codemap.md) |
 
 ## Integration
-- Consumed by: `background.ts` and root `options.ts` entry points (DI container wiring).
-- Depends on: `src/application` (use cases), `src/infrastructure` (interfaces, `AppConfigService`, `MemoryCache`, `DebugLogBuffer`), `src/domain` (ILogger), `src/shared` (constants, `confidenceUtils`).
+- The options page itself is implemented in the root `options.ts`/`options.html`;
+  background orchestration lives in `src/background/`.
+- Tested under `test/interfaces/`, `test/background/`, `test/email-event-listener.test.ts`.
