@@ -104,8 +104,10 @@ export class OllamaProvider extends BaseProvider {
 
   public validateSettings(settings: BaseProviderSettings): boolean {
     // Issue #36: mail content is sent to apiUrl — only local endpoints allowed.
+    // Empty/missing apiUrl falls back to the documented default (localhost),
+    // so validation passes instead of throwing "Invalid provider settings".
     const isValid =
-      Validator.validateApiUrl(settings.apiUrl ?? '') &&
+      Validator.validateApiUrl(settings.apiUrl || DEFAULT_OLLAMA_URL) &&
       typeof settings.model === 'string' &&
       settings.model.length > 0;
 

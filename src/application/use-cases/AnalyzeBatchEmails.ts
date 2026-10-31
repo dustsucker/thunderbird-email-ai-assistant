@@ -93,9 +93,10 @@ export interface EmailAnalysisResult {
  * Overall outcome of a batch run (#29).
  *
  * - `success`: every mail accounted for, none failed
- * - `partial`: every mail accounted for, but at least one failed
- * - `error`: mails remained unprocessed (e.g. a queue defect stopped the
- *   workers) — must never be reported as success
+ * - `partial`: every mail accounted for but at least one failed; or cancelled
+ *   with mails unprocessed
+ * - `error`: mails remained unprocessed without a cancel (e.g. a queue defect
+ *   stopped the workers) — must never be reported as success
  */
 export type BatchAnalysisStatus = 'success' | 'partial' | 'error';
 
@@ -335,8 +336,8 @@ export class AnalyzeBatchEmails {
         throw this.workerError;
       }
 
-      // #29: mails that no worker accounted for (queue defect stopped the
-      // workers) must surface as an error status, never as success.
+      // #29/#arbiter-followup: mails that no worker accounted for must never
+      // surface as 'success' — queue defect → 'error', cancel → 'partial'.
       const accounted =
         this.processedCount + this.failedCount + this.cancelledCount + this.skippedCount;
       const result: BatchAnalysisResult = {
@@ -350,8 +351,10 @@ export class AnalyzeBatchEmails {
         results: this.analysisResults,
         cancelled: this.isCancelled,
         status:
-          !this.isCancelled && accounted < this.totalCount
-            ? 'error'
+          accounted < this.totalCount
+            ? this.isCancelled
+              ? 'partial' // cancelled with mails unprocessed — not 'success'
+              : 'error'
             : this.failedCount > 0
               ? 'partial'
               : 'success',

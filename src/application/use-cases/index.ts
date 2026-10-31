@@ -36,6 +36,7 @@ export type { CacheKeyResult } from './CacheAnalysisUseCase';
 
 export { ApplyTagsWithConfidenceUseCase } from './ApplyTagsWithConfidenceUseCase';
 export type {
+  ApplyTagsContext,
   ApplyTagsWithConfidenceConfig,
   ApplyTagsWithConfidenceResult,
   LowConfidenceFlag,

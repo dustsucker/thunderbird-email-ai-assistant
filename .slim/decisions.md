@@ -30,3 +30,5 @@
 2026-10-30 | #33-F3: ConfigNotSetError-Import aus infrastructure in application/background | deferred_with_reason | Grenzwertig, Interfaces liegen im Projekt ebenfalls unter infrastructure/; kein Handlungsdruck | Master
 2026-10-30 | #29-F2: cancelled-Batches zeigen success/partial ohne Abbruch-Hinweis | deferred_with_reason | Issue regelt nur Queue-Defekte; Abbruch-Reporting vorher gleich schwach; eigener Notification-Zweig als Follow-up (mit #33-F1 bündeln) | Master
 2026-10-30 | #34-F1: 20 Import-Zeilen ohne Semikolon in impl/*-Providern (Prettier-Drift) | deferred_with_reason | rein kosmetisch, ESLint 0 Errors; prettier --write + Commit im Wrap-up | Master
+2026-10-31 | Docs-Checker F1-F4 (ADR-0004-Supersede, Diagramm-Zeile, README-Dedupe, stale events/codemap) | fixed | Fixup-Commit e66a10a auf main, exakt nach Checker-Prescription | Master
+2026-10-31 | Docs-Checker F5: Sprachmix Doku-EN/UI-DE | deferred_with_reason | bewusste Konvention des Auftraggebers; optional irgendwo dokumentieren | Master

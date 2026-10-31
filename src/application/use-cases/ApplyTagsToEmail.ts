@@ -442,6 +442,7 @@ export class ApplyTagsToEmail {
    * @param replaceTags - Whether to replace existing tags
    * @throws {Error} If tag application fails
    */
+  // shortcut: no undo/apply history on this path, wire recordChange before routing production traffic (#42)
   private async applyTagsToMessage(
     messageId: number,
     tagKeys: string[],

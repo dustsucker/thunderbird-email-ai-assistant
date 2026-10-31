@@ -54,9 +54,14 @@ Based on the data above, return a JSON object with:
 IMPORTANT: Return ONLY the JSON object, not the individual tag values!
 `;
 
-  // 3. Headers and attachments JSON
-  const headersJSON: string = JSON.stringify(structuredData.headers, null, 2);
-  const attachmentsJSON: string = JSON.stringify(structuredData.attachments, null, 2);
+  // 3. Headers and attachments JSON — strip ``` here too: a forged header or
+  // attachment name must not be able to break out of its fence (#arbiter-followup)
+  const headersJSON: string = JSON.stringify(structuredData.headers, null, 2).replace(/```/g, '');
+  const attachmentsJSON: string = JSON.stringify(
+    structuredData.attachments,
+    null,
+    2
+  ).replace(/```/g, '');
 
   // 4. Replace placeholders
   // Replacer functions prevent `$&`, `` $` ``, `$'` etc. in email content

@@ -111,11 +111,11 @@ describe('OllamaProvider', () => {
       expect(provider.validateSettings(settings)).toBe(false);
     });
 
-    it('should return false when apiUrl is missing', () => {
+    it('should return true when apiUrl is missing (falls back to default localhost)', () => {
       const settings: BaseProviderSettings = {
         model: 'gemma3:27b',
       };
-      expect(provider.validateSettings(settings)).toBe(false);
+      expect(provider.validateSettings(settings)).toBe(true);
     });
 
     it('should return false when model is missing', () => {
@@ -125,12 +125,12 @@ describe('OllamaProvider', () => {
       expect(provider.validateSettings(settings)).toBe(false);
     });
 
-    it('should return false when apiUrl is empty string', () => {
+    it('should return true when apiUrl is empty string (falls back to default localhost)', () => {
       const settings: BaseProviderSettings = {
         apiUrl: '',
         model: 'gemma3:27b',
       };
-      expect(provider.validateSettings(settings)).toBe(false);
+      expect(provider.validateSettings(settings)).toBe(true);
     });
 
     it('should return false when model is empty string', () => {

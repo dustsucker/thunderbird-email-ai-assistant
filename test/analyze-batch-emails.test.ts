@@ -468,6 +468,41 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       expect(queue.clear).toHaveBeenCalledWith(false);
     });
 
+    it('#arbiter-followup: cancel with unprocessed mails reports status partial (not success)', async () => {
+      let capturedSignal: AbortSignal | undefined;
+      (analyzeEmail.execute as ReturnType<typeof vi.fn>).mockImplementation(
+        (_id: string, _settings: unknown, config?: { signal?: AbortSignal }) => {
+          capturedSignal = config?.signal;
+          return new Promise((_resolve, reject) => {
+            config?.signal?.addEventListener('abort', () => {
+              reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+            });
+          });
+        }
+      );
+
+      // Two mails requested, only one ever enters the queue — the second stays
+      // unprocessed when the cancel stops the workers.
+      queue.dequeue = vi
+        .fn()
+        .mockResolvedValueOnce({ messageId: '123', providerSettings: mockProviderSettings })
+        .mockResolvedValue(null);
+
+      const executePromise = analyzeBatch.execute(['123', '456'], {
+        providerSettings: mockProviderSettings,
+        concurrency: 1,
+      });
+
+      await vi.waitFor(() => expect(capturedSignal).toBeDefined());
+      await analyzeBatch.cancel();
+      const result = await executePromise;
+
+      expect(result.cancelled).toBe(true);
+      expect(result.cancelledCount).toBe(1);
+      expect(result.unprocessedCount).toBe(1);
+      expect(result.status).toBe('partial');
+    });
+
     it('#24: progress notifications carry only counts (no ID arrays)', async () => {
       container.reset();
       const listener = { onBatchProgress: vi.fn() };
