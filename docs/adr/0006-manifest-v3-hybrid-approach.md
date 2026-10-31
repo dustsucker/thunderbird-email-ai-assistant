@@ -4,6 +4,8 @@
 
 Accepted
 
+> **Partially superseded** by [ADR-0008](0008-mv3-event-page-background.md): the background page is no longer persistent — Thunderbird MV3 runs it as a non-persistent event page. The manifest-version and CSP decisions below remain in force.
+
 ## Context
 
 Thunderbird extensions use the WebExtensions API, which is transitioning from Manifest V2 to V3. However, Thunderbird's implementation has specific challenges:

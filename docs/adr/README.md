@@ -21,6 +21,11 @@ An ADR is a document that captures an important architectural decision made alon
 | [0004](0004-event-driven-domain-events.md) | Event-Driven Domain Events | Accepted | 2025-03-01 |
 | [0005](0005-value-objects-validation.md) | Value Objects with Validation | Accepted | 2025-03-01 |
 | [0006](0006-manifest-v3-hybrid-approach.md) | Manifest V3 Hybrid Approach | Accepted | 2025-03-01 |
+| [0007](0007-remove-eventbus.md) | Remove EventBus and Dead DI String Tokens | Accepted | 2026-08-23 |
+| [0008](0008-mv3-event-page-background.md) | MV3 Non-Persistent Background (Event Page) | Accepted | 2026-08-23 |
+| [0009](0009-static-provider-bundling.md) | Static Bundling of All Providers | Accepted | 2026-08-23 |
+| [0010](0010-storage-local-config-and-scoped-permissions.md) | storage.local Config Repository and Scoped Host Permissions | Accepted | 2026-10-30 |
+| [0011](0011-openrouter-decisions-provider.md) | OpenRouter Decisions Provider with Confidence Gating | Accepted | 2026-10-30 |
 
 ## Creating a New ADR
 
