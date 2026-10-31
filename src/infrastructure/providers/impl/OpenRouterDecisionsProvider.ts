@@ -1,8 +1,8 @@
 import { injectable, inject } from 'tsyringe';
 import type { ILogger } from '@/domain/interfaces';
 import { BaseProvider, type BaseProviderSettings, type TagResponse } from '../BaseProvider';
-import type { StructuredEmailData } from '@/shared/types/EmailPart'
-import type { CustomTags } from '@/shared/types/TagTypes'
+import type { StructuredEmailData } from '@/shared/types/EmailPart';
+import type { CustomTags } from '@/shared/types/TagTypes';
 import { validateApiKeyFormat } from '@/shared/utils/loggingUtils';
 
 // OpenRouter Decisions API — typed probabilistic decisions instead of chat completion.
