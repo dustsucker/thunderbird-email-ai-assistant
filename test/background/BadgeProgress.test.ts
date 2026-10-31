@@ -106,6 +106,7 @@ describe('DW-D6: toolbar badge during batch run', () => {
       percentage: 20,
       isRunning: true,
       isCancelled: false,
+      status: 'running',
       processedMessageIds: ['1'],
       failedMessageIds: [],
     });

@@ -1288,6 +1288,13 @@ button:disabled {
   margin-bottom: var(--spacing-md);
 }
 
+/* Muted "Letzte Ausführung" marker next to the batch status badge */
+.debug-last-run {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-gray-600);
+}
+
 /* Batch status badge colors (extends .status-badge) */
 .debug-batch-idle {
   background-color: var(--color-gray-200);

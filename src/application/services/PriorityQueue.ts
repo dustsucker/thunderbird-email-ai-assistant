@@ -174,6 +174,9 @@ export class PriorityQueue implements IQueue {
     const clearedProcessing = cancelRunning ? this.processing.size : 0;
 
     this.queue.length = 0;
+    // Reset the rolling wait-time window too, so avgWaitTime cannot report a
+    // stale historical value alongside zeroed counters after a cancel.
+    this.waitTimes = [];
 
     if (cancelRunning) {
       this.processing.clear();

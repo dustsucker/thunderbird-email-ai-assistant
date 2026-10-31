@@ -704,4 +704,129 @@ describe('AnalyzeBatchEmails - Logging Tests', () => {
       ).rejects.toThrow('Batch analysis failed: complete broken');
     });
   });
+
+  // ==========================================================================
+  // Queue-panel contract: status + lastRun persistence (Debug-Tab)
+  // ==========================================================================
+
+  describe('queue-panel contract: status + lastRun', () => {
+    function makeQueue(items: string[]): IQueue {
+      return {
+        enqueue: vi.fn().mockResolvedValue(undefined),
+        dequeue: vi
+          .fn()
+          .mockImplementation(() =>
+            items.length > 0
+              ? Promise.resolve({ messageId: items.shift()!, providerSettings: mockProviderSettings })
+              : Promise.resolve(null)
+          ),
+        clear: vi.fn().mockResolvedValue(0),
+        getStats: vi.fn().mockResolvedValue(mockQueueStats),
+        peek: vi.fn(),
+        size: vi.fn(),
+        isEmpty: vi.fn(),
+      };
+    }
+
+    it("reports status 'running' with live counters while the batch is in flight", async () => {
+      let releaseAnalysis!: (value: unknown) => void;
+      const gate = new Promise((resolve) => (releaseAnalysis = resolve));
+      const slowAnalyzeEmail = {
+        execute: vi.fn().mockReturnValue(gate),
+      } as unknown as AnalyzeEmail;
+      const batch = new AnalyzeBatchEmails(
+        slowAnalyzeEmail,
+        makeQueue(['1', '2']),
+        logger,
+        configRepository,
+        emailAnalysisTracker
+      );
+
+      const execution = batch.execute(['1', '2'], {
+        providerSettings: mockProviderSettings,
+        concurrency: 1,
+      });
+
+      // Let execute() initialize state and reach the gated analysis
+      let inFlight = await batch.getProgress();
+      for (let i = 0; i < 50 && inFlight.status !== 'running'; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        inFlight = await batch.getProgress();
+      }
+
+      // First item is stuck in the (gated) analysis: running, live counts at 0
+      expect(inFlight.status).toBe('running');
+      expect(inFlight.isRunning).toBe(true);
+      expect(inFlight.total).toBe(2);
+      expect(inFlight.processed).toBe(0);
+
+      releaseAnalysis({ tags: ['work'], confidence: 0.9 });
+      await execution;
+
+      // After completion: idle, counters served from lastRun (not zeroed)
+      const finished = await batch.getProgress();
+      expect(finished.status).toBe('idle');
+      expect(finished.isRunning).toBe(false);
+      expect(finished.total).toBe(2);
+      expect(finished.processed).toBe(2);
+      expect(finished.failed).toBe(0);
+      expect(finished.percentage).toBe(100);
+      expect(typeof finished.lastRunCompletedAt).toBe('number');
+    });
+
+    it('keeps failed counts after resetState (lastRun survives the batch end)', async () => {
+      const failingAnalyzeEmail = {
+        execute: vi.fn().mockRejectedValue(new Error('provider down')),
+      } as unknown as AnalyzeEmail;
+      const batch = new AnalyzeBatchEmails(
+        failingAnalyzeEmail,
+        makeQueue(['1']),
+        logger,
+        configRepository,
+        emailAnalysisTracker
+      );
+
+      await batch.execute(['1'], { providerSettings: mockProviderSettings, concurrency: 1 });
+
+      const progress = await batch.getProgress();
+      expect(progress.status).toBe('idle');
+      expect(progress.total).toBe(1);
+      expect(progress.failed).toBe(1);
+      expect(progress.processed).toBe(0);
+      expect(progress.lastRunCompletedAt).toBeDefined();
+    });
+
+    it('sends isRunning:false in the final progress event when mails were skipped (F1 badge clear)', async () => {
+      const progressEvents: unknown[] = [];
+      const progressListener = { onBatchProgress: vi.fn((p: unknown) => progressEvents.push(p)) };
+      container.register('BatchProgressListener', { useValue: progressListener });
+
+      // '1' already analyzed → skipped (counts neither processed nor failed);
+      // '2' analyzed → processed. remaining = 2 - 1 - 0 = 1 > 0, so only
+      // isRunning:false lets the toolbar badge clear.
+      (emailAnalysisTracker.wasAnalyzed as ReturnType<typeof vi.fn>).mockImplementation(
+        (id: number) => Promise.resolve(id === 1)
+      );
+      const batch = new AnalyzeBatchEmails(
+        analyzeEmail,
+        makeQueue(['1', '2']),
+        logger,
+        configRepository,
+        emailAnalysisTracker
+      );
+
+      try {
+        await batch.execute(['1', '2'], {
+          providerSettings: mockProviderSettings,
+          concurrency: 1,
+        });
+      } finally {
+        container.clearInstances();
+      }
+
+      expect(progressEvents.length).toBeGreaterThan(0);
+      const finalEvent = progressEvents[progressEvents.length - 1] as Record<string, unknown>;
+      expect(finalEvent).toMatchObject({ isRunning: false, total: 2, processed: 1 });
+    });
+  });
 });

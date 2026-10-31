@@ -2,7 +2,7 @@
  * Unit tests for PriorityQueue (DW10d: honest processing tracking).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { PriorityQueue } from '@/application/services/PriorityQueue';
 
 describe('PriorityQueue', () => {
@@ -57,5 +57,19 @@ describe('PriorityQueue', () => {
     const cleared = await queue.clear(true);
     expect(cleared).toBe(1);
     expect(await queue.isEmpty()).toBe(true);
+  });
+
+  it('clear() resets the wait-time window (avgWaitTime back to 0)', async () => {
+    vi.useFakeTimers();
+    const queue = new PriorityQueue();
+    await queue.enqueue('a', 1);
+    vi.advanceTimersByTime(5000);
+    await queue.dequeue<string>();
+
+    expect((await queue.getStats()).avgWaitTime).toBeGreaterThan(0);
+
+    await queue.clear();
+    expect((await queue.getStats()).avgWaitTime).toBe(0);
+    vi.useRealTimers();
   });
 });

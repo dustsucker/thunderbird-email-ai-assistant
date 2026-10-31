@@ -2188,6 +2188,12 @@ function initializeOptionsPage(): void {
     // Initialize debug tab (polling starts when the tab becomes visible)
     debugTab.render();
 
+    // If the Debug tab is already active on page load, no tab-click event will
+    // ever fire — start polling now. onTabVisibilityChanged is idempotent
+    // (startPolling guards a running interval), so the later click is safe.
+    const activeTab = Array.from(elements.tabs).find((tab) => tab.classList.contains('active'));
+    debugTab.onTabVisibilityChanged(activeTab?.dataset.tab === 'debug');
+
     // Initialize general settings
     loadGeneralSettings(elements).catch((error) => {
       logger.error('Failed to load general settings on init', { error });

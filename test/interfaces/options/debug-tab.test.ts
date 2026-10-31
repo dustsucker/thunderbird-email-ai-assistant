@@ -39,6 +39,7 @@ const DEBUG_TAB_MARKUP = `
     <div class="debug-queue-panel">
       <div class="debug-queue-header">
         <span id="debug-batch-status-badge" class="status-badge debug-batch-idle">Inaktiv</span>
+        <span id="debug-last-run" class="debug-last-run" hidden></span>
       </div>
       <div class="debug-progress-wrap">
         <progress id="debug-batch-progress" max="100" value="0"></progress>
@@ -101,10 +102,8 @@ const QUEUE_STATS_RESPONSE = {
     total: 10,
     processed: 4,
     failed: 1,
-    successful: 3,
     percentage: 40,
     isRunning: true,
-    startTime: BASE_TIME,
   },
 };
 
@@ -236,6 +235,91 @@ beforeEach(() => {
       expect(
         (document.getElementById('debug-cancel-batch-btn') as HTMLButtonElement).disabled
       ).toBe(false);
+      // While running: empty note hidden, last-run marker hidden
+      expect((document.getElementById('debug-queue-empty') as HTMLElement).style.display).toBe(
+        'none'
+      );
+      expect((document.getElementById('debug-last-run') as HTMLElement).hidden).toBe(true);
+    });
+
+    it('renders the idle state with last-run counters and marker', async () => {
+      sendMessageMock.mockImplementation(
+        (message: { action: string }, callback: (r: unknown) => void) => {
+          if (message.action === 'getQueueStats') {
+            callback({
+              success: true,
+              queue: { size: 0, waiting: 0, processing: 0, avgWaitTime: 0 },
+              batch: {
+                status: 'idle',
+                total: 6,
+                processed: 5,
+                failed: 1,
+                percentage: 100,
+                isRunning: false,
+                lastRunCompletedAt: BASE_TIME + 3000,
+              },
+            });
+          } else {
+            callback({ success: true, entries: [], droppedCount: 0 });
+          }
+        }
+      );
+
+      debugTab.onTabVisibilityChanged(true);
+      await flush(0);
+
+      expect(document.getElementById('debug-batch-status-badge')?.textContent).toBe('Inaktiv');
+      // Empty note IS shown while idle
+      expect((document.getElementById('debug-queue-empty') as HTMLElement).style.display).toBe('');
+      // Counters come from the last finished run, not zeroed
+      expect(document.getElementById('debug-stat-processed')?.textContent).toBe('5');
+      expect(document.getElementById('debug-stat-failed')?.textContent).toBe('1');
+      expect(document.getElementById('debug-stat-total')?.textContent).toBe('6');
+      const lastRun = document.getElementById('debug-last-run') as HTMLElement;
+      expect(lastRun.hidden).toBe(false);
+      expect(lastRun.textContent).toBe('Letzte Ausführung: 14:32:08.123');
+    });
+
+    it('shows no last-run marker when the backend delivers none', async () => {
+      sendMessageMock.mockImplementation(
+        (message: { action: string }, callback: (r: unknown) => void) => {
+          if (message.action === 'getQueueStats') {
+            callback({
+              success: true,
+              queue: { size: 0, waiting: 0, processing: 0, avgWaitTime: 0 },
+              batch: {
+                status: 'idle',
+                total: 0,
+                processed: 0,
+                failed: 0,
+                percentage: 0,
+                isRunning: false,
+              },
+            });
+          } else {
+            callback({ success: true, entries: [], droppedCount: 0 });
+          }
+        }
+      );
+
+      debugTab.onTabVisibilityChanged(true);
+      await flush(0);
+
+      const lastRun = document.getElementById('debug-last-run') as HTMLElement;
+      expect(lastRun.hidden).toBe(true);
+      expect(lastRun.textContent).toBe('');
+    });
+
+    it('does not start a second poll interval on repeated activation', async () => {
+      debugTab.onTabVisibilityChanged(true);
+      await flush(0);
+      const callsAfterFirst = sendMessageMock.mock.calls.length;
+      expect(callsAfterFirst).toBeGreaterThan(0);
+
+      // Idempotent re-activation must not stack intervals: one tick = 2 calls
+      debugTab.onTabVisibilityChanged(true);
+      await flush(1000);
+      expect(sendMessageMock.mock.calls.length - callsAfterFirst).toBe(2);
     });
 
     it('shows Verbindung... on transport error and retries on next tick', async () => {

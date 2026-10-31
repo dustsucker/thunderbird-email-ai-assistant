@@ -36,12 +36,10 @@ interface QueueStatsResponse {
     total: number;
     processed: number;
     failed: number;
-    successful: number;
     percentage: number;
     isRunning: boolean;
-    startTime: number;
-    endTime?: number;
-    errorMessage?: string;
+    /** Present while idle: counters then come from the last finished run. */
+    lastRunCompletedAt?: number;
   };
 }
 
@@ -268,6 +266,17 @@ export class DebugTab {
     if (badge) {
       badge.textContent = BATCH_STATUS_LABELS[batch.status] ?? batch.status;
       badge.className = `status-badge debug-batch-${batch.status}`;
+    }
+
+    // Last-run marker: while idle the counters above come from the last
+    // finished run — label them as such so "0 processed" is never confusing.
+    const lastRunNote = document.getElementById('debug-last-run');
+    if (lastRunNote) {
+      lastRunNote.hidden = batch.lastRunCompletedAt === undefined;
+      lastRunNote.textContent =
+        batch.lastRunCompletedAt !== undefined
+          ? `Letzte Ausführung: ${formatTime(batch.lastRunCompletedAt)}`
+          : '';
     }
 
     // Cancel button: only active while a batch is running

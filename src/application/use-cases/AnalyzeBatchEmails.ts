@@ -45,6 +45,10 @@ export interface BatchProgress {
   isRunning: boolean;
   /** Whether the batch was cancelled */
   isCancelled: boolean;
+  /** Queue-panel status derived from the run state */
+  status: 'running' | 'idle' | 'cancelled';
+  /** When the last finished run completed; present while idle (counters come from lastRun) */
+  lastRunCompletedAt?: number;
   /** Message IDs that have been processed (populated by getProgress) */
   processedMessageIds?: string[];
   /** Message IDs that failed to process (populated by getProgress) */
@@ -203,6 +207,14 @@ export class AnalyzeBatchEmails {
   private workerError: unknown = null;
   /** Aborts in-flight provider requests when cancel() is called. */
   private abortController: AbortController | null = null;
+  /** Final counts of the most recent finished run; keeps the queue panel alive after resetState. */
+  private lastRun: {
+    total: number;
+    processed: number;
+    failed: number;
+    skipped: number;
+    completedAt: number;
+  } | null = null;
 
   // ==========================================================================
   // Constructor
@@ -370,7 +382,11 @@ export class AnalyzeBatchEmails {
         duration: `${Date.now() - startTime}ms`,
       });
 
-      // Notify BEFORE resetState so the listener sees final counts (badge clear)
+      // Notify BEFORE resetState so the listener sees final counts (badge clear).
+      // isProcessing=false first (#F1): the batch is done, and with skipped
+      // mails remaining > 0 — only isRunning:false lets the badge clear.
+      // Safe: all workers have completed at this point.
+      this.isProcessing = false;
       this.notifyProgress();
       this.resetState();
       return result;
@@ -378,7 +394,9 @@ export class AnalyzeBatchEmails {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('[ERROR] Batch analysis failed', { error: errorMessage });
 
-      // Notify BEFORE resetState so the listener sees the error end-state
+      // Same as above: the run is over — report isRunning:false to the badge
+      // listener before resetState (workers are done or never started).
+      this.isProcessing = false;
       this.notifyProgress();
 
       // Reset state on error
@@ -400,18 +418,29 @@ export class AnalyzeBatchEmails {
    * ```
    */
   async getProgress(): Promise<BatchProgress> {
+    // While a run is in flight (including its cancelled wind-down) report the
+    // live counters; once idle, serve the last finished run so short batches
+    // are still visible to the 1s queue panel poll.
+    const running = this.isProcessing;
+    const cancelled = !running && this.isCancelled;
+    const idle = !running && !cancelled;
+
+    const total = idle ? (this.lastRun?.total ?? 0) : this.totalCount;
+    const processed = idle ? (this.lastRun?.processed ?? 0) : this.processedCount;
+    const failed = idle ? (this.lastRun?.failed ?? 0) : this.failedCount;
+    const skipped = idle ? (this.lastRun?.skipped ?? 0) : this.skippedCount;
     const percentage =
-      this.totalCount > 0
-        ? Math.round(((this.processedCount + this.failedCount + this.skippedCount) / this.totalCount) * 100)
-        : 0;
+      total > 0 ? Math.round(((processed + failed + skipped) / total) * 100) : 0;
 
     return {
-      total: this.totalCount,
-      processed: this.processedCount,
-      failed: this.failedCount,
+      status: running ? 'running' : cancelled ? 'cancelled' : 'idle',
+      total,
+      processed,
+      failed,
       percentage,
       isRunning: this.isProcessing,
       isCancelled: this.isCancelled,
+      ...(idle && this.lastRun ? { lastRunCompletedAt: this.lastRun.completedAt } : {}),
       processedMessageIds: [...this.processedMessageIds],
       failedMessageIds: [...this.failedMessageIds],
     };
@@ -752,6 +781,7 @@ export class AnalyzeBatchEmails {
             : 0,
         isRunning: this.isProcessing,
         isCancelled: this.isCancelled,
+        status: this.isProcessing ? 'running' : this.isCancelled ? 'cancelled' : 'idle',
       });
     } catch (error) {
       this.logger.warn('Failed to notify batch progress listener', {
@@ -764,6 +794,15 @@ export class AnalyzeBatchEmails {
    * Resets batch state.
    */
   private resetState(): void {
+    // Persist the finished run before nulling the live counters: the queue
+    // panel polls at 1s and would otherwise miss short batches entirely.
+    this.lastRun = {
+      total: this.totalCount,
+      processed: this.processedCount,
+      failed: this.failedCount,
+      skipped: this.skippedCount,
+      completedAt: Date.now(),
+    };
     this.isProcessing = false;
     this.isCancelled = false;
     this.processedCount = 0;
