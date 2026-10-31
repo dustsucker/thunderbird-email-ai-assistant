@@ -1,6 +1,6 @@
 {
   "name": "thunderbird-email-ai-assistant",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Thunderbird MailExtension for AI-powered email classification and tagging using multiple LLM providers",
   "main": "index.js",
   "scripts": {
