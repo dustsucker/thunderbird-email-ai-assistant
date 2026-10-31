@@ -232,6 +232,7 @@ describe('ContextMenuHandler - Handler Cleanup', () => {
 
       expect(mockMessenger.menus.remove).toHaveBeenCalledWith('batch-analyze-folder');
       expect(mockMessenger.menus.remove).toHaveBeenCalledWith('analyze-single-message-list');
+      expect(mockMessenger.menus.remove).toHaveBeenCalledWith('analyze-selected-messages');
       expect(mockMessenger.menus.remove).toHaveBeenCalledWith('analyze-single-message-display');
     });
 

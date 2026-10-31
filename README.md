@@ -163,7 +163,17 @@ The Debug tab shows the current processing-queue statistics, the status of a run
 
 ### Usage
 
-Once configured, the extension will automatically process new incoming emails. You can also analyze the displayed message via the toolbar button ("AI-Analyse"), single messages from the message list via the context menu, undo the last tag change per message ("Tags rückgängig machen"), or analyze an entire folder ("Analysiere diesen Ordner"). The applied tags can then be used with Thunderbird's built-in Message Filters to organize your inbox.
+There are five ways to trigger an AI analysis:
+
+| Entry point | What it does |
+| ----------- | ------------ |
+| **Toolbar button "AI-Analyse"** (top right) | Analyzes the currently displayed/selected message (must be open in the message pane) |
+| **Right-click on a message** in the list | Analyzes that single message |
+| **Right-click on a multi-selection** | Analyzes all selected messages as one batch ("AI-Analyse: alle ausgewählten Mails (Batch)") |
+| **Right-click on a folder** | Analyzes the entire folder as one batch ("Analysiere diesen Ordner") |
+| **Auto-analysis** | New incoming emails are analyzed automatically (if a provider is configured) |
+
+Already-analyzed messages are skipped by batch runs (cached locally per message ID — skipped mails are neither re-analyzed nor re-tagged). During a batch run, the toolbar button shows a progress badge; notifications report the start and the final result (success/partial/failure). You can also undo the last tag change per message via the context menu ("Tags rückgängig machen"). The applied tags can then be used with Thunderbird's built-in Message Filters to organize your inbox.
 
 ### Organizing emails
 

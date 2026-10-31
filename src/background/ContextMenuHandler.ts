@@ -180,6 +180,17 @@ export class ContextMenuHandler {
         'Message list'
       );
 
+      // Message list context menu: "AI-Analyse: alle ausgewählten Mails (Batch)"
+      createMenu(
+        {
+          id: 'analyze-selected-messages',
+          title: 'AI-Analyse: alle ausgewählten Mails (Batch)',
+          contexts: ['message_list'],
+          visible: true,
+        },
+        'Selected messages batch'
+      );
+
       // Message display context menu: "AI-Analyse"
       createMenu(
         {
@@ -230,6 +241,7 @@ export class ContextMenuHandler {
     try {
       messenger.menus.remove('batch-analyze-folder');
       messenger.menus.remove('analyze-single-message-list');
+      messenger.menus.remove('analyze-selected-messages');
       messenger.menus.remove('analyze-single-message-display');
       messenger.menus.remove('undo-tag-changes');
       this.logger.info('Context menus removed');
@@ -280,6 +292,12 @@ export class ContextMenuHandler {
         menuItemId === 'analyze-single-message-display'
       ) {
         await this.handleSingleMessageAnalysis(info);
+        return;
+      }
+
+      // Handle batch analysis of all selected messages
+      if (menuItemId === 'analyze-selected-messages') {
+        await this.handleSelectedMessagesBatchAnalysis(info);
         return;
       }
 
@@ -397,6 +415,74 @@ export class ContextMenuHandler {
       this.logger.error('Failed to execute batch analysis', {
         error: errorMessage,
         stack: errorStack,
+      });
+      await this.notify('Fehler', mapAnalysisErrorToUserMessage(errorMessage));
+    }
+  }
+
+  /**
+   * Handles batch analysis of all selected messages from the message list.
+   */
+  private async handleSelectedMessagesBatchAnalysis(info: FolderMenuOnClickData): Promise<void> {
+    const messages = info.selectedMessages?.messages ?? [];
+    if (messages.length === 0) {
+      this.logger.warn('Selected messages batch analysis requested but selection is empty', {
+        menuItemId: info.menuItemId,
+      });
+      await this.notify(
+        'Keine Nachrichten ausgewählt',
+        'Bitte wählen Sie mindestens eine Mail aus.'
+      );
+      return;
+    }
+
+    const messageIds = messages.map((message) => String(message.id));
+    this.logger.info('Starting batch analysis for selected messages', {
+      count: messageIds.length,
+    });
+
+    await this.notify(
+      'Batch-Analysis gestartet',
+      `Batch-Analysis für ${messageIds.length} Mails gestartet`
+    );
+
+    try {
+      const providerSettings = await this.getProviderSettings();
+
+      if (!providerSettings.provider) {
+        await this.notify(
+          'Fehler',
+          'Kein Provider konfiguriert. Bitte überprüfen Sie Ihre Einstellungen.'
+        );
+        return;
+      }
+
+      const result = await this.analyzeBatch.execute(messageIds, {
+        providerSettings,
+        priority: 1,
+        concurrency: 3,
+      });
+
+      this.logger.info('Batch analysis completed', {
+        total: result.total,
+        successful: result.successCount,
+        failed: result.failureCount,
+        unprocessed: result.unprocessedCount,
+        status: result.status,
+      });
+
+      const summary =
+        result.status === 'error'
+          ? `${result.unprocessedCount} von ${result.total} Nachrichten konnten nicht verarbeitet werden (Queue-Fehler).`
+          : result.status === 'partial'
+            ? `${result.successCount}/${result.total} Nachrichten analysiert, ${result.failureCount} fehlgeschlagen.`
+            : `${result.successCount}/${result.total} Nachrichten erfolgreich analysiert.`;
+
+      await this.notify('Batch-Analysis abgeschlossen', summary);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to execute batch analysis for selected messages', {
+        error: errorMessage,
       });
       await this.notify('Fehler', mapAnalysisErrorToUserMessage(errorMessage));
     }

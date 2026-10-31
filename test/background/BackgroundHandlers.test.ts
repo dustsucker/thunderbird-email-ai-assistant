@@ -413,6 +413,80 @@ describe('ContextMenuHandler', () => {
   });
 
   // ==========================================================================
+  // analyze-selected-messages: batch analysis of the current selection
+  // ==========================================================================
+
+  describe('analyze-selected-messages', () => {
+    function clickSelectedMessages(handler: ContextMenuHandler, messages: Array<{ id: number }>) {
+      const clickListener = getMenuClickListener(handler);
+      return clickListener(
+        {
+          menuItemId: 'analyze-selected-messages',
+          modifiers: [],
+          ...(messages === undefined ? {} : { selectedMessages: { id: 'sel-1', messages } }),
+        },
+        { id: 1, type: 'mail' }
+      );
+    }
+
+    it('should pass ALL selected message IDs to the batch execution and fire start notification', async () => {
+      const { handler, analyzeBatch } = createHandlerWithMocks();
+
+      await clickSelectedMessages(handler, [
+        { id: 101 },
+        { id: 102 },
+        { id: 103 },
+      ]);
+
+      expect(analyzeBatch.execute).toHaveBeenCalledTimes(1);
+      const [ids] = analyzeBatch.execute.mock.calls[0];
+      expect([...ids].sort()).toEqual(['101', '102', '103']);
+      expect(mockMessenger.notifications.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Batch-Analysis gestartet',
+          message: expect.stringContaining('3 Mails'),
+        })
+      );
+    });
+
+    it('should notify about empty selection without calling the batch use case', async () => {
+      const { handler, analyzeBatch } = createHandlerWithMocks();
+
+      await clickSelectedMessages(handler, []);
+
+      expect(mockMessenger.notifications.create).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Keine Nachrichten ausgewählt' })
+      );
+      expect(analyzeBatch.execute).not.toHaveBeenCalled();
+
+      // Missing selectedMessages entirely → same clean feedback, no execution
+      await clickSelectedMessages(handler, undefined as unknown as Array<{ id: number }>);
+      expect(analyzeBatch.execute).not.toHaveBeenCalled();
+      expect(mockMessenger.notifications.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('should report a partial summary with success/failure counts', async () => {
+      const { handler, analyzeBatch } = createHandlerWithMocks();
+      analyzeBatch.execute.mockResolvedValue({
+        total: 3,
+        successCount: 2,
+        failureCount: 1,
+        unprocessedCount: 0,
+        status: 'partial',
+      });
+
+      await clickSelectedMessages(handler, [{ id: 1 }, { id: 2 }, { id: 3 }]);
+
+      expect(mockMessenger.notifications.create).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          title: 'Batch-Analysis abgeschlossen',
+          message: expect.stringContaining('2/3'),
+        })
+      );
+    });
+  });
+
+  // ==========================================================================
   // DW-D2: removeAll-before-create re-registration
   // ==========================================================================
 
@@ -438,7 +512,7 @@ describe('ContextMenuHandler', () => {
       resolveRemoveAll!();
       await pending;
 
-      expect(mockMessenger.menus.create).toHaveBeenCalledTimes(4);
+      expect(mockMessenger.menus.create).toHaveBeenCalledTimes(5);
 
       mockMessenger.menus.removeAll = undefined;
     });
