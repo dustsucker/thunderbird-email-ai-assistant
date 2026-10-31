@@ -33,3 +33,4 @@
 2026-10-31 | Docs-Checker F1-F4 (ADR-0004-Supersede, Diagramm-Zeile, README-Dedupe, stale events/codemap) | fixed | Fixup-Commit e66a10a auf main, exakt nach Checker-Prescription | Master
 2026-10-31 | Docs-Checker F5: Sprachmix Doku-EN/UI-DE | deferred_with_reason | bewusste Konvention des Auftraggebers; optional irgendwo dokumentieren | Master
 2026-10-31 | sync-version.js: F1 (silent version-key drop, sync-version.js:10) + F2 (sparse error messages) deferred | reason: F1 unreachable via supported entry point (npm version validates version field first), git tracks manifest instantly; F2 cosmetic error-path quality | decision: deferral accepted, gate open | winner: Master
+2026-10-31 | version-UI: F1 (options.ts local declare const messenger vs incomplete global thunderbird.d.ts, types/thunderbird.d.ts:119) deferred | reason: local pattern pre-existing (reload), zero runtime impact, type-hygiene cleanup | decision: deferral accepted, gate open | winner: Master
