@@ -207,10 +207,21 @@ _An example of an email that has been automatically tagged by the assistant._
     ```
 
 4.  **Package the extension:**
-    This command runs webpack to bundle the scripts and then uses `web-ext` to package everything into a `.zip` file located in the `web-ext-artifacts/` directory.
+    This command runs webpack to bundle the scripts and then zips everything into `email-assistant-${version}.zip` in the repository root (version read from `manifest.json`).
     ```bash
-    ./build.bash
+    npm run package
     ```
+
+### Releasing
+
+Bump the version in `package.json` and `manifest.json` in one step (the npm `version` lifecycle script syncs `manifest.json` into the same commit and tag), then push:
+
+```bash
+npm version patch   # or minor / major
+git push --follow-tags
+```
+
+A pushed `v*` tag triggers the GitHub release workflow (`.github/workflows/release.yml`): it verifies the tag matches `manifest.json`, runs tests, builds the xpi, and attaches it to a **draft** GitHub Release. You can also trigger a build manually via `workflow_dispatch` in the Actions tab (no tag required, artifact only).
 
 ## Installation
 
@@ -223,4 +234,8 @@ Install plugin from: https://addons.thunderbird.net/eN-US/thunderbird/addon/emai
 1.  Build the extension using the instructions above.
 2.  In Thunderbird, go to `Tools > Add-ons and Themes`.
 3.  Click the gear icon, select `Debug Add-ons`, and then click `Load Temporary Add-on...`.
-4.  Select the generated `.zip` file from the `web-ext-artifacts/` directory.
+4.  Select the generated `email-assistant-${version}.zip` (repository root) or the `email-assistant.xpi` from the release workflow artifacts.
+
+### Updating (test loop)
+
+To test a new build, install it **over** the installed version — do not uninstall first. The addon ID stays the same (`browser_specific_settings.gecko.id` in `manifest.json`), so Thunderbird treats it as an update: your settings and API keys live in `browser.storage.local` and **survive every update install**. Only uninstalling clears them.

@@ -44,7 +44,8 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "mail-assistant-0.1@entestat.com"
+      "id": "mail-assistant-0.1@entestat.com",
+      "strict_min_version": "128.0"
     }
   }
 }

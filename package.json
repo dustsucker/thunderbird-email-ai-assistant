@@ -13,6 +13,7 @@
     "build:dev": "webpack --mode development",
     "clean": "node scripts/clean.js",
     "package": "node scripts/package.js",
+    "version": "node scripts/sync-version.js && git add manifest.json",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
