@@ -12,6 +12,7 @@ import type { ITagManager, ILogger } from '@/domain/interfaces';
 import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
+import type { FolderMessageListing } from '@/interfaces/shared/ProviderSettingsService';
 
 // ============================================================================
 // Fixtures
@@ -146,12 +147,12 @@ describe('MessageHandler', () => {
 
       const { handler } = createHandler();
       const result = await (handler as unknown as {
-        getMessagesToAnalyze: (f?: string) => Promise<string[]>;
+        getMessagesToAnalyze: (f?: string) => Promise<FolderMessageListing>;
       }).getMessagesToAnalyze('folder1');
 
       expect(list).toHaveBeenCalledWith('folder1');
       expect(continueList).toHaveBeenCalledWith('p1');
-      expect(result).toEqual(['1', '2', '3']);
+      expect(result.messageIds).toEqual(['1', '2', '3']);
     });
   });
 

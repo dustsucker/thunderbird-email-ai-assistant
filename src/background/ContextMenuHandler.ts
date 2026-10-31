@@ -13,7 +13,10 @@ import { AnalyzeEmail } from '@/application/use-cases/AnalyzeEmail';
 import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { UndoTagChanges } from '@/application/use-cases/UndoTagChanges';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
-import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsService';
+import {
+  ProviderSettingsService,
+  type FolderMessageListing,
+} from '@/interfaces/shared/ProviderSettingsService';
 import {
   mapAnalysisErrorToUserMessage,
   formatTagResultMessage,
@@ -348,12 +351,6 @@ export class ContextMenuHandler {
       folderName: folder.name,
     });
 
-    // Show notification
-    await this.notify(
-      'Batch-Analysis gestartet',
-      `Batch-Analysis für Ordner "${folder.name}" gestartet`
-    );
-
     try {
       this.logger.info('Batch Step 1: Getting provider settings...');
       const providerSettings = await this.getProviderSettings();
@@ -371,8 +368,9 @@ export class ContextMenuHandler {
         return;
       }
 
-      // Get messages to analyze
-      const messageIds = await this.getMessagesToAnalyze(folder.id);
+      // Get messages to analyze — with honest pagination flags (see ProviderSettingsService)
+      const listing = await this.getMessagesToAnalyze(folder.id);
+      const messageIds = listing.messageIds;
 
       if (messageIds.length === 0) {
         await this.notify(
@@ -384,7 +382,21 @@ export class ContextMenuHandler {
 
       this.logger.info('Batch Step 3: Starting batch analysis', {
         messageCount: messageIds.length,
+        incomplete: listing.incomplete,
+        expectedTotal: listing.expectedTotal,
       });
+
+      // Start notification after listing, so the announced mail count is honest
+      const loadedLabel =
+        listing.expectedTotal >= 0
+          ? `${messageIds.length} von ${listing.expectedTotal}`
+          : `${messageIds.length}`;
+      await this.notify(
+        'Batch-Analysis gestartet',
+        listing.incomplete
+          ? `Batch-Analysis für Ordner "${folder.name}" gestartet: ${loadedLabel} Mails (unvollständig — Ordner ggf. einmal öffnen und erneut versuchen)`
+          : `Batch-Analysis für Ordner "${folder.name}" gestartet: ${loadedLabel} Mails`
+      );
 
       // Direct use case call
       const result = await this.analyzeBatch.execute(messageIds, {
@@ -408,7 +420,12 @@ export class ContextMenuHandler {
             ? `${result.successCount}/${result.total} Nachrichten analysiert, ${result.failureCount} fehlgeschlagen.`
             : `${result.successCount}/${result.total} Nachrichten erfolgreich analysiert.`;
 
-      await this.notify('Batch-Analysis abgeschlossen', summary);
+      await this.notify(
+        'Batch-Analysis abgeschlossen',
+        listing.incomplete
+          ? `Unvollständig geladen (${loadedLabel}): ${summary}`
+          : summary
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
@@ -637,9 +654,9 @@ export class ContextMenuHandler {
    * Gets messages to analyze from a folder via the shared ProviderSettingsService.
    *
    * @param folderId - Folder ID
-   * @returns Array of message IDs
+   * @returns Listing with message IDs and pagination honesty flags
    */
-  private getMessagesToAnalyze(folderId: string): Promise<string[]> {
+  private getMessagesToAnalyze(folderId: string): Promise<FolderMessageListing> {
     return this.providerSettingsService.getMessagesToAnalyze(folderId);
   }
 }

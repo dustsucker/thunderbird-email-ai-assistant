@@ -24,7 +24,10 @@ import { AnalyzeBatchEmails } from '@/application/use-cases/AnalyzeBatchEmails';
 import { AppConfigService } from '@/infrastructure/config/AppConfig';
 import { MemoryCache } from '@/infrastructure/cache/MemoryCache';
 import type { DebugLogBuffer } from '@/infrastructure/logger/DebugLogBuffer';
-import { ProviderSettingsService } from '@/interfaces/shared/ProviderSettingsService';
+import {
+  ProviderSettingsService,
+  type FolderMessageListing,
+} from '@/interfaces/shared/ProviderSettingsService';
 
 /** Runtime onMessage event registry (not part of the central thunderbird.d.ts). */
 interface RuntimeOnMessageRegistry {
@@ -513,14 +516,24 @@ export class MessageHandler {
         };
       }
 
-      // Get messages to analyze
-      const messageIds = await this.providerSettingsService.getMessagesToAnalyze(message.folderId);
+      // Get messages to analyze — with honest pagination flags (see ProviderSettingsService)
+      const listing = await this.providerSettingsService.getMessagesToAnalyze(message.folderId);
+      const messageIds = listing.messageIds;
 
       if (messageIds.length === 0) {
         return {
           success: false,
           error: 'No messages found to analyze.',
         };
+      }
+
+      // No start notification here (result goes back to the caller) — log-only honesty
+      if (listing.incomplete) {
+        this.logger.warn('Folder listing incomplete; batch runs on a partial set', {
+          folderId: message.folderId,
+          collected: messageIds.length,
+          expectedTotal: listing.expectedTotal,
+        });
       }
 
       // Initialize batch progress
@@ -1055,9 +1068,9 @@ export class MessageHandler {
    * Gets messages to analyze via the shared ProviderSettingsService.
    *
    * @param folderId - Optional folder ID to filter messages
-   * @returns Array of message IDs to analyze
+   * @returns Listing with message IDs and pagination honesty flags
    */
-  private getMessagesToAnalyze(folderId?: string): Promise<string[]> {
+  private getMessagesToAnalyze(folderId?: string): Promise<FolderMessageListing> {
     return this.providerSettingsService.getMessagesToAnalyze(folderId);
   }
 }

@@ -405,9 +405,9 @@ describe('ContextMenuHandler', () => {
       { id: 1, type: 'messageDisplay' }
     );
 
-    // Batch flow notifies twice: 'Batch-Analysis gestartet' + empty-folder notice
-    expect(mockMessenger.notifications.create).toHaveBeenCalledTimes(2);
-    expect(mockMessenger.notifications.create).toHaveBeenLastCalledWith(
+    // Start notification moved after listing: an empty folder only gets the empty-folder notice
+    expect(mockMessenger.notifications.create).toHaveBeenCalledTimes(1);
+    expect(mockMessenger.notifications.create).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Keine Nachrichten' })
     );
   });
