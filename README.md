@@ -6,15 +6,6 @@ Plugin page: https://addons.thunderbird.net/eN-US/thunderbird/addon/email-assist
 
 This Thunderbird MailExtension provides a powerful and flexible framework for AI-powered email analysis. It automatically processes incoming emails, sends them to a language model of your choice for analysis, and then applies tags based on the model's response. This allows for sophisticated, automated email classification and sorting.
 
-## Upgrading: Permissions (1.0.4+ builds)
-
-Host access is no longer granted blanket-wide. Cloud provider origins (OpenAI,
-Gemini, Anthropic, Mistral, DeepSeek, OpenRouter, Z.ai) and local Ollama origins
-(`http(s)://localhost`, `http(s)://127.0.0.1`) are **optional host permissions**:
-after upgrading, the extension asks for the origin of your configured provider at
-runtime and you must confirm the Thunderbird permission prompt once. See the
-[migration notes in CHANGELOG.md](CHANGELOG.md) for details.
-
 ## Key Features
 
 - **Multi-Provider LLM Support**: Ten providers — local models via Ollama plus OpenAI, Google Gemini, Anthropic Claude, Mistral, DeepSeek, OpenRouter (standard and confidence-gated "Decisions"), and ZAI (PaaS and Coding Plan).
@@ -131,7 +122,7 @@ After installing the add-on, you can configure it by going to `Tools > Add-ons a
 
 ### Permissions
 
-The extension is granted no network access upfront (`host_permissions` is empty). When you save a provider configuration, the options page asks Thunderbird at runtime for permission to reach that provider's API host (optional host permissions). For Ollama, permission is requested for the configured local host; only `http://localhost`, `http://127.0.0.1` (and their HTTPS variants) are accepted, on any port.
+The extension is granted no network access upfront (`host_permissions` is empty). When you save a provider configuration, the options page asks Thunderbird at runtime for permission to reach that provider's API host (optional host permissions). Upgrading from a 1.0.4 build requires confirming this prompt once per configured provider (see [CHANGELOG.md](CHANGELOG.md) migration notes). For Ollama, permission is requested for the configured local host; only `http://localhost`, `http://127.0.0.1` (and their HTTPS variants) are accepted, on any port.
 
 ### General Settings
 

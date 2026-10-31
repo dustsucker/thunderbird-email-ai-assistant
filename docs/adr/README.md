@@ -18,7 +18,7 @@ An ADR is a document that captures an important architectural decision made alon
 | [0001](0001-record-architecture-decisions.md) | Record Architecture Decisions | Accepted | 2025-03-01 |
 | [0002](0002-hexagonal-architecture-with-di.md) | Hexagonal Architecture with Dependency Injection | Accepted | 2025-03-01 |
 | [0003](0003-multi-provider-strategy.md) | Multi-Provider LLM Strategy | Accepted | 2025-03-01 |
-| [0004](0004-event-driven-domain-events.md) | Event-Driven Domain Events | Accepted | 2025-03-01 |
+| [0004](0004-event-driven-domain-events.md) | Event-Driven Domain Events | Partially superseded by 0007 | 2025-03-01 |
 | [0005](0005-value-objects-validation.md) | Value Objects with Validation | Accepted | 2025-03-01 |
 | [0006](0006-manifest-v3-hybrid-approach.md) | Manifest V3 Hybrid Approach | Accepted | 2025-03-01 |
 | [0007](0007-remove-eventbus.md) | Remove EventBus and Dead DI String Tokens | Accepted | 2026-08-23 |
@@ -68,7 +68,7 @@ What becomes easier or more difficult because of this change?
 ├─────────────────────────────────────────┤
 │          Application (Use Cases)        │  ← AnalyzeEmail, ApplyTags
 ├─────────────────────────────────────────┤
-│            Domain (Business)            │  ← Email, Tag, Events
+│            Domain (Business)            │  ← Email, Tag, Services
 ├─────────────────────────────────────────┤
 │        Infrastructure (External)        │  ← Providers, Cache, DB
 └─────────────────────────────────────────┘

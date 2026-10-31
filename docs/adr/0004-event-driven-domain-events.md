@@ -4,6 +4,8 @@
 
 Accepted
 
+> Partially superseded by [ADR-0007](0007-remove-eventbus.md) — EventBus entfernt
+
 ## Context
 
 The Thunderbird Email AI Assistant needs to track and respond to various business events:
