@@ -38,6 +38,7 @@ declare const messenger: {
   };
   runtime: {
     reload(): void;
+    getManifest(): { version: string };
   };
   permissions: {
     request(permissions: { permissions?: string[]; origins?: string[] }): Promise<boolean>;
@@ -2332,6 +2333,12 @@ function initializeOptionsPage(): void {
     updateCacheStats(elements).catch((error) => {
       logger.error('Failed to initialize cache stats', { error });
     });
+
+    // Display extension version from the manifest
+    const versionDisplay = getElementById<HTMLSpanElement>('version-display');
+    if (versionDisplay) {
+      versionDisplay.textContent = `Version ${messenger.runtime.getManifest().version}`;
+    }
 
     // Cache management event listeners
     elements.clearCacheBtn.addEventListener('click', () => {

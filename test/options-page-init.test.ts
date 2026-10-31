@@ -25,7 +25,7 @@ beforeAll(async () => {
         set: storageSet,
       },
     },
-    runtime: { reload: vi.fn(), onMessage: { addListener: vi.fn() } },
+    runtime: { reload: vi.fn(), getManifest: vi.fn(() => ({ version: '1.0.5' })), onMessage: { addListener: vi.fn() } },
     permissions: { request: vi.fn(async () => true) },
   };
 
