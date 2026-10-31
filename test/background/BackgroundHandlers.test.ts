@@ -135,9 +135,13 @@ describe('ToolbarHandler', () => {
       return addListener.mock.calls[0][0];
     }
 
-    it('should notify and do nothing when no messages are displayed (empty array)', async () => {
+    it('should notify and do nothing when no messages are displayed (empty list)', async () => {
       const clickListener = getClickListener();
-      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce([]);
+      // MV3 shape since TB 128: getDisplayedMessages resolves to a MessageList object
+      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce({
+        id: 'mock-list',
+        messages: [],
+      });
 
       await clickListener(tab);
 
@@ -162,7 +166,11 @@ describe('ToolbarHandler', () => {
         } as never
       );
       const clickListener = getClickListener();
-      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce([{ id: 42 }]);
+      // MV3 shape since TB 128: getDisplayedMessages resolves to a MessageList object
+      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce({
+        id: 'mock-list',
+        messages: [{ id: 42 }],
+      });
 
       await clickListener(tab);
 
@@ -198,7 +206,11 @@ describe('ToolbarHandler', () => {
         appConfig: { enableNotifications: false },
       });
       const clickListener = getClickListener();
-      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce([]);
+      // MV3 MessageList shape since TB 128
+      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce({
+        id: 'mock-list',
+        messages: [],
+      });
 
       await clickListener(tab);
 
@@ -211,7 +223,11 @@ describe('ToolbarHandler', () => {
     it('should notify by default when the flag is absent', async () => {
       mockMessenger.storage.local.get.mockReset().mockResolvedValue({});
       const clickListener = getClickListener();
-      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce([]);
+      // MV3 MessageList shape since TB 128
+      mockMessenger.messageDisplay.getDisplayedMessages.mockResolvedValueOnce({
+        id: 'mock-list',
+        messages: [],
+      });
 
       await clickListener(tab);
 

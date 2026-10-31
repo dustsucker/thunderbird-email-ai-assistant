@@ -185,8 +185,13 @@ export class ToolbarHandler implements BatchProgressListener {
     this.logger.info('Toolbar button clicked', { tabId: tab.id });
 
     try {
-      // ponytail: getDisplayedMessages (plural) is the only valid API since TB 128
-      const displayedMessages = await messenger.messageDisplay.getDisplayedMessages(tab.id);
+      // MV3: since TB 128 getDisplayedMessages() resolves to a MessageList object
+      // ({ id, messages }) instead of an array (Bugzilla 1901930). Tolerate a plain
+      // array defensively in case TB behavior varies across versions.
+      const listResult = await messenger.messageDisplay.getDisplayedMessages(tab.id);
+      const displayedMessages = Array.isArray(listResult)
+        ? listResult
+        : (listResult?.messages ?? []);
       const displayedMessage = displayedMessages[0];
 
       if (!displayedMessage) {

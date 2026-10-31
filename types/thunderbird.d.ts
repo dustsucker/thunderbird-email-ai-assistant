@@ -107,7 +107,7 @@ declare const messenger: {
     };
   };
   messageDisplay: {
-    getDisplayedMessages(tabId?: number): Promise<MessageHeader[]>;
+    getDisplayedMessages(tabId?: number): Promise<MessageList>;
   };
   storage: {
     local: {
