@@ -32,3 +32,4 @@
 2026-10-30 | #34-F1: 20 Import-Zeilen ohne Semikolon in impl/*-Providern (Prettier-Drift) | deferred_with_reason | rein kosmetisch, ESLint 0 Errors; prettier --write + Commit im Wrap-up | Master
 2026-10-31 | Docs-Checker F1-F4 (ADR-0004-Supersede, Diagramm-Zeile, README-Dedupe, stale events/codemap) | fixed | Fixup-Commit e66a10a auf main, exakt nach Checker-Prescription | Master
 2026-10-31 | Docs-Checker F5: Sprachmix Doku-EN/UI-DE | deferred_with_reason | bewusste Konvention des Auftraggebers; optional irgendwo dokumentieren | Master
+2026-10-31 | sync-version.js: F1 (silent version-key drop, sync-version.js:10) + F2 (sparse error messages) deferred | reason: F1 unreachable via supported entry point (npm version validates version field first), git tracks manifest instantly; F2 cosmetic error-path quality | decision: deferral accepted, gate open | winner: Master
